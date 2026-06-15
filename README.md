@@ -1,10 +1,16 @@
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=RooVeterinaryInc.roo-cline"><img src="https://img.shields.io/badge/VS_Code_Marketplace-007ACC?style=flat&logo=visualstudiocode&logoColor=white" alt="VS Code Marketplace"></a>  
+  <a href="https://marketplace.visualstudio.com/items?itemName=QCode.qcode"><img src="https://img.shields.io/badge/VS_Code_Marketplace-007ACC?style=flat&logo=visualstudiocode&logoColor=white" alt="VS Code Marketplace"></a>  
 </p>
 
-# Roo Code
+# QCode
 
 > Your AI-Powered Dev Team, Right in Your Editor
+
+> **QCode is a fork of [Roo Code](https://github.com/RooCodeInc/Roo-Code).**
+> It is an independent, customized distribution and is **not** affiliated with,
+> endorsed by, or supported by Roo Code, Inc. QCode is distributed under the
+> Apache License 2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE) for the
+> original copyright and attribution.
 
 <details>
   <summary>🌐 Available languages</summary>

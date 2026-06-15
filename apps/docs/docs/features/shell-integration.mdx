@@ -44,7 +44,7 @@ Roo Code provides settings to fine-tune how it interacts with terminals. To acce
 
 You can configure command execution timeouts through VS Code settings. These settings are accessible in your `settings.json` file (`Ctrl/Cmd + Shift + P` → "Preferences: Open User Settings (JSON)").
 
-#### `roo-cline.commandExecutionTimeout`
+#### `qcode.commandExecutionTimeout`
 - **Type**: Number (seconds)
 - **Default**: `0`
 - **Range**: 0-600
@@ -53,13 +53,13 @@ You can configure command execution timeouts through VS Code settings. These set
 **Example configuration**:
 ```json
 {
-  "roo-cline.commandExecutionTimeout": 300
+  "qcode.commandExecutionTimeout": 300
 }
 ```
 
 This example sets a 5-minute timeout for all commands.
 
-#### `roo-cline.commandTimeoutAllowlist`
+#### `qcode.commandTimeoutAllowlist`
 - **Type**: Array of strings
 - **Default**: `[]`
 - **Description**: Commands exempt from execution timeout. Commands matching entries in this list will not be subject to the `commandExecutionTimeout` limit, allowing them to run without time restrictions. Useful for known long-running operations like build processes or deployment scripts.
@@ -67,8 +67,8 @@ This example sets a 5-minute timeout for all commands.
 **Example configuration**:
 ```json
 {
-  "roo-cline.commandExecutionTimeout": 300,
-  "roo-cline.commandTimeoutAllowlist": ["npm run build", "docker build", "npm test"]
+  "qcode.commandExecutionTimeout": 300,
+  "qcode.commandTimeoutAllowlist": ["npm run build", "docker build", "npm test"]
 }
 ```
 

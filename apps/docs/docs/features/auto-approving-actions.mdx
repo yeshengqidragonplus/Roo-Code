@@ -27,13 +27,13 @@ Auto-approve settings speed up your workflow by eliminating repetitive confirmat
 
 **Default shortcut:** `Cmd+Alt+A` (macOS) / `Ctrl+Alt+A` (Windows/Linux)
 
-**Command Palette:** `roo-cline.toggleAutoApprove`
+**Command Palette:** `qcode.toggleAutoApprove`
 
 Quickly toggle auto-approve on/off without using the mouse. Both the keyboard shortcut and the Command Palette command toggle the global "Enabled" state while preserving your permission selections.
 
 **Via Command Palette:**
 1. Open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
-2. Type "Toggle Auto-Approve" or search for `roo-cline.toggleAutoApprove`
+2. Type "Toggle Auto-Approve" or search for `qcode.toggleAutoApprove`
 3. Press Enter to toggle the auto-approve state
 
 **To customize the shortcut:**
@@ -273,8 +273,8 @@ Configuration
 - Settings JSON (alternative):
 ```json
 {
-  "roo-cline.allowedCommands": ["git", "npm run", "echo"],
-  "roo-cline.deniedCommands": ["git push", "npm publish", "rm", "sudo", "*"]
+  "qcode.allowedCommands": ["git", "npm run", "echo"],
+  "qcode.deniedCommands": ["git push", "npm publish", "rm", "sudo", "*"]
 }
 ```
 With both lists defined, the longest‑prefix rule applies; if deny is equally or more specific, it wins.

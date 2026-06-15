@@ -76,7 +76,7 @@ Automatically import your Roo Code settings from a file every time you start VS 
 
 ### How it Works
 
-When VS Code starts, Roo Code checks for a specific setting: `roo-cline.autoImportSettingsPath`. If this setting contains a path to a valid Roo Code configuration file (`.json`), Roo Code will load it automatically.
+When VS Code starts, Roo Code checks for a specific setting: `qcode.autoImportSettingsPath`. If this setting contains a path to a valid Roo Code configuration file (`.json`), Roo Code will load it automatically.
 
 - Upon successful import, you will see a notification: `Successfully imported settings from [your-file-name.json]`.
 - If the file is invalid or can't be found, you'll get a non-intrusive warning, and the extension will start with your last known settings. The `autoImportSettings` function is designed to never block the extension from activating.
@@ -90,7 +90,7 @@ To use this feature, add the following to your VS Code `settings.json` file:
     - Use the Command Palette (`Ctrl/Cmd + Shift + P`) and search for "Preferences: Open User Settings (JSON)".
 
 2.  **Add the setting**:
-    - Add the `roo-cline.autoImportSettingsPath` key with the path to your configuration file.
+    - Add the `qcode.autoImportSettingsPath` key with the path to your configuration file.
 
 **Examples**:
 
@@ -98,7 +98,7 @@ To use this feature, add the following to your VS Code `settings.json` file:
 
     ```json
     {
-    	"roo-cline.autoImportSettingsPath": "/Users/your-username/Documents/dev-configs/roo-code.json"
+    	"qcode.autoImportSettingsPath": "/Users/your-username/Documents/dev-configs/roo-code.json"
     }
     ```
 
@@ -106,14 +106,14 @@ To use this feature, add the following to your VS Code `settings.json` file:
 
     ```json
     {
-    	"roo-cline.autoImportSettingsPath": "~/roo-code-settings.json"
+    	"qcode.autoImportSettingsPath": "~/roo-code-settings.json"
     }
     ```
 
 - **To disable**, simply leave the path empty or remove the line entirely:
     ```json
     {
-    	"roo-cline.autoImportSettingsPath": ""
+    	"qcode.autoImportSettingsPath": ""
     }
     ```
 
@@ -165,7 +165,7 @@ Roo Code provides several useful commands accessible via the VS Code Command Pal
 
 ### Set Custom Storage Path
 
-**Command:** `roo-cline.setCustomStoragePath`
+**Command:** `qcode.setCustomStoragePath`
 
 Opens a dialog to set a custom storage directory for Roo Code data. By default, Roo Code stores task history, settings, and other data in the standard VS Code extension storage location. This command allows you to choose an alternative location.
 
@@ -179,23 +179,23 @@ Opens a dialog to set a custom storage directory for Roo Code data. By default, 
 **To use:**
 
 1. Open the Command Palette (`Ctrl/Cmd + Shift + P`)
-2. Type "Set Custom Storage Path" or search for `roo-cline.setCustomStoragePath`
+2. Type "Set Custom Storage Path" or search for `qcode.setCustomStoragePath`
 3. Select the command
 4. Choose a directory in the file picker dialog
 5. Restart VS Code for the change to take effect
 
-**Note:** This setting can also be configured in VS Code settings as `roo-cline.customStoragePath`. See the [VS Code Settings Reference](#vs-code-settings-reference) section below for details.
+**Note:** This setting can also be configured in VS Code settings as `qcode.customStoragePath`. See the [VS Code Settings Reference](#vs-code-settings-reference) section below for details.
 
 ### Import Settings from File
 
-**Command:** `roo-cline.importSettings`
+**Command:** `qcode.importSettings`
 
 Imports Roo Code settings from a JSON file via the Command Palette. This is an alternative to using the Import button in the settings UI.
 
 **To use:**
 
 1. Open the Command Palette (`Ctrl/Cmd + Shift + P`)
-2. Type "Import Settings" or search for `roo-cline.importSettings`
+2. Type "Import Settings" or search for `qcode.importSettings`
 3. Select the command
 4. Choose your settings JSON file in the file picker dialog
 5. Settings will be imported and merged with your current configuration
@@ -253,30 +253,30 @@ With both disabled, these sections are omitted, reducing token usage when you do
 
 Roo Code provides VS Code settings that can be configured through your VS Code `settings.json` file. These settings offer fine-grained control over command execution, task management, API behavior, storage, indexing, and debugging.
 
-To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and search for "roo-cline", or edit your `settings.json` file directly (`Ctrl/Cmd + Shift + P` → "Preferences: Open User Settings (JSON)").
+To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and search for "qcode", or edit your `settings.json` file directly (`Ctrl/Cmd + Shift + P` → "Preferences: Open User Settings (JSON)").
 
 ### Command & Execution
 
-#### `roo-cline.allowedCommands`
+#### `qcode.allowedCommands`
 
 - **Type**: Array of strings
 - **Default**: `["git log", "git diff", "git show"]`
 - **Description**: Commands that can be auto-executed without approval. When Roo Code requests to execute a command that matches an entry in this list, it will execute automatically without prompting for approval. This is useful for safe, read-only commands.
 
-#### `roo-cline.deniedCommands`
+#### `qcode.deniedCommands`
 
 - **Type**: Array of strings
 - **Default**: `[]`
 - **Description**: Commands that are always blocked from execution. Roo Code will refuse to execute any command that matches an entry in this list, providing a safety mechanism to prevent potentially dangerous operations.
 
-#### `roo-cline.commandExecutionTimeout`
+#### `qcode.commandExecutionTimeout`
 
 - **Type**: Number (seconds)
 - **Default**: `0`
 - **Range**: 0-600
 - **Description**: Timeout in seconds for command execution. When set to a value greater than 0, commands running longer than this duration will be terminated. A value of 0 means no timeout (commands can run indefinitely). See also `commandTimeoutAllowlist` for exempting specific commands.
 
-#### `roo-cline.commandTimeoutAllowlist`
+#### `qcode.commandTimeoutAllowlist`
 
 - **Type**: Array of strings
 - **Default**: `[]`
@@ -284,13 +284,13 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Task Management
 
-#### `roo-cline.newTaskRequireTodos`
+#### `qcode.newTaskRequireTodos`
 
 - **Type**: Boolean
 - **Default**: `false`
 - **Description**: When enabled, requires a todo list when creating new tasks via boomerang/subtasks. This ensures structured planning for complex work by mandating that new tasks include a checklist of steps to complete.
 
-#### `roo-cline.preventCompletionWithOpenTodos`
+#### `qcode.preventCompletionWithOpenTodos`
 
 - **Type**: Boolean
 - **Default**: `false`
@@ -298,7 +298,7 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### API & Network
 
-#### `roo-cline.apiRequestTimeout`
+#### `qcode.apiRequestTimeout`
 
 - **Type**: Number (seconds)
 - **Default**: `600`
@@ -307,13 +307,13 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Storage & Import
 
-#### `roo-cline.customStoragePath`
+#### `qcode.customStoragePath`
 
 - **Type**: String
 - **Default**: `""` (empty)
 - **Description**: Custom file path for Roo Code's storage directory. By default, Roo Code stores its data in the standard extension storage location. Use this setting to specify an alternative directory for storing task history, settings, and other data.
 
-#### `roo-cline.autoImportSettingsPath`
+#### `qcode.autoImportSettingsPath`
 
 - **Type**: String
 - **Default**: `""` (empty)
@@ -321,14 +321,14 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Code Index
 
-#### `roo-cline.maximumIndexedFilesForFileSearch`
+#### `qcode.maximumIndexedFilesForFileSearch`
 
 - **Type**: Number
 - **Default**: `10000`
 - **Range**: 5000-500000
 - **Description**: Maximum number of files indexed for file search. Controls the upper limit of files that Roo Code will index for semantic search functionality. Higher values increase search coverage but may impact performance.
 
-#### `roo-cline.codeIndex.embeddingBatchSize`
+#### `qcode.codeIndex.embeddingBatchSize`
 
 - **Type**: Number
 - **Default**: `60`
@@ -337,13 +337,13 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Editor Integration
 
-#### `roo-cline.enableCodeActions`
+#### `qcode.enableCodeActions`
 
 - **Type**: Boolean
 - **Default**: `true`
 - **Description**: Controls whether Roo Code actions appear in the editor context menu and lightbulb. When enabled, you can right-click in the editor or use the lightbulb menu to quickly send code selections to Roo Code with contextual prompts.
 
-#### `roo-cline.vsCodeLmModelSelector`
+#### `qcode.vsCodeLmModelSelector`
 
 - **Type**: Object
 - **Default**: `{}`
@@ -351,7 +351,7 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Rules & Instructions
 
-#### `roo-cline.useAgentRules`
+#### `qcode.useAgentRules`
 
 - **Type**: Boolean
 - **Default**: `true`
@@ -359,25 +359,25 @@ To configure these settings, open your VS Code settings (`Ctrl/Cmd + ,`) and sea
 
 ### Debug
 
-#### `roo-cline.debug`
+#### `qcode.debug`
 
 - **Type**: Boolean
 - **Default**: `false`
 - **Description**: Enable debug mode for additional logging. When enabled, Roo Code will output detailed debug information to the console, useful for troubleshooting issues or understanding internal behavior.
 
-#### `roo-cline.debugProxy.enabled`
+#### `qcode.debugProxy.enabled`
 
 - **Type**: Boolean
 - **Default**: `false`
 - **Description**: Enable debug proxy for intercepting API requests. When enabled, all API requests will be routed through a debug proxy server, allowing you to inspect and debug API communications.
 
-#### `roo-cline.debugProxy.serverUrl`
+#### `qcode.debugProxy.serverUrl`
 
 - **Type**: String
 - **Default**: `"http://127.0.0.1:8888"`
 - **Description**: URL of the debug proxy server. Specifies the proxy server address used when `debugProxy.enabled` is true. Common debug proxy tools like mitmproxy or Charles Proxy typically run on this default address.
 
-#### `roo-cline.debugProxy.tlsInsecure`
+#### `qcode.debugProxy.tlsInsecure`
 
 - **Type**: Boolean
 - **Default**: `false`

@@ -4,8 +4,8 @@ import * as vscode from "vscode"
 // Mock Package
 vi.mock("../../../shared/package", () => ({
 	Package: {
-		name: "roo-cline",
-		publisher: "RooVeterinaryInc",
+		name: "qcode",
+		publisher: "QCode",
 		version: "1.0.0",
 		outputChannel: "Roo-Code",
 	},
@@ -48,7 +48,7 @@ describe("file-search", () => {
 
 			;(vscode.workspace.getConfiguration as any).mockImplementation((section: string) => {
 				if (section === "search") return mockSearchConfig
-				if (section === "roo-cline") return mockRooConfig
+				if (section === "qcode") return mockRooConfig
 				return { get: vi.fn() }
 			})
 

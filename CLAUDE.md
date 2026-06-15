@@ -17,7 +17,7 @@ When porting upstream PRs, verify they don't reintroduce AI-SDK or browser-use c
 
 pnpm + Turbo monorepo (`pnpm-workspace.yaml`). Node `20.19.2`, pnpm `10.8.1`. The two largest workspaces are aliased oddly for historical reasons:
 
-- `src/` — the VS Code extension host (package name `roo-cline`). Despite living at the repo root, it is a workspace member; comments note it "should be apps/vscode".
+- `src/` — the VS Code extension host (package name `qcode`; the marketplace/namespace identity is `QCode.qcode`). Despite living at the repo root, it is a workspace member; comments note it "should be apps/vscode".
 - `webview-ui/` — the React webview UI (Vite). "Should be apps/vscode-webview".
 - `packages/types` — `@roo-code/types`, shared Zod schemas and types. Many packages depend on its build; `turbo` builds it before tests.
 - `packages/core` — shared agent core (CLI/headless surface: task-history, worktree, custom-tools, message-utils).

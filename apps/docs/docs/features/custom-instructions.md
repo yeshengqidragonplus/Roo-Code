@@ -303,8 +303,8 @@ Roo Code also supports loading rules from an `AGENTS.md` (or `AGENT.md` as fallb
 
 - **Purpose:** Provides agent-specific rules and guidelines for AI behavior
 - **Location:** Must be in the workspace root directory
-- **Loading:** Automatically loaded by default. To disable AGENTS.md loading, set `"roo-cline.useAgentRules": false` in your VSCode settings
-- **Setting:** `roo-cline.useAgentRules` (default: true)
+- **Loading:** Automatically loaded by default. To disable AGENTS.md loading, set `"qcode.useAgentRules": false` in your VSCode settings
+- **Setting:** `qcode.useAgentRules` (default: true)
 - **Preference:** If both exist, `AGENTS.md` is preferred over `AGENT.md`
 - **Priority:** Loaded after mode-specific rules and `.rooignore`, before generic rules from both `~/.roo/rules` and `.roo/rules`
 - **Header:** Added to system prompt with header `# Agent Rules Standard (AGENTS.md):` or `(AGENT.md):` accordingly

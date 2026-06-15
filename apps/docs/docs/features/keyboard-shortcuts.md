@@ -3,7 +3,7 @@ description: Master keyboard navigation in Roo Code with customizable shortcuts,
 keywords:
     - keyboard shortcuts
     - keyboard navigation
-    - roo-cline.acceptInput
+    - qcode.acceptInput
     - prompt history
     - accessibility
     - vim compatibility
@@ -18,13 +18,13 @@ The Roo Code interface supports keyboard navigation and shortcuts to streamline 
 
 ## Available Keyboard Commands
 
-Roo Code offers keyboard commands to enhance your workflow. This page focuses on the `roo-cline.acceptInput` command, but here's a quick reference to all keyboard commands:
+Roo Code offers keyboard commands to enhance your workflow. This page focuses on the `qcode.acceptInput` command, but here's a quick reference to all keyboard commands:
 
 | Command                  | Description                                  | Default Shortcut                                 |
 | ------------------------ | -------------------------------------------- | ------------------------------------------------ |
-| `roo-cline.acceptInput`  | Submit text or accept the primary suggestion | None (configurable)                              |
-| `roo-cline.focusInput`   | Focus the Roo input box                      | None (configurable)                              |
-| `roo-cline.openInNewTab` | Open Roo Code in a new editor tab            | None (via Command Palette)                       |
+| `qcode.acceptInput`  | Submit text or accept the primary suggestion | None (configurable)                              |
+| `qcode.focusInput`   | Focus the Roo input box                      | None (configurable)                              |
+| `qcode.openInNewTab` | Open Roo Code in a new editor tab            | None (via Command Palette)                       |
 | Add to Context           | Add selected code to Roo's context           | macOS: Cmd+K Cmd+A; Windows/Linux: Ctrl+K Ctrl+A |
 | Arrow Up/Down            | Navigate through prompt history              | Built-in                                         |
 
@@ -37,13 +37,13 @@ Roo Code offers keyboard commands to enhance your workflow. This page focuses on
 
 ---
 
-## roo-cline.acceptInput Command
+## qcode.acceptInput Command
 
-The `roo-cline.acceptInput` command lets you submit text or accept suggestions with keyboard shortcuts instead of clicking buttons or pressing Enter in the input area.
+The `qcode.acceptInput` command lets you submit text or accept suggestions with keyboard shortcuts instead of clicking buttons or pressing Enter in the input area.
 
 ### What It Does
 
-The `roo-cline.acceptInput` command is a general-purpose input submission command. When triggered, it:
+The `qcode.acceptInput` command is a general-purpose input submission command. When triggered, it:
 
 - Submits your current text or image input when in the text input area (equivalent to pressing Enter)
 - Clicks the primary (first) button when action buttons are visible (such as confirm/cancel buttons or any other action buttons)
@@ -54,7 +54,7 @@ The `roo-cline.acceptInput` command is a general-purpose input submission comman
 
 1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P` on Mac)
 2. Type "Preferences: Open Keyboard Shortcuts"
-3. In the search box, type "roo-cline.acceptInput"
+3. In the search box, type "qcode.acceptInput"
 4. Locate "Roo: Accept Input/Suggestion" in the results
 5. Click the + icon to the left of the command
 6. Press your desired key combination (e.g., `Ctrl+Enter` or `Alt+Enter`)
@@ -69,8 +69,8 @@ The `roo-cline.acceptInput` command is a general-purpose input submission comman
 ```json
 {
 	"key": "ctrl+enter", // or your preferred key combination
-	"command": "roo-cline.acceptInput",
-	"when": "view == roo-cline.SidebarProvider || activeWebviewPanelId == roo-cline.TabPanelProvider"
+	"command": "qcode.acceptInput",
+	"when": "view == qcode.SidebarProvider || activeWebviewPanelId == qcode.TabPanelProvider"
 }
 ```
 
@@ -81,8 +81,8 @@ Scoped examples:
 ```json
 {
 	"key": "ctrl+enter",
-	"command": "roo-cline.acceptInput",
-	"when": "view == roo-cline.SidebarProvider"
+	"command": "qcode.acceptInput",
+	"when": "view == qcode.SidebarProvider"
 }
 ```
 
@@ -91,8 +91,8 @@ Scoped examples:
 ```json
 {
 	"key": "ctrl+enter",
-	"command": "roo-cline.acceptInput",
-	"when": "activeWebviewPanelId == roo-cline.TabPanelProvider"
+	"command": "qcode.acceptInput",
+	"when": "activeWebviewPanelId == qcode.TabPanelProvider"
 }
 ```
 
@@ -109,7 +109,7 @@ Choose a key combination that doesn't conflict with existing VS Code shortcuts:
 
 - Default: macOS: Cmd+K Cmd+A; Windows/Linux: Ctrl+K Ctrl+A
 - Requires: when condition `editorTextFocus && editorHasSelection`
-- Focus does not change automatically. To continue typing immediately, use "Roo: Focus Input" (`roo-cline.focusInput`) or click into the Roo panel.
+- Focus does not change automatically. To continue typing immediately, use "Roo: Focus Input" (`qcode.focusInput`) or click into the Roo panel.
 
 :::note Redo Shortcut Restored
 The standard Redo shortcut (macOS: Cmd+Y; Windows/Linux: Ctrl+Y) remains unchanged and is available for its usual function in VS Code.
@@ -140,7 +140,7 @@ The standard Redo shortcut (macOS: Cmd+Y; Windows/Linux: Ctrl+Y) remains unchang
 
 ### Accessibility Benefits
 
-The `roo-cline.acceptInput` command was designed with accessibility in mind:
+The `qcode.acceptInput` command was designed with accessibility in mind:
 
 - **Reduced Mouse Dependence**: Complete entire workflows without reaching for the mouse
 - **Reduced Physical Strain**: Helps users who experience discomfort or pain from mouse usage
@@ -156,7 +156,7 @@ Here are some complete workflow examples showing how to effectively use keyboard
 1. Open VS Code and navigate to your project
 2. Open Roo via the sidebar
 3. Type your request: "Create a REST API endpoint for user registration"
-4. When Roo asks for framework preferences, use your `roo-cline.acceptInput` shortcut to select the first suggestion
+4. When Roo asks for framework preferences, use your `qcode.acceptInput` shortcut to select the first suggestion
 5. Continue using the shortcut to accept code generation suggestions
 6. When Roo offers to save the file, use the shortcut again to confirm
 7. Use VS Code's built-in shortcuts to navigate through the created files
@@ -176,13 +176,13 @@ Here are some complete workflow examples showing how to effectively use keyboard
 | Wrong suggestion selected         | The command always selects the first (primary) button; use mouse if you need a different option                                                      |
 | Conflicts with existing shortcuts | Try a different key combination in VS Code keyboard settings                                                                                         |
 | No visual feedback when used      | This is normal - the command silently activates the function without visual confirmation                                                             |
-| Shortcut works inconsistently     | Make sure the `when` clause is properly configured (use `view == roo-cline.SidebarProvider` or `activeWebviewPanelId == roo-cline.TabPanelProvider`) |
+| Shortcut works inconsistently     | Make sure the `when` clause is properly configured (use `view == qcode.SidebarProvider` or `activeWebviewPanelId == qcode.TabPanelProvider`) |
 
 ### Technical Implementation
 
-The `roo-cline.acceptInput` command is implemented as follows:
+The `qcode.acceptInput` command is implemented as follows:
 
-- Command registered as `roo-cline.acceptInput` with display title "Roo: Accept Input/Suggestion" in the command palette
+- Command registered as `qcode.acceptInput` with display title "Roo: Accept Input/Suggestion" in the command palette
 - When triggered, it sends an "acceptInput" message to the active Roo webview
 - The webview determines the appropriate action based on the current UI state:
     - Clicks the primary action button if action buttons are visible and enabled

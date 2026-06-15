@@ -1,0 +1,21 @@
+QCode
+Copyright 2026 QCode contributors
+
+This product is a derivative work based on Roo Code, and includes software
+developed by Roo Code, Inc. and the Roo Code contributors.
+
+  Roo Code
+  Copyright 2025 Roo Code, Inc.
+  https://github.com/RooCodeInc/Roo-Code
+  Licensed under the Apache License, Version 2.0.
+
+QCode is a fork of Roo Code. It has been modified from the original work;
+modified files carry a notice to that effect, and a log of notable
+divergences is maintained in the project documentation (see CLAUDE.md and
+progress.txt). The "Roo Code" name, logo, and related trademarks remain the
+property of Roo Code, Inc. and are referenced here only to describe the
+origin of this work, as permitted by Section 6 of the Apache License 2.0.
+
+This software is distributed under the Apache License, Version 2.0. A copy
+of the license is available in the LICENSE file and at
+http://www.apache.org/licenses/LICENSE-2.0

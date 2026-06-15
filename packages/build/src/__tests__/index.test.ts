@@ -6,39 +6,39 @@ describe("generatePackageJson", () => {
 	it("should be a test", () => {
 		const generatedPackageJson = generatePackageJson({
 			packageJson: {
-				name: "roo-cline",
+				name: "qcode",
 				displayName: "%extension.displayName%",
 				description: "%extension.description%",
-				publisher: "RooVeterinaryInc",
+				publisher: "QCode",
 				version: "3.17.2",
 				icon: "assets/icons/icon.png",
 				contributes: {
 					viewsContainers: {
 						activitybar: [
 							{
-								id: "roo-cline-ActivityBar",
+								id: "qcode-ActivityBar",
 								title: "%views.activitybar.title%",
 								icon: "assets/icons/icon.svg",
 							},
 						],
 					},
 					views: {
-						"roo-cline-ActivityBar": [
+						"qcode-ActivityBar": [
 							{
 								type: "webview",
-								id: "roo-cline.SidebarProvider",
+								id: "qcode.SidebarProvider",
 								name: "",
 							},
 						],
 					},
 					commands: [
 						{
-							command: "roo-cline.plusButtonClicked",
+							command: "qcode.plusButtonClicked",
 							title: "%command.newTask.title%",
 							icon: "$(edit)",
 						},
 						{
-							command: "roo-cline.openInNewTab",
+							command: "qcode.openInNewTab",
 							title: "%command.openInNewTab.title%",
 							category: "%configuration.title%",
 						},
@@ -46,48 +46,48 @@ describe("generatePackageJson", () => {
 					menus: {
 						"editor/context": [
 							{
-								submenu: "roo-cline.contextMenu",
+								submenu: "qcode.contextMenu",
 								group: "navigation",
 							},
 						],
-						"roo-cline.contextMenu": [
+						"qcode.contextMenu": [
 							{
-								command: "roo-cline.addToContext",
+								command: "qcode.addToContext",
 								group: "1_actions@1",
 							},
 						],
 						"editor/title": [
 							{
-								command: "roo-cline.plusButtonClicked",
+								command: "qcode.plusButtonClicked",
 								group: "navigation@1",
-								when: "activeWebviewPanelId == roo-cline.TabPanelProvider",
+								when: "activeWebviewPanelId == qcode.TabPanelProvider",
 							},
 							{
-								command: "roo-cline.settingsButtonClicked",
+								command: "qcode.settingsButtonClicked",
 								group: "navigation@6",
-								when: "activeWebviewPanelId == roo-cline.TabPanelProvider",
+								when: "activeWebviewPanelId == qcode.TabPanelProvider",
 							},
 							{
-								command: "roo-cline.accountButtonClicked",
+								command: "qcode.accountButtonClicked",
 								group: "navigation@6",
-								when: "activeWebviewPanelId == roo-cline.TabPanelProvider",
+								when: "activeWebviewPanelId == qcode.TabPanelProvider",
 							},
 						],
 					},
 					submenus: [
 						{
-							id: "roo-cline.contextMenu",
+							id: "qcode.contextMenu",
 							label: "%views.contextMenu.label%",
 						},
 						{
-							id: "roo-cline.terminalMenu",
+							id: "qcode.terminalMenu",
 							label: "%views.terminalMenu.label%",
 						},
 					],
 					configuration: {
 						title: "%configuration.title%",
 						properties: {
-							"roo-cline.allowedCommands": {
+							"qcode.allowedCommands": {
 								type: "array",
 								items: {
 									type: "string",
@@ -95,7 +95,7 @@ describe("generatePackageJson", () => {
 								default: ["npm test", "npm install", "tsc", "git log", "git diff", "git show"],
 								description: "%commands.allowedCommands.description%",
 							},
-							"roo-cline.customStoragePath": {
+							"qcode.customStoragePath": {
 								type: "string",
 								default: "",
 								description: "%settings.customStoragePath.description%",
@@ -110,19 +110,19 @@ describe("generatePackageJson", () => {
 			overrideJson: {
 				name: "roo-code-nightly",
 				displayName: "Roo Code Nightly",
-				publisher: "RooVeterinaryInc",
+				publisher: "QCode",
 				version: "0.0.1",
 				icon: "assets/icons/icon-nightly.png",
 				scripts: {},
 			},
-			substitution: ["roo-cline", "roo-code-nightly"],
+			substitution: ["qcode", "roo-code-nightly"],
 		})
 
 		expect(generatedPackageJson).toStrictEqual({
 			name: "roo-code-nightly",
 			displayName: "Roo Code Nightly",
 			description: "%extension.description%",
-			publisher: "RooVeterinaryInc",
+			publisher: "QCode",
 			version: "0.0.1",
 			icon: "assets/icons/icon-nightly.png",
 			contributes: {

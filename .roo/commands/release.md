@@ -12,7 +12,7 @@ mode: code
 
 ```
 ---
-"roo-cline": patch|minor|major
+"qcode": patch|minor|major
 ---
 [list of changes]
 ```
