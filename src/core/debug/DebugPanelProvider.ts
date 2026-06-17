@@ -3,7 +3,7 @@ import * as vscode from "vscode"
 import { getNonce } from "../webview/getNonce"
 import { getUri } from "../webview/getUri"
 import { debugMode } from "./debugMode"
-import { debugController } from "./DebugController"
+import { debugController, type DebugResumeResult } from "./DebugController"
 
 /**
  * Hosts the Agent Loop step-debugger panel in its own editor tab.
@@ -34,15 +34,16 @@ export class DebugPanelProvider {
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables)
 
 		this.panel.webview.onDidReceiveMessage(
-			(message: { type?: string }) => {
+			(message: { type?: string; result?: DebugResumeResult }) => {
 				switch (message?.type) {
 					case "debugReady":
 						this.postMessage({ type: "debugModeChanged", enabled: debugMode.isEnabled() })
 						break
 					case "debugContinue":
 					case "debugStep":
-						// Phase 4 will carry edited fields on these messages.
-						debugController.resume()
+						// `result` carries only the fields the user actually edited;
+						// unedited fields are absent and the loop keeps its originals.
+						debugController.resume(message.result ?? {})
 						break
 				}
 			},
@@ -128,9 +129,16 @@ export class DebugPanelProvider {
 		button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
 		.sections { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 		details { border: 1px solid var(--vscode-panel-border); border-radius: 3px; }
-		summary { padding: 6px 10px; cursor: pointer; user-select: none; color: var(--vscode-descriptionForeground); }
-		pre { margin: 0; padding: 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); }
-		.placeholder { color: var(--vscode-descriptionForeground); font-style: italic; }
+		summary { padding: 6px 10px; cursor: pointer; user-select: none; color: var(--vscode-descriptionForeground); display: flex; align-items: center; gap: 6px; }
+		summary .badge { font-size: 11px; padding: 0 6px; border-radius: 8px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+		.body { padding: 8px 10px; }
+		.note { color: var(--vscode-descriptionForeground); font-size: 11px; margin: 0 0 6px; }
+		textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 48px; padding: 8px; white-space: pre; overflow: auto; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 2px; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); }
+		textarea[readonly] { background: transparent; border-color: transparent; resize: none; color: var(--vscode-foreground); opacity: 0.85; }
+		textarea.placeholder { color: var(--vscode-descriptionForeground); font-style: italic; }
+		textarea.invalid { border-color: var(--vscode-inputValidation-errorBorder, #be1100); }
+		.errbar { display: none; margin: 8px 12px 0; padding: 6px 10px; border-radius: 2px; background: var(--vscode-inputValidation-errorBackground, rgba(190,17,0,0.15)); color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground)); border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100); font-size: 12px; }
+		.errbar.show { display: block; }
 	</style>
 </head>
 <body>
@@ -141,20 +149,32 @@ export class DebugPanelProvider {
 			<button id="step" class="secondary" disabled><span class="codicon codicon-debug-step-over"></span> Step</button>
 		</div>
 	</div>
+	<div id="errbar" class="errbar"></div>
 	<div class="sections">
-		<details open><summary>System Prompt</summary><pre id="systemPrompt" class="placeholder">— (waiting for a breakpoint)</pre></details>
-		<details><summary>Messages</summary><pre id="messages" class="placeholder">—</pre></details>
-		<details><summary>Metadata</summary><pre id="metadata" class="placeholder">—</pre></details>
-		<details><summary>Assistant Reply</summary><pre id="assistant" class="placeholder">—</pre></details>
-		<details><summary>Pending Tool</summary><pre id="tool" class="placeholder">—</pre></details>
+		<details open data-section="systemPrompt"><summary>System Prompt<span class="badge" hidden>editable</span></summary><div class="body"><textarea id="systemPrompt" data-field="systemPrompt" data-kind="text" readonly></textarea></div></details>
+		<details data-section="messages"><summary>Messages<span class="badge" hidden>editable</span></summary><div class="body"><p class="note" hidden>Edits here apply to this request only — they are not written back to the conversation history.</p><textarea id="messages" data-field="messages" data-kind="json" readonly></textarea></div></details>
+		<details data-section="metadata"><summary>Metadata<span class="badge" hidden>editable</span></summary><div class="body"><textarea id="metadata" data-field="metadata" data-kind="json" readonly></textarea></div></details>
+		<details data-section="assistant"><summary>Assistant Reply<span class="badge" hidden>editable</span></summary><div class="body"><textarea id="assistant" data-field="assistantText" data-kind="text" readonly></textarea></div></details>
+		<details data-section="tool"><summary>Pending Tool<span class="badge" hidden>editable</span></summary><div class="body"><p class="note" hidden>Only the tool <code>input</code> is applied — editing the tool <code>name</code> has no effect.</p><textarea id="tool" data-field="tool" data-kind="json" readonly></textarea></div></details>
 	</div>
 	<script nonce="${nonce}">
 		const vscode = acquireVsCodeApi();
 		const $ = (id) => document.getElementById(id);
 		const continueBtn = $("continue");
 		const stepBtn = $("step");
+		const errbar = $("errbar");
 
 		const STAGE_LABELS = { beforeRequest: "Before Request", afterResponse: "After Response", beforeTool: "Before Tool" };
+		// Which sections are editable at each stage (the rest are read-only).
+		const EDITABLE = {
+			beforeRequest: ["systemPrompt", "messages", "metadata"],
+			afterResponse: ["assistant"],
+			beforeTool: ["tool"],
+		};
+		const SECTIONS = ["systemPrompt", "messages", "metadata", "assistant", "tool"];
+
+		// Original (server-sent) string per section, to detect real edits.
+		const original = {};
 
 		function asText(v) {
 			if (v === undefined || v === null) return null;
@@ -166,12 +186,31 @@ export class DebugPanelProvider {
 			const el = $(id);
 			const text = asText(value);
 			if (text === null) {
-				el.textContent = "—";
+				el.value = "";
+				el.placeholder = "—";
 				el.classList.add("placeholder");
+				original[id] = null;
 			} else {
-				el.textContent = text;
+				el.value = text;
 				el.classList.remove("placeholder");
+				original[id] = text;
 			}
+			el.classList.remove("invalid");
+		}
+
+		function applyEditability(stage) {
+			const editable = EDITABLE[stage] || [];
+			SECTIONS.forEach((id) => {
+				const el = $(id);
+				const isEditable = editable.indexOf(id) !== -1 && original[id] !== null;
+				el.readOnly = !isEditable;
+				const details = el.closest("details");
+				const badge = details.querySelector(".badge");
+				if (badge) badge.hidden = !isEditable;
+				const note = details.querySelector(".note");
+				if (note) note.hidden = !isEditable;
+				if (isEditable) details.open = true;
+			});
 		}
 
 		function setPaused(paused) {
@@ -179,8 +218,12 @@ export class DebugPanelProvider {
 			stepBtn.disabled = !paused;
 		}
 
+		function clearError() { errbar.classList.remove("show"); errbar.textContent = ""; }
+		function showError(msg) { errbar.textContent = msg; errbar.classList.add("show"); }
+
 		function onPaused(payload) {
 			payload = payload || {};
+			clearError();
 			$("stage").textContent = STAGE_LABELS[payload.stage] || payload.stage || "Paused";
 			$("meta").textContent = payload.taskId ? ("task " + payload.taskId) : "";
 			setSection("systemPrompt", payload.systemPrompt);
@@ -188,17 +231,52 @@ export class DebugPanelProvider {
 			setSection("metadata", payload.metadata);
 			setSection("assistant", payload.assistantText);
 			setSection("tool", payload.tool);
+			applyEditability(payload.stage);
 			setPaused(true);
 		}
 
 		function onResumed() {
 			$("stage").textContent = "Running…";
 			$("meta").textContent = "";
+			clearError();
 			setPaused(false);
 		}
 
-		continueBtn.addEventListener("click", () => { setPaused(false); vscode.postMessage({ type: "debugContinue" }); });
-		stepBtn.addEventListener("click", () => { setPaused(false); vscode.postMessage({ type: "debugStep" }); });
+		// Gather only the sections the user actually changed; parse JSON ones.
+		// Returns { result } on success, or { error } if any JSON is invalid.
+		function collectResult() {
+			const result = {};
+			SECTIONS.forEach((id) => $(id).classList.remove("invalid"));
+			for (const id of SECTIONS) {
+				const el = $(id);
+				if (el.readOnly || original[id] === null) continue;
+				const value = el.value;
+				if (value === original[id]) continue; // unchanged
+				const field = el.dataset.field;
+				if (el.dataset.kind === "json") {
+					try {
+						result[field] = JSON.parse(value);
+					} catch (e) {
+						el.classList.add("invalid");
+						return { error: "Invalid JSON in \\"" + id + "\\": " + e.message };
+					}
+				} else {
+					result[field] = value;
+				}
+			}
+			return { result };
+		}
+
+		function resume(type) {
+			const { result, error } = collectResult();
+			if (error) { showError(error); return; }
+			clearError();
+			setPaused(false);
+			vscode.postMessage({ type, result });
+		}
+
+		continueBtn.addEventListener("click", () => resume("debugContinue"));
+		stepBtn.addEventListener("click", () => resume("debugStep"));
 
 		window.addEventListener("message", (event) => {
 			const msg = event.data || {};

@@ -658,12 +658,17 @@ export async function presentAssistantMessage(cline: Task) {
 					.filter((b): b is Extract<AssistantMessageContent, { type: "text" }> => b.type === "text")
 					.map((b) => b.content)
 					.join("")
-				await debugController.pause({
+				const toolEdit = await debugController.pause({
 					stage: "beforeTool",
 					taskId: cline.taskId,
 					assistantText: assistantText || undefined,
 					tool: { name: block.name, input: block.params },
 				})
+				// Apply an edited tool input so the tool runs with the user's values.
+				// Only the input (params) is applied; the tool name is left as-is.
+				if (toolEdit.tool?.input !== undefined) {
+					block.params = toolEdit.tool.input as typeof block.params
+				}
 			}
 
 			switch (block.name) {

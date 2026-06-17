@@ -122,15 +122,22 @@
 - 防卡死：退出命令 `disableDebugMode` 与面板 `onDidDispose` 均调 `cancelAll()`。
 - 阶段3 范围：**只读暂停-继续**（Step 暂等同 Continue，即跑到下一个断点）；编辑回写留阶段4。
 
-### 5.4 消息协议与编辑回写（阶段 4）
+### 5.4 编辑回写（阶段 4，已落地）
 
-- `packages/types/src/vscode-extension-host.ts`：
-    - `ExtensionMessage`（宿主→面板）新增 `debugPaused`（带 `DebugPausePayload`）、`debugResumed`、`debugModeChanged`。
-    - `WebviewMessage`（面板→宿主）新增 `debugContinue`、`debugStep`、`debugEdit`（带编辑后的字段）。
-- `webviewMessageHandler.ts`：新增对应 case，转调 `debugController.resume(...)`。
-- **编辑回写一致性（最高风险点）**：
-    - 发送前编辑 `messages`：仅影响本次 `createMessage` 入参，**不**直接改 `apiConversationHistory`（除非用户明确选择写回历史）；首版策略 = 只改本轮请求，历史保持原样，并在 UI 标注「本次编辑仅作用于本轮请求」。
-    - 回复后编辑 `assistantText`：需同时更新写入 `apiConversationHistory` 的 assistant 消息，保证后续轮次一致。这里要加测试覆盖。
+> **实现微调**：因面板是自带 HTML（非 webview-ui React，见 5.2），消息协议**没有**走 `packages/types` 的 `ExtensionMessage`/`WebviewMessage` 联合类型，而是 `DebugPanelProvider` 内部的私有协议（`debugPaused`/`debugResumed` ↓，`debugContinue`/`debugStep` ↑）。`debugEdit` 合并进 `debugContinue`/`debugStep` 的 `result` 字段，不单独设。类型 `DebugResumeResult` 定义在 `DebugController.ts`。
+
+- **面板 UI**：各分区由 `<pre>` 改为 `<textarea>`。按阶段决定哪些可编辑（其余 readonly + 置灰）：
+    - `beforeRequest` → System Prompt(text) / Messages(json) / Metadata(json)
+    - `afterResponse` → Assistant Reply(text)
+    - `beforeTool` → Pending Tool(json，含 name+input)
+    - 可编辑分区标 `editable` 徽标并自动展开；Messages 上方注明「仅作用于本轮请求」。
+- **采集/校验**：点 Continue/Step 时只采集**真正改过**的分区（与服务端原值比对）；json 分区 `JSON.parse`，失败则高亮该框 + 顶部红条报错且**不继续**。结果只含被改字段，未改字段缺省 → loop 用原值。
+- **回写语义**：
+    - System Prompt / Messages / Metadata（断点A）：经 `r.x ?? 原值` 覆盖**本次 `createMessage` 入参**，**不**改 `apiConversationHistory`（首版策略，UI 已标注）。
+    - Assistant Reply（断点B）：`assistantMessage = r.assistantText`，**会**流入随后写进 `apiConversationHistory` 的 assistant 消息，保证后续轮次一致。
+    - Pending Tool（断点C）：仅把 `input` 覆盖到 `block.params`，**让工具以编辑后的入参执行**；`name` 不改。注意历史里记录的仍是原始入参（首版可接受的小不一致）。
+- **协议**：`resume(result)` 透传 `DebugResumeResult`；未改时 `result = {}`，行为与阶段3 一致。
+- 测试覆盖留阶段5。
 
 ### 5.5 i18n 与测试（阶段 5）
 
@@ -184,13 +191,13 @@
 
 > 图例：⬜ 未开始 · 🟡 进行中 · ✅ 完成
 
-| 阶段 | 内容                                                                                 | 状态 | 备注                                                                                                  |
-| ---- | ------------------------------------------------------------------------------------ | ---- | ----------------------------------------------------------------------------------------------------- |
-| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                              | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过                              |
-| 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）              | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出 |
-| 3    | DebugController + 断点接入（A 发送前 / C 工具前；B 因边流边执行取消），只读暂停-继续 | ✅   | DebugController + 断点 A/C + 面板接线 + cancelAll 防卡死；tsc/lint/测试通过；真机目检留待             |
-| 4    | 消息协议 + 编辑回写（可编辑上下文与回复）                                            | ⬜   |                                                                                                       |
-| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                  | ⬜   |                                                                                                       |
+| 阶段 | 内容                                                                                 | 状态 | 备注                                                                                                     |
+| ---- | ------------------------------------------------------------------------------------ | ---- | -------------------------------------------------------------------------------------------------------- |
+| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                              | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过                                 |
+| 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）              | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出    |
+| 3    | DebugController + 断点接入（A 发送前 / C 工具前；B 因边流边执行取消），只读暂停-继续 | ✅   | DebugController + 断点 A/C + 面板接线 + cancelAll 防卡死；tsc/lint/测试通过；真机目检留待                |
+| 4    | 编辑回写（可编辑上下文/回复/工具入参）                                               | ✅   | textarea 按阶段可编辑 + JSON 校验；A 改本轮请求、B 回写历史、C 改工具入参；tsc/lint/测试通过；待真机目检 |
+| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                  | ⬜   |                                                                                                          |
 
 ### 变更日志
 
@@ -200,3 +207,4 @@
 - 2026-06-17：✅ 阶段 2 完成。新增 `src/core/debug/DebugPanelProvider.ts`（自带 HTML 的调试面板，单例 createOrShow/close，CSP+nonce+codicons，骨架分区 + Continue/Step 占位按钮 + debugReady 消息桥）；`registerCommands.ts` 两命令接线打开/关闭面板。设计微调：面板用轻量 HTML 而非第二套 React（理由见 5.2）。验证：tsc/eslint/registerCommands.spec 通过；真机目检面板可正常弹出。
 - 2026-06-17：✅ 阶段 3 完成。**关键发现**：本 fork 边流式接收边内联执行工具，原「断点B 回复后/工具前」无干净时机，断点收敛为 A(beforeRequest)+C(beforeTool)，C 携带 assistantText 故也能看回复。新增 `src/core/debug/DebugController.ts`（pause/resume/cancelAll，未开启零开销）；`Task.ts` 接断点 A（createMessage 前，预埋覆盖路径）；`presentAssistantMessage.ts` 接断点 C（switch 前、!partial）；`DebugPanelProvider` 接 debugContinue/debugStep→resume、HTML 填充分区+启停按钮；退出命令与面板 dispose 均 cancelAll 防卡死。验证：tsc/eslint/registerCommands.spec 通过；真机目检留待。
 - 2026-06-17：阶段3 修正（真机验证反馈）。用户发现纯文字回复（无工具）不触发任何断点、回复没进调试 loop。补回 **断点B `afterResponse`**：`Task.ts` 流读完(`didCompleteReadingStream=true`)后暂停，带 `assistantText`，并预埋编辑回写（`assistantMessage` 可被 resume 结果覆盖）。`DebugStage` 增 `afterResponse`，面板加 "After Response" 标签。说明：失败请求走 catch 不暂停。tsc/lint 通过。
+- 2026-06-17：✅ 阶段 4 完成。面板各分区改 `<textarea>`，按阶段可编辑（A: SystemPrompt/Messages/Metadata；B: Assistant Reply；C: Pending Tool input），JSON 分区带 parse 校验+错误高亮，只采集改动字段。回写：A 覆盖本轮 createMessage 入参（不改历史）、B 经 assistantMessage 流入历史、C 把 input 覆盖到 block.params。`DebugResumeResult` 增 `tool`，`presentAssistantMessage` 应用工具入参编辑，`DebugPanelProvider` resume 透传 result。实现微调：协议走面板私有消息（非 packages/types 联合类型），`debugEdit` 并入 Continue/Step 的 result。tsc/lint/registerCommands.spec 通过；真机目检留待。

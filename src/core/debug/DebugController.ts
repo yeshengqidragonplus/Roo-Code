@@ -39,6 +39,8 @@ export interface DebugResumeResult {
 	messages?: unknown
 	metadata?: unknown
 	assistantText?: string
+	/** Edited tool call (beforeTool). Only `input` is applied to the run. */
+	tool?: { name?: string; input?: unknown }
 }
 
 /**
