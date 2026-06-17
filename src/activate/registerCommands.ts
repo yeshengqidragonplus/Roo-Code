@@ -12,6 +12,7 @@ import { handleNewTask } from "./handleTask"
 import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
 import { debugMode } from "../core/debug/debugMode"
+import { DebugPanelProvider } from "../core/debug/DebugPanelProvider"
 import { t } from "../i18n"
 
 /**
@@ -172,11 +173,13 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 	},
 	enableDebugMode: async () => {
 		await debugMode.set(true)
-		// Phase 2 will open/focus the debug panel here.
+		DebugPanelProvider.createOrShow(context.extensionUri)
 	},
 	disableDebugMode: async () => {
 		await debugMode.set(false)
-		// Phase 3 will resume any pending breakpoints here (cancelAll).
+		// Disposing the panel also flips debugMode off via its onDidDispose handler.
+		// Phase 3 will additionally resume any pending breakpoints here (cancelAll).
+		DebugPanelProvider.close()
 	},
 })
 

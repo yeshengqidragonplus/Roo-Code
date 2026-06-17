@@ -68,14 +68,15 @@
 
 ### 5.2 调试 Webview Panel（阶段 2）
 
-- 新建 `src/core/webview/DebugPanelProvider.ts`：
-    - `createOrShow()`：`vscode.window.createWebviewPanel("qcode.DebugPanel", "QCode Debug", ViewColumn.Beside, {...})`，单例。
-    - 持有 webview，提供 `postMessage()`；监听 `onDidReceiveMessage` 转交 `webviewMessageHandler`（或专用 debug handler）。
-    - `onDidDispose`：清理并把 `qcode.debugMode` 关掉、resume 任何挂起断点。
-- webview 前端：`webview-ui` 内新增 debug 入口（复用现有 Vite/消息总线 `vscode.postMessage`）。组件分区：
-    - 顶部：当前阶段标识（发送前 / 回复后 / 工具前）、轮次、任务 ID。
-    - 主体（可折叠分栏）：System Prompt / Messages（JSON 可编辑）/ Metadata（含 tools、tool_choice）/ 模型原始回复 / 即将执行的工具(名+参数)。
-    - 底部操作栏：`继续`、`单步`、`编辑后继续`（编辑态下出现保存/还原）。
+> **设计微调（已落地）**：面板**不**复用 webview-ui 那套完整 React/Vite 应用，也不再起第二套 React 构建，而是用 **`DebugPanelProvider` 自带的轻量 HTML + 内联脚本消息桥**。理由：调试面板需求朴素（渲染 JSON、几个按钮、单步），自带 HTML 更自包含、改动面小、可独立演进，无需动 webview-ui 打包链。位置放在 `src/core/debug/DebugPanelProvider.ts`（与 `debugMode.ts` 同目录），而非原计划的 `src/core/webview/`。
+
+- `DebugPanelProvider.ts`：
+    - `createOrShow(extensionUri)`：`createWebviewPanel("qcode.DebugPanel", "QCode Debug", ViewColumn.Beside, {...})`，进程内单例；已存在则 `reveal`。
+    - `postMessage()` 向面板发消息；`onDidReceiveMessage` 收 `debugReady`（阶段 3/4 在此路由 `debugContinue`/`debugStep`/`debugEdit` 到 DebugController）。
+    - `onDidDispose`：清理并 `debugMode.set(false)`（关面板=退出调试模式）。`close()` 供退出命令调用。
+    - HTML：复用 `getNonce` + CSP + codicons；骨架含 顶部阶段栏(bug 图标 + Continue/Step 按钮，当前 disabled) + 可折叠分区(System Prompt / Messages / Metadata / Assistant Reply / Pending Tool，均占位)。
+- 命令接线：`enableDebugMode` → `set(true)` + `createOrShow`；`disableDebugMode` → `set(false)` + `close`。
+- 阶段 4 在此 HTML 上长出：编辑态、保存/还原、JSON 填充。
 
 ### 5.3 DebugController 与断点（阶段 3）
 
@@ -167,16 +168,17 @@
 
 > 图例：⬜ 未开始 · 🟡 进行中 · ✅ 完成
 
-| 阶段 | 内容                                                                                | 状态 | 备注                                                                     |
-| ---- | ----------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------ |
-| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                             | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过 |
-| 2    | 调试 Webview Panel（DebugPanelProvider + React 入口骨架，能打开空界面）             | ⬜   |                                                                          |
-| 3    | DebugController + 三个断点接入（A 发送前 / B 回复后 / C 工具前），先做只读暂停-继续 | ⬜   |                                                                          |
-| 4    | 消息协议 + 编辑回写（可编辑上下文与回复）                                           | ⬜   |                                                                          |
-| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                 | ⬜   |                                                                          |
+| 阶段 | 内容                                                                                | 状态 | 备注                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------- |
+| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                             | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过                              |
+| 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）             | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出 |
+| 3    | DebugController + 三个断点接入（A 发送前 / B 回复后 / C 工具前），先做只读暂停-继续 | ⬜   |                                                                                                       |
+| 4    | 消息协议 + 编辑回写（可编辑上下文与回复）                                           | ⬜   |                                                                                                       |
+| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                 | ⬜   |                                                                                                       |
 
 ### 变更日志
 
 - 2026-06-17：创建设计文档，方案与三项关键决策已确认（新 Webview Panel / 三断点 / 可编辑上下文与回复）。
 - 2026-06-17：新增「7.5 已讨论但否决的需求」——存档「手动换 profile + 心跳保温缓存」的讨论与否决理由（心跳否决；手动换 profile 留作后续可选）。开始阶段 1。
 - 2026-06-17：✅ 阶段 1 完成。改动：`packages/types/src/vscode.ts`（commandIds 增 `enableDebugMode`/`disableDebugMode`）、`src/package.json`（命令+图标 `$(bug)`/`$(debug-stop)`、view/title 与 editor/title 菜单 navigation@3 互斥项）、`src/package.nls.json`（文案，其它 locale 暂回退英文，留待阶段 5）、新增 `src/core/debug/debugMode.ts`（debugMode 状态单例，set 时写 `qcode.debugMode` context key）、`src/activate/registerCommands.ts`（两个命令回调）。验证：types 构建、`tsc --noEmit`、eslint、registerCommands.spec 均通过。注：event emitter 因测试内联 vscode mock 未提供 EventEmitter 暂移除，阶段 3 需要时再加。
+- 2026-06-17：✅ 阶段 2 完成。新增 `src/core/debug/DebugPanelProvider.ts`（自带 HTML 的调试面板，单例 createOrShow/close，CSP+nonce+codicons，骨架分区 + Continue/Step 占位按钮 + debugReady 消息桥）；`registerCommands.ts` 两命令接线打开/关闭面板。设计微调：面板用轻量 HTML 而非第二套 React（理由见 5.2）。验证：tsc/eslint/registerCommands.spec 通过；真机目检面板可正常弹出。
