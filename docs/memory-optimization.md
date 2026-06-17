@@ -53,7 +53,29 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 - **2-A. Webview 消息虚拟化保留**：宿主不再全量推送 `clineMessages`，改窗口 + 懒加载；图片改用 VS Code 资源 URI / webview asset 引用，去除 base64。
 - **2-B. 宿主历史落盘**：旧轮次全文从内存卸下、按需读回；condense 在上下文上限前按消息数 / 字节阈值自动触发。
-- **2-C. 图片内存表示 base64 → Blob / 引用**：两侧均不再保留 base64。
+- **2-C. 图片内存表示 base64 → 引用**：两侧均不再保留 base64（已选定实施，见下）。
+
+#### 2-C 实施设计（已与用户确认：兼容并存 + 全链路）
+
+现状：图片自选中起即为 `data:image/...` base64，一路驻留于内存（`clineMessages` + `apiConversationHistory`）、磁盘存档（JSON 内联 base64）、webview 传输与渲染。唯一**必须** base64 的只有「发给模型那一刻」（Anthropic API 仅收 base64）。
+
+核心设计：图片字节只落盘一次（`<taskDir>/images/<sha256>.<ext>`），其余环节只存**引用 token**（前缀 `roo-image-ref:`，与 `data:` 可区分，实现兼容并存）。仅在两处还原：
+
+- 发模型时：引用 → 读文件转 base64（最后一刻）。
+- webview 显示时：引用 → `convertToWebviewUri()`，在两个出口转换：`ClineProvider.getStateToPostToWebview()`（批量）与 `Task.updateClineMessage()`（流式单条）。
+
+兼容并存：所有消费端对 `images[]` 每一项分支处理——`data:` 走旧 base64 路径（旧任务照常打开），`roo-image-ref:` 走新引用路径。旧存档零迁移、零破坏。
+
+子步骤（各自可编译、可测、可单独提交）：
+
+| 子步骤 | 内容                                                                                               | 风险         |
+| ------ | -------------------------------------------------------------------------------------------------- | ------------ |
+| C1     | 新增宿主侧 image-store 模块（`storeImage` / `isImageRef` / `refToAbsPath` / `refToDataUrl`）+ 单测 | 低（纯函数） |
+| C2     | 摄入：用户选/贴图入站时落盘并替换为引用（`process-images.ts` / `resolveIncomingImages`）           | 中           |
+| C3     | 发模型：`formatImagesIntoBlocks` / `imageBlocks` 解析引用 → base64（最后一刻）                     | 中           |
+| C5     | webview 渲染：两个出口将引用解析为 webview URI                                                     | 中           |
+| C4     | `apiConversationHistory` 存盘外置 / 发送内联（**最后做，单独测**）                                 | 高           |
+| C6     | 兼容并存与回归测试（旧 base64 任务仍可打开/显示/发送）                                             | —            |
 
 ### 阶段 3 —— 监控
 
