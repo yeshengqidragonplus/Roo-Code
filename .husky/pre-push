@@ -5,15 +5,46 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
-# Detect if running on Windows and use pnpm.cmd, otherwise use pnpm.
+# --- PATH bootstrap (so GUI git clients can push too) -------------------------
+# GUI clients (VS Code, Fork, GitHub Desktop, ...) start hooks with a minimal
+# PATH and usually can't find node/pnpm. Pull in the common locations and any
+# version manager so the checks below can actually run instead of hard-failing.
+for dir in \
+  "/opt/homebrew/bin" "/usr/local/bin" "$HOME/.local/bin" \
+  "$HOME/.volta/bin" "$HOME/.bun/bin" "$HOME/n/bin"; do
+  [ -d "$dir" ] && case ":$PATH:" in *":$dir:"*) ;; *) PATH="$dir:$PATH";; esac
+done
+
+# fnm
+command -v fnm >/dev/null 2>&1 && eval "$(fnm env 2>/dev/null)" 2>/dev/null
+# nvm (load the default/current node onto PATH)
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1090
+  . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1
+fi
+# asdf
+[ -s "$HOME/.asdf/asdf.sh" ] && . "$HOME/.asdf/asdf.sh" >/dev/null 2>&1
+export PATH
+
+# --- Resolve a package manager command ---------------------------------------
 if [ "$OS" = "Windows_NT" ]; then
   pnpm_cmd="pnpm.cmd"
+elif command -v pnpm >/dev/null 2>&1; then
+  pnpm_cmd="pnpm"
+elif command -v corepack >/dev/null 2>&1; then
+  pnpm_cmd="corepack pnpm"
+elif command -v npx >/dev/null 2>&1; then
+  pnpm_cmd="npx pnpm"
 else
-  if command -v pnpm >/dev/null 2>&1; then
-    pnpm_cmd="pnpm"
-  else
-    pnpm_cmd="npx pnpm"
-  fi
+  pnpm_cmd=""
+fi
+
+# If no package manager is reachable (typical bare GUI environment), skip the
+# checks with a warning rather than blocking the push.
+if [ -z "$pnpm_cmd" ]; then
+  echo "pre-push: pnpm/node not found on PATH - skipping type-check and tests."
+  echo "pre-push: run 'pnpm check-types' manually if you haven't already."
+  exit 0
 fi
 
 $pnpm_cmd run check-types
