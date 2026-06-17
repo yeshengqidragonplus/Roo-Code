@@ -25,6 +25,34 @@ describe("Text normalization utilities", () => {
 			)
 		})
 
+		it("converts full-width punctuation to half-width by default", () => {
+			// Full-width parentheses/comma/colon etc. (U+FF08 …) -> ASCII
+			expect(normalizeString("状态（对齐 Block 逻辑）")).toBe("状态(对齐 Block 逻辑)")
+			expect(normalizeString("ＡＢ１２３，！？：；")).toBe("AB123,!?:;")
+		})
+
+		it("matches full-width vs half-width punctuation after normalization", () => {
+			const full = "// ★ 从配置读取 isHidden 状态（对齐 Block 逻辑）"
+			const half = "// ★ 从配置读取 isHidden 状态(对齐 Block 逻辑)"
+			expect(normalizeString(full)).toBe(normalizeString(half))
+		})
+
+		it("strips zero-width and directional-control characters by default", () => {
+			// ZWSP, ZWNJ, ZWJ, LTR/RTL marks, word joiner, BOM
+			expect(normalizeString("a\u200bb\u200cc\u200dd\u200ee\u200ff\u2060g\ufeffh")).toBe("abcdefgh")
+		})
+
+		it("applies Unicode NFC normalization by default", () => {
+			const nfd = "e\u0301" // e + combining acute accent (NFD)
+			const nfc = "\u00e9" // é (NFC)
+			expect(normalizeString(nfd)).toBe(normalizeString(nfc))
+			expect(normalizeString(nfd)).toBe(nfc)
+		})
+
+		it("can disable full-width conversion", () => {
+			expect(normalizeString("（）", { fullWidth: false })).toBe("（）")
+		})
+
 		it("real-world example with mixed characters", () => {
 			const input = "Let\u2019s test this\u2014with some \u201Cfancy\u201D punctuation\u2026 and   spaces"
 			expect(normalizeString(input)).toBe('Let\'s test this-with some "fancy" punctuation... and spaces')
