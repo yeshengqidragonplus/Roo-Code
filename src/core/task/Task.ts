@@ -84,6 +84,7 @@ import { OutputInterceptor } from "../../integrations/terminal/OutputInterceptor
 // utils
 import { calculateApiCostAnthropic, calculateApiCostOpenAI } from "../../shared/cost"
 import { getWorkspacePath } from "../../utils/path"
+import { recordMemorySample, isMemoryProbeEnabled } from "../../utils/memoryProbe"
 import { sanitizeToolUseId } from "../../utils/tool-id"
 import { getTaskDirectoryPath } from "../../utils/storage"
 
@@ -2476,6 +2477,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const currentItem = stack.pop()!
 			const currentUserContent = currentItem.userContent
 			const currentIncludeFileDetails = currentItem.includeFileDetails
+
+			if (isMemoryProbeEnabled) {
+				recordMemorySample(`task ${this.taskId} turn`, {
+					apiHistory: this.apiConversationHistory.length,
+					clineMessages: this.clineMessages.length,
+				})
+			}
 
 			if (this.abort) {
 				throw new Error(`[RooCode#recursivelyMakeRooRequests] task ${this.taskId}.${this.instanceId} aborted`)

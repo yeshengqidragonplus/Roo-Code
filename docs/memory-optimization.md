@@ -57,19 +57,29 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 ### 阶段 3 —— 监控
 
-在开发构建注入 `process.memoryUsage()` 探针，跟踪任务进行中的 `heapUsed`，对阶段 1/2 做 before/after 验证。
+注入轻量、按需开启的内存探针 [`src/utils/memoryProbe.ts`](../src/utils/memoryProbe.ts)，
+跟踪任务进行中的 `heapUsed` / `rss` / `external` 及历史数组长度，对阶段 1/2 做 before/after 验证。
+
+**用法**：设置环境变量 `QCODE_MEMORY_PROBE=1` 启动扩展（未设置时零开销，可安全留在生产构建）。
+探针在每个 API 轮次（`Task.recursivelyMakeClineRequests` 循环顶部）打印一行：
+
+```
+[memory-probe] task <id> turn heapUsed=123.4MB (+5.6MB) rss=... external=... apiHistory=42 clineMessages=88
+```
+
+观察 `heapUsed` 增量与 `apiHistory` / `clineMessages` 长度是否同步线性增长，即可坐实主因（2.1）。
 
 ## 4. 阶段任务与进度
 
-| ID  | 阶段 | 任务                                          | 状态                |
-| --- | ---- | --------------------------------------------- | ------------------- |
-| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化 | ✅ 完成             |
-| 1-B | 1    | `aggregatedCostsMap` 改 LRU                   | ✅ 完成             |
-| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`     | ✅ 完成             |
-| 3   | 3    | 注入 `memoryUsage` 探针并计测                 | ⬜ 未开始           |
-| 2-A | 2    | Webview 消息虚拟化保留 + 图片引用化           | ⬜ 未开始（待计测） |
-| 2-B | 2    | 宿主历史落盘 + condense 自动触发              | ⬜ 未开始（待计测） |
-| 2-C | 2    | 图片 base64 → Blob/引用                       | ⬜ 未开始（待计测） |
+| ID  | 阶段 | 任务                                          | 状态                              |
+| --- | ---- | --------------------------------------------- | --------------------------------- |
+| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化 | ✅ 完成                           |
+| 1-B | 1    | `aggregatedCostsMap` 改 LRU                   | ✅ 完成                           |
+| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`     | ✅ 完成                           |
+| 3   | 3    | 注入 `memoryUsage` 探针并计测                 | ✅ 完成（探针就绪，待实环境计测） |
+| 2-A | 2    | Webview 消息虚拟化保留 + 图片引用化           | ⬜ 未开始（待计测）               |
+| 2-B | 2    | 宿主历史落盘 + condense 自动触发              | ⬜ 未开始（待计测）               |
+| 2-C | 2    | 图片 base64 → Blob/引用                       | ⬜ 未开始（待计测）               |
 
 > 实施顺序：先完成阶段 1（1-A → 1-B → 1-C），再做阶段 3 计测以数字坐实主因，最后据计测结果推进阶段 2。
 > 每完成一项更新本表状态（⬜ 未开始 / 🔄 进行中 / ✅ 完成），并保证 `pnpm lint` 与 `pnpm check-types` 通过、相关测试通过。
