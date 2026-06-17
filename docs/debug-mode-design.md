@@ -80,31 +80,47 @@
 
 ### 5.3 DebugController 与断点（阶段 3）
 
-- 新建 `src/core/task/DebugController.ts`（或挂在 Task 上）：
+> **关键发现（已落地）**：本 fork 的回复是**边流式接收边内联执行工具**的（`presentAssistantMessage` 在流循环中被多次调用，工具在流中途就执行）。因此**不存在「完整回复收到、且工具都还没执行」的干净时机**——流到一半工具就跑了。
+>
+> **三个断点**（最初想砍掉 afterResponse，但用户验证时发现「纯文字回复看不到、没进调试步骤」，故补回）：
+>
+> - **断点A `beforeRequest`** — 发送前，看/改完整出站 payload。
+> - **断点B `afterResponse`** — `Task.ts` `didCompleteReadingStream = true` 之后，流读完、`assistantMessage` 完整时暂停。**这是纯文字回复（无工具）唯一会触发的断点**，保证「回复也进入调试 loop」。注意：流中途已完成的工具可能已经跑过（并已触发过自己的 C），所以 B 语义是「模型话说完了」，不保证在工具之前。
+> - **断点C `beforeTool`** — 每个完整工具执行前暂停（用户要的「动手前等我」）。
+>
+> 失败的请求走 `catch`（约 `Task.ts:3146`），不会到 B/C —— 故 provider 报错时调试面板不暂停（这是合理的；错误展示是后续可选增强）。
+
+- 新建 `src/core/debug/DebugController.ts`（与 `debugMode.ts`/`DebugPanelProvider.ts` 同目录，非原写的 `task/`）：
     ```ts
     type DebugStage = "beforeRequest" | "afterResponse" | "beforeTool"
     interface DebugPausePayload {
-    	stage: DebugStage
-    	taskId: string
-    	round: number
-    	systemPrompt?: string
-    	messages?: unknown // cleanConversationHistory
-    	metadata?: unknown
-    	assistantText?: string // afterResponse
-    	tool?: { name: string; input: unknown } // beforeTool
+    	stage
+    	taskId
+    	systemPrompt?
+    	messages?
+    	metadata?
+    	assistantText?
+    	tool?
     }
+    interface DebugResumeResult {
+    	systemPrompt?
+    	messages?
+    	metadata?
+    	assistantText?
+    } // 阶段4 才填
     class DebugController {
-    	isEnabled(): boolean
-    	async pause(payload): Promise<DebugResumeResult> // 内部 pWaitFor + promise
-    	resume(result: DebugResumeResult): void // result 可含编辑后的字段
-    	cancelAll(): void // 关闭调试模式时调用
+    	isEnabled() // = debugMode.isEnabled()
+    	async pause(payload): DebugResumeResult // 关闭/无面板时立即返回 {}（零开销）；否则 postMessage + 阻塞等 resume
+    	resume(result = {}) // resolve 当前挂起断点（+ 发 debugResumed）
+    	cancelAll() // 释放挂起断点，防 loop 卡死
     }
     ```
-- 接入点：
-    - **断点A**：`Task.ts:4167` 之前。若 `debug.isEnabled()`，`pause({stage:"beforeRequest", systemPrompt, messages: cleanConversationHistory, metadata})`，用返回值覆盖 `systemPrompt`/`cleanConversationHistory`/`metadata` 后再 `createMessage`。
-    - **断点B**：`Task.ts:2735` 附近，流读取完整 assistant 内容后、`presentAssistantMessage` 之前，`pause({stage:"afterResponse", assistantText})`，用返回值覆盖再继续解析。
-    - **断点C**：`presentAssistantMessage.ts` 每个工具 switch 执行前，`pause({stage:"beforeTool", tool})`。
-- 性能：未开启调试时 `pause` 直接 return，零阻塞。
+- 接入点（均「未开启零开销」）：
+    - **断点A**：`Task.ts` `createMessage` 调用前。`const r = await debugController.pause({stage:"beforeRequest", systemPrompt, messages: cleanConversationHistory, metadata})`，再以 `r.systemPrompt ?? systemPrompt` 等覆盖入参（阶段3 r 恒为空，覆盖路径为阶段4 预埋）。
+    - **断点C**：`presentAssistantMessage.ts` `switch (block.name)` 之前，`if (!block.partial)` 内。`pause({stage:"beforeTool", taskId, assistantText, tool:{name:block.name, input:block.params}})`。
+- 面板接线：`onDidReceiveMessage` 收 `debugContinue`/`debugStep` → `debugController.resume()`；HTML 在 `debugPaused` 时填充各分区、启用 Continue/Step，`debugResumed` 时禁用。
+- 防卡死：退出命令 `disableDebugMode` 与面板 `onDidDispose` 均调 `cancelAll()`。
+- 阶段3 范围：**只读暂停-继续**（Step 暂等同 Continue，即跑到下一个断点）；编辑回写留阶段4。
 
 ### 5.4 消息协议与编辑回写（阶段 4）
 
@@ -168,13 +184,13 @@
 
 > 图例：⬜ 未开始 · 🟡 进行中 · ✅ 完成
 
-| 阶段 | 内容                                                                                | 状态 | 备注                                                                                                  |
-| ---- | ----------------------------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------- |
-| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                             | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过                              |
-| 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）             | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出 |
-| 3    | DebugController + 三个断点接入（A 发送前 / B 回复后 / C 工具前），先做只读暂停-继续 | ⬜   |                                                                                                       |
-| 4    | 消息协议 + 编辑回写（可编辑上下文与回复）                                           | ⬜   |                                                                                                       |
-| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                 | ⬜   |                                                                                                       |
+| 阶段 | 内容                                                                                 | 状态 | 备注                                                                                                  |
+| ---- | ------------------------------------------------------------------------------------ | ---- | ----------------------------------------------------------------------------------------------------- |
+| 1    | 工具栏调试按钮 + 图标激活态切换（context key / `when`）                              | ✅   | 命令/菜单/图标/状态单例已就位；类型检查、lint、registerCommands 测试通过                              |
+| 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）              | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出 |
+| 3    | DebugController + 断点接入（A 发送前 / C 工具前；B 因边流边执行取消），只读暂停-继续 | ✅   | DebugController + 断点 A/C + 面板接线 + cancelAll 防卡死；tsc/lint/测试通过；真机目检留待             |
+| 4    | 消息协议 + 编辑回写（可编辑上下文与回复）                                            | ⬜   |                                                                                                       |
+| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                  | ⬜   |                                                                                                       |
 
 ### 变更日志
 
@@ -182,3 +198,5 @@
 - 2026-06-17：新增「7.5 已讨论但否决的需求」——存档「手动换 profile + 心跳保温缓存」的讨论与否决理由（心跳否决；手动换 profile 留作后续可选）。开始阶段 1。
 - 2026-06-17：✅ 阶段 1 完成。改动：`packages/types/src/vscode.ts`（commandIds 增 `enableDebugMode`/`disableDebugMode`）、`src/package.json`（命令+图标 `$(bug)`/`$(debug-stop)`、view/title 与 editor/title 菜单 navigation@3 互斥项）、`src/package.nls.json`（文案，其它 locale 暂回退英文，留待阶段 5）、新增 `src/core/debug/debugMode.ts`（debugMode 状态单例，set 时写 `qcode.debugMode` context key）、`src/activate/registerCommands.ts`（两个命令回调）。验证：types 构建、`tsc --noEmit`、eslint、registerCommands.spec 均通过。注：event emitter 因测试内联 vscode mock 未提供 EventEmitter 暂移除，阶段 3 需要时再加。
 - 2026-06-17：✅ 阶段 2 完成。新增 `src/core/debug/DebugPanelProvider.ts`（自带 HTML 的调试面板，单例 createOrShow/close，CSP+nonce+codicons，骨架分区 + Continue/Step 占位按钮 + debugReady 消息桥）；`registerCommands.ts` 两命令接线打开/关闭面板。设计微调：面板用轻量 HTML 而非第二套 React（理由见 5.2）。验证：tsc/eslint/registerCommands.spec 通过；真机目检面板可正常弹出。
+- 2026-06-17：✅ 阶段 3 完成。**关键发现**：本 fork 边流式接收边内联执行工具，原「断点B 回复后/工具前」无干净时机，断点收敛为 A(beforeRequest)+C(beforeTool)，C 携带 assistantText 故也能看回复。新增 `src/core/debug/DebugController.ts`（pause/resume/cancelAll，未开启零开销）；`Task.ts` 接断点 A（createMessage 前，预埋覆盖路径）；`presentAssistantMessage.ts` 接断点 C（switch 前、!partial）；`DebugPanelProvider` 接 debugContinue/debugStep→resume、HTML 填充分区+启停按钮；退出命令与面板 dispose 均 cancelAll 防卡死。验证：tsc/eslint/registerCommands.spec 通过；真机目检留待。
+- 2026-06-17：阶段3 修正（真机验证反馈）。用户发现纯文字回复（无工具）不触发任何断点、回复没进调试 loop。补回 **断点B `afterResponse`**：`Task.ts` 流读完(`didCompleteReadingStream=true`)后暂停，带 `assistantText`，并预埋编辑回写（`assistantMessage` 可被 resume 结果覆盖）。`DebugStage` 增 `afterResponse`，面板加 "After Response" 标签。说明：失败请求走 catch 不暂停。tsc/lint 通过。

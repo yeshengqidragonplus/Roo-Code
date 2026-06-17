@@ -3,6 +3,7 @@ import * as vscode from "vscode"
 import { getNonce } from "../webview/getNonce"
 import { getUri } from "../webview/getUri"
 import { debugMode } from "./debugMode"
+import { debugController } from "./DebugController"
 
 /**
  * Hosts the Agent Loop step-debugger panel in its own editor tab.
@@ -34,10 +35,15 @@ export class DebugPanelProvider {
 
 		this.panel.webview.onDidReceiveMessage(
 			(message: { type?: string }) => {
-				// Phase 3/4 will route debugContinue / debugStep / debugEdit to the
-				// DebugController here. For now we just acknowledge readiness.
-				if (message?.type === "debugReady") {
-					this.postMessage({ type: "debugModeChanged", enabled: debugMode.isEnabled() })
+				switch (message?.type) {
+					case "debugReady":
+						this.postMessage({ type: "debugModeChanged", enabled: debugMode.isEnabled() })
+						break
+					case "debugContinue":
+					case "debugStep":
+						// Phase 4 will carry edited fields on these messages.
+						debugController.resume()
+						break
 				}
 			},
 			null,
@@ -86,7 +92,9 @@ export class DebugPanelProvider {
 			this.disposables.pop()?.dispose()
 		}
 		this.panel.dispose()
-		// Leaving the panel open implies debug mode is on; closing it turns it off.
+		// Release any breakpoint the loop is blocked on so it never hangs, then
+		// turn off debug mode (closing the panel implies leaving debug mode).
+		debugController.cancelAll()
 		void debugMode.set(false)
 	}
 
@@ -142,10 +150,62 @@ export class DebugPanelProvider {
 	</div>
 	<script nonce="${nonce}">
 		const vscode = acquireVsCodeApi();
+		const $ = (id) => document.getElementById(id);
+		const continueBtn = $("continue");
+		const stepBtn = $("step");
+
+		const STAGE_LABELS = { beforeRequest: "Before Request", afterResponse: "After Response", beforeTool: "Before Tool" };
+
+		function asText(v) {
+			if (v === undefined || v === null) return null;
+			if (typeof v === "string") return v;
+			try { return JSON.stringify(v, null, 2); } catch (e) { return String(v); }
+		}
+
+		function setSection(id, value) {
+			const el = $(id);
+			const text = asText(value);
+			if (text === null) {
+				el.textContent = "—";
+				el.classList.add("placeholder");
+			} else {
+				el.textContent = text;
+				el.classList.remove("placeholder");
+			}
+		}
+
+		function setPaused(paused) {
+			continueBtn.disabled = !paused;
+			stepBtn.disabled = !paused;
+		}
+
+		function onPaused(payload) {
+			payload = payload || {};
+			$("stage").textContent = STAGE_LABELS[payload.stage] || payload.stage || "Paused";
+			$("meta").textContent = payload.taskId ? ("task " + payload.taskId) : "";
+			setSection("systemPrompt", payload.systemPrompt);
+			setSection("messages", payload.messages);
+			setSection("metadata", payload.metadata);
+			setSection("assistant", payload.assistantText);
+			setSection("tool", payload.tool);
+			setPaused(true);
+		}
+
+		function onResumed() {
+			$("stage").textContent = "Running…";
+			$("meta").textContent = "";
+			setPaused(false);
+		}
+
+		continueBtn.addEventListener("click", () => { setPaused(false); vscode.postMessage({ type: "debugContinue" }); });
+		stepBtn.addEventListener("click", () => { setPaused(false); vscode.postMessage({ type: "debugStep" }); });
+
 		window.addEventListener("message", (event) => {
 			const msg = event.data || {};
-			// Phase 3/4 will populate the sections from debugPaused payloads here.
+			if (msg.type === "debugPaused") onPaused(msg.payload);
+			else if (msg.type === "debugResumed") onResumed();
 		});
+
 		// Tell the host we are ready to receive breakpoints.
 		vscode.postMessage({ type: "debugReady" });
 	</script>

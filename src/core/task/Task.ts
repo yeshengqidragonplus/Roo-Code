@@ -99,6 +99,7 @@ import { FileContextTracker } from "../context-tracking/FileContextTracker"
 import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { RooProtectedController } from "../protect/RooProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage } from "../assistant-message"
+import { debugController } from "../debug/DebugController"
 import { NativeToolCallParser } from "../assistant-message/NativeToolCallParser"
 import { manageContext, willManageContext } from "../context-management"
 import { ClineProvider } from "../webview/ClineProvider"
@@ -3212,6 +3213,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 				this.didCompleteReadingStream = true
 
+				// Debug breakpoint: the stream is fully read, so the model's reply is
+				// complete. Pause so the user can see it (this is the only breakpoint
+				// for a plain-text reply with no tool call). No-op when debug off.
+				if (assistantMessage.length > 0 || this.assistantMessageContent.length > 0) {
+					const afterResp = await debugController.pause({
+						stage: "afterResponse",
+						taskId: this.taskId,
+						assistantText: assistantMessage,
+					})
+					if (afterResp.assistantText !== undefined) {
+						assistantMessage = afterResp.assistantText
+					}
+				}
+
 				// Set any blocks to be complete to allow `presentAssistantMessage`
 				// to finish and set `userMessageContentReady` to true.
 				// (Could be a text block that had no subsequent tool uses, or a
@@ -4163,11 +4178,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Reset the flag after using it
 		this.skipPrevResponseIdOnce = false
 
+		// Debug breakpoint A: pause before sending so the user can inspect (and, in
+		// phase 4, edit) the full outbound payload. No-op when debug mode is off.
+		const debugResult = await debugController.pause({
+			stage: "beforeRequest",
+			taskId: this.taskId,
+			systemPrompt,
+			messages: cleanConversationHistory,
+			metadata,
+		})
+
 		// The provider accepts reasoning items alongside standard messages; cast to the expected parameter type.
 		const stream = this.api.createMessage(
-			systemPrompt,
-			cleanConversationHistory as unknown as Anthropic.Messages.MessageParam[],
-			metadata,
+			debugResult.systemPrompt ?? systemPrompt,
+			(debugResult.messages ?? cleanConversationHistory) as unknown as Anthropic.Messages.MessageParam[],
+			(debugResult.metadata as ApiHandlerCreateMessageMetadata | undefined) ?? metadata,
 		)
 		const iterator = stream[Symbol.asyncIterator]()
 

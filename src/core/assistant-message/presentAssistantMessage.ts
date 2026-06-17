@@ -11,6 +11,8 @@ import type { ToolParamName, ToolResponse, ToolUse, McpToolUse } from "../../sha
 
 import { AskIgnoredError } from "../task/AskIgnoredError"
 import { Task } from "../task/Task"
+import { debugController } from "../debug/DebugController"
+import type { AssistantMessageContent } from "./types"
 
 import { listFilesTool } from "../tools/ListFilesTool"
 import { readFileTool } from "../tools/ReadFileTool"
@@ -646,6 +648,22 @@ export async function presentAssistantMessage(cline: Task) {
 					)
 					break
 				}
+			}
+
+			// Debug breakpoint C: the model has decided to act — pause before the
+			// tool runs so the user can inspect what's about to happen (and, in
+			// phase 4, gate/edit it). Only for complete blocks; no-op when off.
+			if (!block.partial) {
+				const assistantText = cline.assistantMessageContent
+					.filter((b): b is Extract<AssistantMessageContent, { type: "text" }> => b.type === "text")
+					.map((b) => b.content)
+					.join("")
+				await debugController.pause({
+					stage: "beforeTool",
+					taskId: cline.taskId,
+					assistantText: assistantText || undefined,
+					tool: { name: block.name, input: block.params },
+				})
 			}
 
 			switch (block.name) {

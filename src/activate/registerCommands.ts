@@ -13,6 +13,7 @@ import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
 import { debugMode } from "../core/debug/debugMode"
 import { DebugPanelProvider } from "../core/debug/DebugPanelProvider"
+import { debugController } from "../core/debug/DebugController"
 import { t } from "../i18n"
 
 /**
@@ -177,8 +178,8 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 	},
 	disableDebugMode: async () => {
 		await debugMode.set(false)
-		// Disposing the panel also flips debugMode off via its onDidDispose handler.
-		// Phase 3 will additionally resume any pending breakpoints here (cancelAll).
+		// Release any breakpoint the loop is blocked on, then close the panel.
+		debugController.cancelAll()
 		DebugPanelProvider.close()
 	},
 })
