@@ -139,13 +139,16 @@
 - **协议**：`resume(result)` 透传 `DebugResumeResult`；未改时 `result = {}`，行为与阶段3 一致。
 - 测试覆盖留阶段5。
 
-### 5.5 i18n 与测试（阶段 5）
+### 5.5 测试 / 多语言 / 边界打磨（阶段 5，已规划 · 暂缓）
 
-- 文案：按钮 title、面板标题、阶段标签走 `webview-ui` i18n 与 `src/package.nls.*.json`。
-- 测试（Vitest，`cd src && npx vitest run ...`）：
-    - `DebugController` 的 pause/resume/cancelAll 阻塞与编辑回写。
-    - 断点在 `debug` 关闭时零开销（不阻塞）。
-    - 回复后编辑写回 `apiConversationHistory` 后下一轮一致。
+> **决定（2026-06-17）**：阶段 1–4 的核心功能已全部完成且可用。以下三项已规划但**暂缓**，确认其余计划无遗留后再回来做。
+
+- **测试**（Vitest，`cd src && npx vitest run ...`）：
+    - `DebugController` 的 pause/resume/cancelAll：未开启零开销立即返回、开启阻塞到 resume、resume 透传编辑结果、cancelAll 防卡死。
+    - 回写一致性：Assistant Reply 编辑后确实流入 `apiConversationHistory`，下一轮一致。
+    - 断点在调试关闭时零开销（不阻塞）。
+- **多语言 i18n**：按钮 title（`src/package.nls.*.json`）、面板内文案（阶段标签、Continue/Step、分区标题、提示）目前为硬编码英文，需本地化。优先级偏低（主要自用时英文够用）。
+- **边界打磨**：多个连续断点、面板关闭后重开、调试中途切换任务/取消任务、超长上下文渲染性能等场景的健壮性复查。
 
 ## 6. 风险与对策
 
@@ -197,7 +200,7 @@
 | 2    | 调试 Webview Panel（DebugPanelProvider + 轻量 HTML 骨架，能打开空界面）              | ✅   | 改用自带 HTML（非第二套 React）；createOrShow/close + 命令接线；tsc/lint/测试通过；真机目检面板可弹出    |
 | 3    | DebugController + 断点接入（A 发送前 / C 工具前；B 因边流边执行取消），只读暂停-继续 | ✅   | DebugController + 断点 A/C + 面板接线 + cancelAll 防卡死；tsc/lint/测试通过；真机目检留待                |
 | 4    | 编辑回写（可编辑上下文/回复/工具入参）                                               | ✅   | textarea 按阶段可编辑 + JSON 校验；A 改本轮请求、B 回写历史、C 改工具入参；tsc/lint/测试通过；待真机目检 |
-| 5    | i18n + 测试 + 边界（cancelAll、零开销、回写一致性）                                  | ⬜   |                                                                                                          |
+| 5    | 测试 + 多语言 + 边界打磨                                                             | ⏸️   | 已规划，**暂缓**（用户确认其余计划无遗留后再做）。详见 5.5                                               |
 
 ### 变更日志
 
@@ -208,3 +211,4 @@
 - 2026-06-17：✅ 阶段 3 完成。**关键发现**：本 fork 边流式接收边内联执行工具，原「断点B 回复后/工具前」无干净时机，断点收敛为 A(beforeRequest)+C(beforeTool)，C 携带 assistantText 故也能看回复。新增 `src/core/debug/DebugController.ts`（pause/resume/cancelAll，未开启零开销）；`Task.ts` 接断点 A（createMessage 前，预埋覆盖路径）；`presentAssistantMessage.ts` 接断点 C（switch 前、!partial）；`DebugPanelProvider` 接 debugContinue/debugStep→resume、HTML 填充分区+启停按钮；退出命令与面板 dispose 均 cancelAll 防卡死。验证：tsc/eslint/registerCommands.spec 通过；真机目检留待。
 - 2026-06-17：阶段3 修正（真机验证反馈）。用户发现纯文字回复（无工具）不触发任何断点、回复没进调试 loop。补回 **断点B `afterResponse`**：`Task.ts` 流读完(`didCompleteReadingStream=true`)后暂停，带 `assistantText`，并预埋编辑回写（`assistantMessage` 可被 resume 结果覆盖）。`DebugStage` 增 `afterResponse`，面板加 "After Response" 标签。说明：失败请求走 catch 不暂停。tsc/lint 通过。
 - 2026-06-17：✅ 阶段 4 完成。面板各分区改 `<textarea>`，按阶段可编辑（A: SystemPrompt/Messages/Metadata；B: Assistant Reply；C: Pending Tool input），JSON 分区带 parse 校验+错误高亮，只采集改动字段。回写：A 覆盖本轮 createMessage 入参（不改历史）、B 经 assistantMessage 流入历史、C 把 input 覆盖到 block.params。`DebugResumeResult` 增 `tool`，`presentAssistantMessage` 应用工具入参编辑，`DebugPanelProvider` resume 透传 result。实现微调：协议走面板私有消息（非 packages/types 联合类型），`debugEdit` 并入 Continue/Step 的 result。tsc/lint/registerCommands.spec 通过；真机目检留待。
+- 2026-06-17：阶段 1–4 核心功能全部完成、可用。阶段 5（测试 / 多语言 / 边界打磨）经用户决定**暂缓**，已在 5.5 与进度表记录，待其余计划确认无遗留后再回来做。
