@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react"
 import { Trans } from "react-i18next"
-import { ArrowLeft, Brain } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { openRouterDefaultModelId, type ProviderSettings } from "@roo-code/types"
 
@@ -37,6 +37,7 @@ const WelcomeViewProvider = () => {
 	const { t } = useAppTranslation()
 	const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
 	const [showProviderSetup, setShowProviderSetup] = useState(false)
+	const [imagesBaseUri] = useState(() => (window as any).IMAGES_BASE_URI || "")
 	const [welcomeApiConfiguration, setWelcomeApiConfiguration] = useState<ProviderSettings>()
 	const effectiveApiConfiguration = welcomeApiConfiguration ?? getWelcomeApiConfiguration(apiConfiguration)
 
@@ -110,8 +111,19 @@ const WelcomeViewProvider = () => {
 
 	return (
 		<Tab>
-			<TabContent className="flex flex-col gap-4 p-6 justify-center">
-				<Brain className="size-8" strokeWidth={1.5} />
+			<TabContent className="flex flex-col gap-4 p-6">
+				<div
+					className="size-8"
+					style={{
+						backgroundColor: "var(--vscode-foreground)",
+						WebkitMaskImage: `url('${imagesBaseUri}/panda-logo.svg')`,
+						WebkitMaskRepeat: "no-repeat",
+						WebkitMaskSize: "contain",
+						maskImage: `url('${imagesBaseUri}/panda-logo.svg')`,
+						maskRepeat: "no-repeat",
+						maskSize: "contain",
+					}}
+				/>
 				<h2 className="mt-0 mb-0 text-xl">{t("welcome:providerSignup.heading")}</h2>
 
 				<p className="text-base text-vscode-foreground">
