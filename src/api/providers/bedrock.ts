@@ -849,10 +849,7 @@ export class AwsBedrockHandler extends BaseProvider implements SingleCompletionH
 		}
 
 		// Get previous cache point placements for this conversation if available
-		const previousPlacements =
-			conversationId && this.previousCachePointPlacements[conversationId]
-				? this.previousCachePointPlacements[conversationId]
-				: undefined
+		const previousPlacements = conversationId ? this.getCachePointPlacements(conversationId) : undefined
 
 		// Create config for cache strategy
 		const config = {
@@ -869,7 +866,7 @@ export class AwsBedrockHandler extends BaseProvider implements SingleCompletionH
 
 		// Store cache point placements for future use if conversation ID is provided
 		if (conversationId && cacheResult.messageCachePointPlacements) {
-			this.previousCachePointPlacements[conversationId] = cacheResult.messageCachePointPlacements
+			this.setCachePointPlacements(conversationId, cacheResult.messageCachePointPlacements)
 		}
 
 		// Apply cache points to the properly converted messages
@@ -1159,8 +1156,32 @@ export class AwsBedrockHandler extends BaseProvider implements SingleCompletionH
 	 *
 	 *************************************************************************************/
 
-	// Store previous cache point placements for maintaining consistency across consecutive messages
-	private previousCachePointPlacements: { [conversationId: string]: any[] } = {}
+	// Store previous cache point placements for maintaining consistency across consecutive messages.
+	// Bounded LRU keyed by conversationId so this never grows without limit across long-lived sessions.
+	private static readonly MAX_CACHE_POINT_CONVERSATIONS = 50
+	private previousCachePointPlacements = new Map<string, any[]>()
+
+	// Retrieve placements for a conversation, marking it most-recently-used.
+	private getCachePointPlacements(conversationId: string): any[] | undefined {
+		const placements = this.previousCachePointPlacements.get(conversationId)
+		if (placements !== undefined) {
+			// Re-insert to move to the most-recent position.
+			this.previousCachePointPlacements.delete(conversationId)
+			this.previousCachePointPlacements.set(conversationId, placements)
+		}
+		return placements
+	}
+
+	// Store placements for a conversation, evicting the least-recently-used entry when over the cap.
+	private setCachePointPlacements(conversationId: string, placements: any[]): void {
+		this.previousCachePointPlacements.delete(conversationId)
+		this.previousCachePointPlacements.set(conversationId, placements)
+		while (this.previousCachePointPlacements.size > AwsBedrockHandler.MAX_CACHE_POINT_CONVERSATIONS) {
+			const oldest = this.previousCachePointPlacements.keys().next().value
+			if (oldest === undefined) break
+			this.previousCachePointPlacements.delete(oldest)
+		}
+	}
 
 	private supportsAwsPromptCache(modelConfig: { id: BedrockModelId | string; info: ModelInfo }): boolean | undefined {
 		// Check if the model supports prompt cache

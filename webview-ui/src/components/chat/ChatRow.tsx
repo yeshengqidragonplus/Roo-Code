@@ -190,11 +190,17 @@ export const ChatRowContent = ({
 	const [editMode, setEditMode] = useState<Mode>(mode || "code")
 	const [editImages, setEditImages] = useState<string[]>([])
 
-	// Handle message events for image selection during edit mode
+	// Handle message events for image selection during edit mode.
+	// Only register the listener while this row is actively editing so we don't keep
+	// one window listener per rendered ChatRow (rows render 1:1 with messages; N listeners otherwise).
 	useEffect(() => {
+		if (!isEditing) {
+			return
+		}
+
 		const handleMessage = (event: MessageEvent) => {
 			const msg = event.data
-			if (msg.type === "selectedImages" && msg.context === "edit" && msg.messageTs === message.ts && isEditing) {
+			if (msg.type === "selectedImages" && msg.context === "edit" && msg.messageTs === message.ts) {
 				setEditImages((prevImages) => appendImages(prevImages, msg.images, MAX_IMAGES_PER_MESSAGE))
 			}
 		}

@@ -55,6 +55,9 @@ export interface ChatViewRef {
 
 export const MAX_IMAGES_PER_MESSAGE = 20 // This is the Anthropic limit.
 
+// Upper bound on cached per-task aggregated cost entries to prevent unbounded growth across many subtasks.
+const MAX_AGGREGATED_COSTS_ENTRIES = 200
+
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
 const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = (
@@ -911,7 +914,15 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					if (message.text && message.aggregatedCosts) {
 						setAggregatedCostsMap((prev) => {
 							const newMap = new Map(prev)
+							// Re-insert to mark most-recently-used (Map preserves insertion order).
+							newMap.delete(message.text!)
 							newMap.set(message.text!, message.aggregatedCosts!)
+							// Bound the map so it never grows without limit across many subtasks.
+							while (newMap.size > MAX_AGGREGATED_COSTS_ENTRIES) {
+								const oldest = newMap.keys().next().value
+								if (oldest === undefined) break
+								newMap.delete(oldest)
+							}
 							return newMap
 						})
 					}

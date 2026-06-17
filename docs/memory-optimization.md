@@ -47,7 +47,7 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 - **1-B. `aggregatedCostsMap` 改 LRU**
   webview 已有 `lru-cache` 依赖，改为 `LRUCache`（`max ≈ 200`）。
 - **1-C. 合并 `ChatRow` 的 window 监听器**
-  改为在 `ChatView` 顶层注册单一 `message` 监听器，按 `message.ts` 分发到对应行，消除 N 个监听器。
+  实现采用更小改动、同等收益的方案：该监听器仅在行处于编辑态（`isEditing`）时才有作用，故改为「仅在 `isEditing` 为真时注册」。同一时刻至多一行处于编辑态，监听器数量从 N 降到 ≤1（原计划的上提到 `ChatView` 顶层分发会增大改动面，未采用）。
 
 ### 阶段 2 —— 针对主因（设计改动，收益最大，需先计测）
 
@@ -63,9 +63,9 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 | ID  | 阶段 | 任务                                          | 状态                |
 | --- | ---- | --------------------------------------------- | ------------------- |
-| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化 | ⬜ 未开始           |
-| 1-B | 1    | `aggregatedCostsMap` 改 LRU                   | ⬜ 未开始           |
-| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`     | ⬜ 未开始           |
+| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化 | ✅ 完成             |
+| 1-B | 1    | `aggregatedCostsMap` 改 LRU                   | ✅ 完成             |
+| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`     | ✅ 完成             |
 | 3   | 3    | 注入 `memoryUsage` 探针并计测                 | ⬜ 未开始           |
 | 2-A | 2    | Webview 消息虚拟化保留 + 图片引用化           | ⬜ 未开始（待计测） |
 | 2-B | 2    | 宿主历史落盘 + condense 自动触发              | ⬜ 未开始（待计测） |
