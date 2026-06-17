@@ -122,3 +122,16 @@ export async function refToDataUrl(taskDir: string, ref: string): Promise<string
 export async function resolveImageToDataUrl(taskDir: string, image: string): Promise<string> {
 	return isImageRef(image) ? refToDataUrl(taskDir, image) : image
 }
+
+/**
+ * Map an `images[]` array for display: reference tokens are turned into a renderable URI via the
+ * supplied resolver (e.g. `webview.asWebviewUri`); legacy base64 `data:` URIs pass through unchanged.
+ * Pure — takes the path→URI resolver as a parameter so it can be unit-tested without a webview.
+ */
+export function resolveImagesForDisplay(
+	taskDir: string,
+	images: string[],
+	toDisplayUri: (absPath: string) => string,
+): string[] {
+	return images.map((img) => (isImageRef(img) ? toDisplayUri(refToAbsPath(taskDir, img)) : img))
+}

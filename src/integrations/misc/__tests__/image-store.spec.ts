@@ -12,6 +12,7 @@ import {
 	storeImages,
 	refToDataUrl,
 	resolveImageToDataUrl,
+	resolveImagesForDisplay,
 } from "../image-store"
 
 // A 1x1 transparent PNG.
@@ -88,6 +89,27 @@ describe("image-store", () => {
 			expect(await resolveImageToDataUrl(taskDir, ref)).toBe(PNG_DATA_URL)
 			// Legacy base64 entries (older tasks) are returned untouched.
 			expect(await resolveImageToDataUrl(taskDir, PNG_DATA_URL)).toBe(PNG_DATA_URL)
+		})
+	})
+
+	describe("resolveImagesForDisplay", () => {
+		it("maps refs through the resolver and passes base64 through unchanged", () => {
+			const toUri = (absPath: string) => `vscode-webview://host/${path.basename(absPath)}`
+			const result = resolveImagesForDisplay(
+				taskDir,
+				[`${IMAGE_REF_PREFIX}abc.png`, PNG_DATA_URL, `${IMAGE_REF_PREFIX}def.webp`],
+				toUri,
+			)
+			expect(result[0]).toBe("vscode-webview://host/abc.png")
+			expect(result[1]).toBe(PNG_DATA_URL)
+			expect(result[2]).toBe("vscode-webview://host/def.webp")
+		})
+
+		it("returns identical content when there are no refs (resolver never called)", () => {
+			const toUri = vi.fn((absPath: string) => absPath)
+			const result = resolveImagesForDisplay(taskDir, [PNG_DATA_URL], toUri)
+			expect(result).toEqual([PNG_DATA_URL])
+			expect(toUri).not.toHaveBeenCalled()
 		})
 	})
 

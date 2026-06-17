@@ -85,6 +85,7 @@ import { OutputInterceptor } from "../../integrations/terminal/OutputInterceptor
 import { calculateApiCostAnthropic, calculateApiCostOpenAI } from "../../shared/cost"
 import { getWorkspacePath } from "../../utils/path"
 import { recordMemorySample, isMemoryProbeEnabled } from "../../utils/memoryProbe"
+import { storeImages } from "../../integrations/misc/image-store"
 import { sanitizeToolUseId } from "../../utils/tool-id"
 import { getTaskDirectoryPath } from "../../utils/storage"
 
@@ -1161,7 +1162,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	private async updateClineMessage(message: ClineMessage) {
 		const provider = this.providerRef.deref()
-		await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
+		// Resolve image refs to webview URIs for rendering; the stored message keeps its refs (2-C).
+		const clineMessage = (await provider?.resolveMessageImagesForWebview?.(message, this.taskId)) ?? message
+		await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage })
 		this.emit(RooCodeEventName.Message, { action: "updated", message })
 	}
 
@@ -1724,6 +1727,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	): Promise<undefined> {
 		if (this.abort) {
 			throw new Error(`[RooCode#say] task ${this.taskId}.${this.instanceId} aborted`)
+		}
+
+		// Persist any base64 images to the task's on-disk image store and keep only lightweight
+		// references in clineMessages, so screenshots don't sit as base64 in memory / ui_messages.json
+		// (2-C). The caller's array is untouched (this reassigns the local param), so the API path
+		// that formats the same images into base64 blocks keeps working. Idempotent: refs pass through.
+		if (images && images.length > 0) {
+			try {
+				const taskDir = await getTaskDirectoryPath(this.globalStoragePath, this.taskId)
+				images = await storeImages(taskDir, images)
+			} catch (error) {
+				// On failure keep the original base64 so the message still renders/persists.
+				console.error(`[Task#say] Failed to store images to image store:`, error)
+			}
 		}
 
 		if (partial !== undefined) {

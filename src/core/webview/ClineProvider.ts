@@ -83,6 +83,8 @@ import { Task } from "../task/Task"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
+import { isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
+import { getTaskDirectoryPath } from "../../utils/storage"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
 import { readTaskMessages } from "../task-persistence/taskMessages"
 import { getNonce } from "./getNonce"
@@ -2006,6 +2008,12 @@ export class ClineProvider
 		const cwd = this.cwd
 		const currentTask = this.getCurrentTask()
 
+		// Resolve image references to webview-accessible URIs for rendering (2-C). Stored messages
+		// keep their lightweight refs; only the copy sent to the webview carries URIs.
+		const clineMessagesForWebview = currentTask
+			? await this.resolveImageRefsForWebview(currentTask.clineMessages, currentTask.taskId)
+			: []
+
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,
@@ -2026,7 +2034,7 @@ export class ClineProvider
 			uriScheme: vscode.env.uriScheme,
 			currentTaskId: currentTask?.taskId,
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
-			clineMessages: currentTask?.clineMessages || [],
+			clineMessages: clineMessagesForWebview,
 			currentTaskTodos: currentTask?.todoList || [],
 			messageQueue: currentTask?.messageQueueService?.messages,
 			taskHistory: this.taskHistoryStore.getAll().filter((item: HistoryItem) => item.ts && item.task),
@@ -3145,5 +3153,41 @@ export class ClineProvider
 			// Return file URI as fallback
 			return vscode.Uri.file(filePath).toString()
 		}
+	}
+
+	/**
+	 * Resolve image references (`roo-image-ref:...`) in clineMessages to webview-accessible URIs so the
+	 * webview can render them. Stored messages are NOT mutated — shallow copies are returned only for
+	 * messages that actually carry refs. Legacy base64 `data:` URIs pass through untouched (2-C).
+	 */
+	public async resolveImageRefsForWebview(messages: ClineMessage[], taskId: string): Promise<ClineMessage[]> {
+		// Fast path: nothing to resolve (the common case — most messages have no images).
+		if (!messages.some((m) => m.images?.some(isImageRef))) {
+			return messages
+		}
+
+		let taskDir: string
+		try {
+			taskDir = await getTaskDirectoryPath(this.contextProxy.globalStorageUri.fsPath, taskId)
+		} catch (error) {
+			console.error("Failed to resolve task directory for image refs:", error)
+			return messages
+		}
+
+		return messages.map((m) => {
+			if (!m.images?.some(isImageRef)) {
+				return m
+			}
+			return {
+				...m,
+				images: resolveImagesForDisplay(taskDir, m.images, (absPath) => this.convertToWebviewUri(absPath)),
+			}
+		})
+	}
+
+	/** Single-message variant of {@link resolveImageRefsForWebview} for streaming updates. */
+	public async resolveMessageImagesForWebview(message: ClineMessage, taskId: string): Promise<ClineMessage> {
+		const [resolved] = await this.resolveImageRefsForWebview([message], taskId)
+		return resolved
 	}
 }

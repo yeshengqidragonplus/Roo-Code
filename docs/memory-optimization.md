@@ -68,14 +68,18 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 子步骤（各自可编译、可测、可单独提交）：
 
-| 子步骤 | 内容                                                                                               | 风险         |
-| ------ | -------------------------------------------------------------------------------------------------- | ------------ |
-| C1     | 新增宿主侧 image-store 模块（`storeImage` / `isImageRef` / `refToAbsPath` / `refToDataUrl`）+ 单测 | 低（纯函数） |
-| C2     | 摄入：用户选/贴图入站时落盘并替换为引用（`process-images.ts` / `resolveIncomingImages`）           | 中           |
-| C3     | 发模型：`formatImagesIntoBlocks` / `imageBlocks` 解析引用 → base64（最后一刻）                     | 中           |
-| C5     | webview 渲染：两个出口将引用解析为 webview URI                                                     | 中           |
-| C4     | `apiConversationHistory` 存盘外置 / 发送内联（**最后做，单独测**）                                 | 高           |
-| C6     | 兼容并存与回归测试（旧 base64 任务仍可打开/显示/发送）                                             | —            |
+| 子步骤 | 内容                                                                                                                  | 风险         |
+| ------ | --------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- |
+| C1     | 新增宿主侧 image-store 模块（`storeImage` / `isImageRef` / `refToAbsPath` / `refToDataUrl`）+ 单测                    | 低（纯函数） | ✅         |
+| C2     | 摄入：图片在 `Task.say` 内落盘并替换为引用（单一出口，调用方的 base64 数组不变）                                      | 中           | ✅         |
+| C3     | 发模型：无需改动 — `say` 只改本地副本，调用方 `images` 仍为 base64，API 路径不变                                      | —            | ✅（免做） |
+| C5     | webview 渲染：两个出口（`ClineProvider.getStateToPostToWebview` / `Task.updateClineMessage`）将引用解析为 webview URI | 中           | ✅         |
+| C4     | `apiConversationHistory` 存盘外置 / 发送内联（**最后做，单独测**）                                                    | 高           | ⬜         |
+| C6     | 兼容并存与回归测试（旧 base64 任务仍可打开/显示/发送）                                                                | —            | 🔄 进行中  |
+
+> 实施记录：C2 最终落在 `Task.say`（唯一把图片写入 `clineMessages` 的出口；`ask` 不带图片），而非入站处。
+> 因 `say` 只重写其本地 `images` 参数，调用方数组仍是 base64，发模型路径无需改动（C3 免做）。
+> 这把 base64 从 `clineMessages` 内存与 `ui_messages.json` 磁盘上去掉了；`apiConversationHistory` 仍内联 base64，留待 C4。
 
 ### 阶段 3 —— 监控
 
