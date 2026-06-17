@@ -11,6 +11,7 @@ import { focusPanel } from "../utils/focusPanel"
 import { handleNewTask } from "./handleTask"
 import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
+import { debugMode } from "../core/debug/debugMode"
 import { t } from "../i18n"
 
 /**
@@ -168,6 +169,14 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			type: "action",
 			action: "toggleAutoApprove",
 		})
+	},
+	enableDebugMode: async () => {
+		await debugMode.set(true)
+		// Phase 2 will open/focus the debug panel here.
+	},
+	disableDebugMode: async () => {
+		await debugMode.set(false)
+		// Phase 3 will resume any pending breakpoints here (cancelAll).
 	},
 })
 

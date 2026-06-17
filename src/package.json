@@ -91,6 +91,16 @@
 				"icon": "$(settings-gear)"
 			},
 			{
+				"command": "qcode.enableDebugMode",
+				"title": "%command.enableDebugMode.title%",
+				"icon": "$(bug)"
+			},
+			{
+				"command": "qcode.disableDebugMode",
+				"title": "%command.disableDebugMode.title%",
+				"icon": "$(debug-stop)"
+			},
+			{
 				"command": "qcode.openInNewTab",
 				"title": "%command.openInNewTab.title%",
 				"category": "%configuration.title%"
@@ -214,6 +224,16 @@
 					"when": "view == qcode.SidebarProvider"
 				},
 				{
+					"command": "qcode.enableDebugMode",
+					"group": "navigation@3",
+					"when": "view == qcode.SidebarProvider && !qcode.debugMode"
+				},
+				{
+					"command": "qcode.disableDebugMode",
+					"group": "navigation@3",
+					"when": "view == qcode.SidebarProvider && qcode.debugMode"
+				},
+				{
 					"command": "qcode.historyButtonClicked",
 					"group": "overflow@1",
 					"when": "view == qcode.SidebarProvider"
@@ -234,6 +254,16 @@
 					"command": "qcode.settingsButtonClicked",
 					"group": "navigation@2",
 					"when": "activeWebviewPanelId == qcode.TabPanelProvider"
+				},
+				{
+					"command": "qcode.enableDebugMode",
+					"group": "navigation@3",
+					"when": "activeWebviewPanelId == qcode.TabPanelProvider && !qcode.debugMode"
+				},
+				{
+					"command": "qcode.disableDebugMode",
+					"group": "navigation@3",
+					"when": "activeWebviewPanelId == qcode.TabPanelProvider && qcode.debugMode"
 				},
 				{
 					"command": "qcode.historyButtonClicked",
