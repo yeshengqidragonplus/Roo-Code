@@ -218,6 +218,7 @@ describe("writeToFileTool", () => {
 			nativeArgs: {
 				path: (params.path ?? testFilePath) as any,
 				content: (params.content ?? testContent) as any,
+				...((params as any).line_count !== undefined ? { line_count: (params as any).line_count } : {}),
 			},
 			partial: isPartial,
 		}
@@ -383,6 +384,59 @@ describe("writeToFileTool", () => {
 
 			// Should process normally without issues
 			expect(mockCline.consecutiveMistakeCount).toBe(0)
+		})
+	})
+
+	describe("truncation guard", () => {
+		it("rejects content containing a 'rest of code unchanged' placeholder", async () => {
+			const result = await executeWriteFileTool({
+				content: "function a() {}\n// ... rest of code unchanged\n",
+			})
+
+			expect(result).toContain("placeholder")
+			expect(mockCline.consecutiveMistakeCount).toBe(1)
+			expect(mockCline.recordToolError).toHaveBeenCalledWith("write_to_file")
+			expect(mockCline.diffViewProvider.saveChanges).not.toHaveBeenCalled()
+		})
+
+		it("rejects Chinese omission placeholders", async () => {
+			const result = await executeWriteFileTool({
+				content: "function a() {}\n// 其余代码保持不变\n",
+			})
+
+			expect(result).toContain("placeholder")
+			expect(mockCline.diffViewProvider.saveChanges).not.toHaveBeenCalled()
+		})
+
+		it("rejects content far shorter than the declared line_count", async () => {
+			const result = await executeWriteFileTool({
+				content: "line1\nline2\nline3\n",
+				line_count: 100,
+			} as any)
+
+			expect(result).toContain("truncated")
+			expect(mockCline.consecutiveMistakeCount).toBe(1)
+			expect(mockCline.diffViewProvider.saveChanges).not.toHaveBeenCalled()
+		})
+
+		it("allows content matching the declared line_count", async () => {
+			await executeWriteFileTool({
+				content: "line1\nline2\nline3\n",
+				line_count: 3,
+			} as any)
+
+			expect(mockCline.consecutiveMistakeCount).toBe(0)
+			expect(mockCline.diffViewProvider.saveChanges).toHaveBeenCalled()
+		})
+
+		it("tolerates small line_count discrepancies", async () => {
+			await executeWriteFileTool({
+				content: "line1\nline2\nline3\nline4\nline5\n",
+				line_count: 6,
+			} as any)
+
+			expect(mockCline.consecutiveMistakeCount).toBe(0)
+			expect(mockCline.diffViewProvider.saveChanges).toHaveBeenCalled()
 		})
 	})
 

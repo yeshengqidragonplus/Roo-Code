@@ -9,11 +9,13 @@ When using this tool, use it directly with the desired content. You do not need 
 When creating a new project, organize all new files within a dedicated project directory unless the user specifies otherwise. Structure the project logically, adhering to best practices for the specific type of project being created.
 
 Example: Writing a configuration file
-{ "path": "frontend-config.json", "content": "{\\n  \\"apiEndpoint\\": \\"https://api.example.com\\",\\n  \\"theme\\": {\\n    \\"primaryColor\\": \\"#007bff\\"\\n  }\\n}" }`
+{ "path": "frontend-config.json", "content": "{\\n  \\"apiEndpoint\\": \\"https://api.example.com\\",\\n  \\"theme\\": {\\n    \\"primaryColor\\": \\"#007bff\\"\\n  }\\n}", "line_count": 6 }`
 
 const PATH_PARAMETER_DESCRIPTION = `The path of the file to write to (relative to the current workspace directory)`
 
 const CONTENT_PARAMETER_DESCRIPTION = `The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified. Do NOT include line numbers in the content.`
+
+const LINE_COUNT_PARAMETER_DESCRIPTION = `The total number of lines in the file content you are providing. The tool compares this against the content actually received and rejects the write if the content appears truncated, so you must count accurately.`
 
 export default {
 	type: "function",
@@ -32,8 +34,12 @@ export default {
 					type: "string",
 					description: CONTENT_PARAMETER_DESCRIPTION,
 				},
+				line_count: {
+					type: "number",
+					description: LINE_COUNT_PARAMETER_DESCRIPTION,
+				},
 			},
-			required: ["path", "content"],
+			required: ["path", "content", "line_count"],
 			additionalProperties: false,
 		},
 	},

@@ -21,6 +21,55 @@ import { BaseTool, ToolCallbacks } from "./BaseTool"
 interface WriteToFileParams {
 	path: string
 	content: string
+	line_count?: number
+}
+
+// Placeholder/laziness markers that indicate the model omitted part of the file
+// instead of providing the complete content.
+const TRUNCATION_MARKERS = [
+	/\/\/\s*\.\.\.\s*(rest|remaining|previous|existing|unchanged|same as before)/i,
+	/#\s*\.\.\.\s*(rest|remaining|previous|existing|unchanged|same as before)/i,
+	/\/\*\s*\.\.\.\s*(rest|remaining|previous|existing|unchanged)/i,
+	/<!--\s*\.\.\.\s*(rest|remaining|previous|existing|unchanged)/i,
+	/\b(rest of (the )?(code|file|content|implementation) (remains|unchanged|here|stays the same))\b/i,
+	/(其余|剩余|以下|其他)(代码|内容|部分)?\s*(保持不变|不变|省略|同上|略)/,
+]
+
+/**
+ * Detects whether the content the model produced is likely truncated or contains
+ * placeholder omissions. Returns an error string to surface to the model, or
+ * undefined when the content looks complete.
+ */
+function detectIncompleteContent(content: string, declaredLineCount?: number): string | undefined {
+	// 1. Placeholder / "rest of code unchanged" style omissions.
+	for (const marker of TRUNCATION_MARKERS) {
+		if (marker.test(content)) {
+			return (
+				"The content appears to contain a placeholder or omission (e.g. '// ... rest of code unchanged'). " +
+				"write_to_file requires the COMPLETE file content. Re-send the entire file, or use apply_diff for targeted edits to large files."
+			)
+		}
+	}
+
+	// 2. Declared-vs-actual line count mismatch (catches output cut off by token limits).
+	if (typeof declaredLineCount === "number" && declaredLineCount > 0) {
+		// Match how the content will be written: a single trailing newline yields one
+		// fewer "real" line, so normalize before counting.
+		const actualLineCount = content.replace(/\n$/, "").split("\n").length
+
+		// Only flag clear shortfalls. Allow a small tolerance for off-by-one miscounts
+		// and a relative margin so large files aren't blocked by minor discrepancies.
+		const tolerance = Math.max(2, Math.floor(declaredLineCount * 0.1))
+		if (actualLineCount < declaredLineCount - tolerance) {
+			return (
+				`The file content looks truncated: you declared line_count=${declaredLineCount} but only ${actualLineCount} lines were received. ` +
+				"This usually means the response was cut off before the full file was written. " +
+				"Re-send the COMPLETE file content, or use apply_diff for targeted edits to large files."
+			)
+		}
+	}
+
+	return undefined
 }
 
 export class WriteToFileTool extends BaseTool<"write_to_file"> {
@@ -83,6 +132,18 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 
 		if (!task.api.getModel().id.includes("claude")) {
 			newContent = unescapeHtmlEntities(newContent)
+		}
+
+		// Guard against truncated / partially-omitted content before writing anything to disk.
+		// This prevents the long-content failure mode where the model's output is cut off
+		// (token limit) or it inserts a "rest of code unchanged" placeholder.
+		const incompleteReason = detectIncompleteContent(newContent, params.line_count)
+		if (incompleteReason) {
+			task.consecutiveMistakeCount++
+			task.recordToolError("write_to_file")
+			pushToolResult(formatResponse.toolError(incompleteReason))
+			await task.diffViewProvider.reset()
+			return
 		}
 
 		const fullPath = relPath ? path.resolve(task.cwd, relPath) : ""
