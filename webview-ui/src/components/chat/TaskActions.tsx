@@ -14,10 +14,9 @@ import { LucideIconButton } from "./LucideIconButton"
 
 interface TaskActionsProps {
 	item?: HistoryItem
-	buttonsDisabled: boolean
 }
 
-export const TaskActions = ({ item, buttonsDisabled }: TaskActionsProps) => {
+export const TaskActions = ({ item }: TaskActionsProps) => {
 	const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
 	const { t } = useTranslation()
 	const { copyWithFeedback, showCopyFeedback } = useCopyToClipboard()
@@ -43,7 +42,6 @@ export const TaskActions = ({ item, buttonsDisabled }: TaskActionsProps) => {
 					<LucideIconButton
 						icon={Trash2Icon}
 						title={t("chat:task.delete")}
-						disabled={buttonsDisabled}
 						onClick={(e) => {
 							e.stopPropagation()
 							if (e.shiftKey) {

@@ -75,19 +75,19 @@ describe("TaskActions", () => {
 	})
 
 	it("does not render a share button", () => {
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		expect(screen.queryByTestId("share-button")).not.toBeInTheDocument()
 	})
 
 	it("renders export button", () => {
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		expect(screen.getByLabelText("Export task history")).toBeInTheDocument()
 	})
 
 	it("sends exportCurrentTask message when export button is clicked", () => {
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		fireEvent.click(screen.getByLabelText("Export task history"))
 
@@ -97,16 +97,27 @@ describe("TaskActions", () => {
 	})
 
 	it("renders delete button when item has size", () => {
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		expect(screen.getByLabelText("Delete Task (Shift + Click to skip confirmation)")).toBeInTheDocument()
 	})
 
 	it("does not render delete button when item has no size", () => {
 		const itemWithoutSize = { ...mockItem, size: 0 }
-		render(<TaskActions item={itemWithoutSize} buttonsDisabled={false} />)
+		render(<TaskActions item={itemWithoutSize} />)
 
 		expect(screen.queryByLabelText("Delete Task (Shift + Click to skip confirmation)")).not.toBeInTheDocument()
+	})
+
+	it("delete button is clickable (not gated by task busy state)", () => {
+		render(<TaskActions item={mockItem} />)
+
+		const deleteButton = screen.getByLabelText("Delete Task (Shift + Click to skip confirmation)")
+		expect(deleteButton).not.toBeDisabled()
+
+		// Shift+Click deletes immediately, exercising the click path without a dialog.
+		fireEvent.click(deleteButton, { shiftKey: true })
+		expect(mockPostMessage).toHaveBeenCalledWith({ type: "deleteTaskWithId", text: mockItem.id })
 	})
 
 	it("copies the task prompt", () => {
@@ -116,7 +127,7 @@ describe("TaskActions", () => {
 			showCopyFeedback: false,
 		})
 
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		fireEvent.click(screen.getByLabelText("Copy"))
 
@@ -126,7 +137,7 @@ describe("TaskActions", () => {
 	it("renders debug history buttons when debug is enabled", () => {
 		mockUseExtensionState.mockReturnValue({ debug: true } as any)
 
-		render(<TaskActions item={mockItem} buttonsDisabled={false} />)
+		render(<TaskActions item={mockItem} />)
 
 		expect(screen.getByLabelText("Open API History")).toBeInTheDocument()
 		expect(screen.getByLabelText("Open UI History")).toBeInTheDocument()
