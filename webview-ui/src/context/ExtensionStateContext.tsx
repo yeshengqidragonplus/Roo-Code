@@ -357,6 +357,22 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					})
 					break
 				}
+				case "messageWindow": {
+					// On-demand back-page (2-A): prepend older messages, de-duped by ts, preserving order.
+					const older = message.olderClineMessages ?? []
+					if (older.length === 0) {
+						break
+					}
+					setState((prevState) => {
+						const existingTs = new Set(prevState.clineMessages.map((m) => m.ts))
+						const toPrepend = older.filter((m) => !existingTs.has(m.ts))
+						if (toPrepend.length === 0) {
+							return prevState
+						}
+						return { ...prevState, clineMessages: [...toPrepend, ...prevState.clineMessages] }
+					})
+					break
+				}
 				case "skills": {
 					if (message.skills) {
 						setSkills(message.skills)

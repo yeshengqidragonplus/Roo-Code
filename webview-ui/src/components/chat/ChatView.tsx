@@ -86,6 +86,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		soundVolume,
 		messageQueue = [],
 		showWorktreesInHomeScreen,
+		clineMessagesTotal,
 	} = useExtensionState()
 
 	// Show a WarningRow when the user sends a message with a retired provider.
@@ -1253,6 +1254,47 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return result
 	}, [isCondensing, visibleMessages])
 
+	// On-demand back-paging (2-A): the host may send only a trailing window of clineMessages on long
+	// tasks. When the user scrolls to the top we request the previous window; Virtuoso's firstItemIndex
+	// keeps the scroll position stable as older items are prepended. For normal-length tasks the host
+	// sends everything (hasOlderMessages is false), so none of this runs.
+	const VIRTUOSO_FIRST_ITEM_BASE = 100_000
+	const [firstItemIndex, setFirstItemIndex] = useState(VIRTUOSO_FIRST_ITEM_BASE)
+	const backpagePendingRef = useRef(false)
+	const prevGroupedLenRef = useRef(groupedMessages.length)
+	const hasOlderMessages = (clineMessagesTotal ?? messages.length) > messages.length
+
+	// Reset the prepend anchor when switching tasks.
+	useEffect(() => {
+		setFirstItemIndex(VIRTUOSO_FIRST_ITEM_BASE)
+		backpagePendingRef.current = false
+		prevGroupedLenRef.current = groupedMessages.length
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [task?.ts])
+
+	// When a back-page lands, shift firstItemIndex by how many items were prepended so scroll holds.
+	React.useLayoutEffect(() => {
+		const prev = prevGroupedLenRef.current
+		const curr = groupedMessages.length
+		if (backpagePendingRef.current && curr > prev) {
+			setFirstItemIndex((index) => index - (curr - prev))
+			backpagePendingRef.current = false
+		}
+		prevGroupedLenRef.current = curr
+	}, [groupedMessages.length])
+
+	const handleStartReached = useCallback(() => {
+		if (backpagePendingRef.current || !hasOlderMessages) {
+			return
+		}
+		const beforeTs = messages[0]?.ts
+		if (typeof beforeTs !== "number") {
+			return
+		}
+		backpagePendingRef.current = true
+		vscode.postMessage({ type: "requestMessageWindow", beforeTs })
+	}, [hasOlderMessages, messages])
+
 	const checkpointIndices = useMemo(() => {
 		const indices: number[] = []
 		for (let i = 0; i < groupedMessages.length; i++) {
@@ -1645,6 +1687,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							className="scrollable grow overflow-y-scroll mb-1"
 							increaseViewportBy={{ top: 3_000, bottom: 1000 }}
 							data={groupedMessages}
+							{...(hasOlderMessages ? { firstItemIndex, startReached: handleStartReached } : {})}
 							itemContent={itemContent}
 							followOutput={followOutputCallback}
 							atBottomStateChange={atBottomStateChangeCallback}

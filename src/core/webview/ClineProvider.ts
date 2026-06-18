@@ -85,6 +85,7 @@ import { webviewMessageHandler } from "./webviewMessageHandler"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
 import { isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
 import { getTaskDirectoryPath } from "../../utils/storage"
+import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
 import { readTaskMessages } from "../task-persistence/taskMessages"
 import { getNonce } from "./getNonce"
@@ -2009,10 +2010,15 @@ export class ClineProvider
 		const cwd = this.cwd
 		const currentTask = this.getCurrentTask()
 
-		// Resolve image references to webview-accessible URIs for rendering (2-C). Stored messages
-		// keep their lightweight refs; only the copy sent to the webview carries URIs.
+		// Send clineMessages to the webview in a bounded trailing window to cap the duplicated
+		// host↔webview memory on long tasks (2-A). Subtask child ids are stamped from the full
+		// history first so links survive windowing. Older messages are fetched on demand via
+		// the "requestMessageWindow" handler. Image refs are then resolved to webview URIs (2-C).
+		const currentTaskChildIds = currentTask ? (this.taskHistoryStore.get(currentTask.taskId)?.childIds ?? []) : []
+		const fullMessages = currentTask ? stampSubtaskChildIds(currentTask.clineMessages, currentTaskChildIds) : []
+		const clineMessagesTotal = fullMessages.length
 		const clineMessagesForWebview = currentTask
-			? await this.resolveImageRefsForWebview(currentTask.clineMessages, currentTask.taskId)
+			? await this.resolveImageRefsForWebview(windowClineMessages(fullMessages), currentTask.taskId)
 			: []
 
 		return {
@@ -2037,6 +2043,7 @@ export class ClineProvider
 			currentTaskId: currentTask?.taskId,
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
 			clineMessages: clineMessagesForWebview,
+			clineMessagesTotal,
 			currentTaskTodos: currentTask?.todoList || [],
 			messageQueue: currentTask?.messageQueueService?.messages,
 			taskHistory: this.taskHistoryStore.getAll().filter((item: HistoryItem) => item.ts && item.task),

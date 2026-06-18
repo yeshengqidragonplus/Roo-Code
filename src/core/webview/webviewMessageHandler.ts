@@ -47,6 +47,7 @@ import { Terminal } from "../../integrations/terminal/Terminal"
 import { openFile } from "../../integrations/misc/open-file"
 import { openImage, saveImage } from "../../integrations/misc/image-handler"
 import { selectImages } from "../../integrations/misc/process-images"
+import { stampSubtaskChildIds, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { getTheme } from "../../integrations/theme/getTheme"
 import { searchWorkspaceFiles } from "../../services/search/file-search"
 import { fileExistsAtPath } from "../../utils/fs"
@@ -634,6 +635,23 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					?.handleWebviewAskResponse(message.askResponse!, resolved.text, resolved.images)
 			}
 			break
+
+		case "requestMessageWindow": {
+			// On-demand back-paging: return the older clineMessages window preceding message.beforeTs (2-A).
+			const task = provider.getCurrentTask()
+			if (task && typeof message.beforeTs === "number") {
+				const historyItem = provider.taskHistoryStore.get(task.taskId)
+				const stamped = stampSubtaskChildIds(task.clineMessages, historyItem?.childIds ?? [])
+				const older = olderClineMessagesBefore(stamped, message.beforeTs)
+				const resolvedOlder = await provider.resolveImageRefsForWebview(older, task.taskId)
+				await provider.postMessageToWebview({
+					type: "messageWindow",
+					olderClineMessages: resolvedOlder,
+					clineMessagesTotal: stamped.length,
+				})
+			}
+			break
+		}
 
 		case "updateSettings":
 			if (message.updatedSettings) {

@@ -271,6 +271,12 @@ export const clineMessageSchema = z.object({
 	isProtected: z.boolean().optional(),
 	apiProtocol: z.union([z.literal("openai"), z.literal("anthropic")]).optional(),
 	isAnswered: z.boolean().optional(),
+	/**
+	 * For `newTask` tool messages: the resolved child task id, stamped host-side from the full message
+	 * history so the webview doesn't have to derive it by counting newTask messages (which breaks when
+	 * the history is windowed, 2-A). Optional — absent on non-newTask messages and legacy data.
+	 */
+	childTaskId: z.string().optional(),
 })
 
 export type ClineMessage = z.infer<typeof clineMessageSchema>

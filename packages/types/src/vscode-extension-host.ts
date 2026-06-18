@@ -31,6 +31,7 @@ export interface ExtensionMessage {
 		| "workspaceUpdated"
 		| "invoke"
 		| "messageUpdated"
+		| "messageWindow"
 		| "mcpServers"
 		| "enhancedPrompt"
 		| "commitSearchResults"
@@ -122,6 +123,9 @@ export interface ExtensionMessage {
 		path?: string
 	}>
 	clineMessage?: ClineMessage
+	/** Older clineMessages returned for an on-demand back-page request (2-A, type "messageWindow"). */
+	olderClineMessages?: ClineMessage[]
+	clineMessagesTotal?: number
 	routerModels?: RouterModels
 	openAiModels?: string[]
 	ollamaModels?: ModelRecord
@@ -328,6 +332,8 @@ export type ExtensionState = Pick<
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
 	autoCondenseContextMessageCount: number
+	/** Total clineMessages on the host; the webview may hold only a trailing window of them (2-A). */
+	clineMessagesTotal?: number
 	profileThresholds: Record<string, number>
 	hasOpenedModeSelector: boolean
 	openRouterImageApiKey?: string
@@ -387,6 +393,7 @@ export interface WebviewMessage {
 		| "webviewDidLaunch"
 		| "newTask"
 		| "askResponse"
+		| "requestMessageWindow"
 		| "terminalOperation"
 		| "clearTask"
 		| "didShowAnnouncement"
@@ -571,6 +578,8 @@ export interface WebviewMessage {
 	ids?: string[]
 	terminalOperation?: "continue" | "abort"
 	messageTs?: number
+	/** For "requestMessageWindow": load the older clineMessages window ending just before this ts (2-A). */
+	beforeTs?: number
 	restoreCheckpoint?: boolean
 	historyPreviewCollapsed?: boolean
 	filters?: { type?: string; search?: string; tags?: string[] }

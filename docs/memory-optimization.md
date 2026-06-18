@@ -51,7 +51,14 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 ### 阶段 2 —— 针对主因（设计改动，收益最大，需先计测）
 
-- **2-A. Webview 消息虚拟化保留**：宿主不再全量推送 `clineMessages`，改窗口 + 懒加载；图片改用 VS Code 资源 URI / webview asset 引用，去除 base64。
+- **2-A. Webview 历史窗口化（干净版，已实现）**：宿主只发最近 `CLINE_MESSAGES_WINDOW_SIZE`(=300) 条
+  `clineMessages` + 总数 `clineMessagesTotal`；用户滚到顶部时通过 `requestMessageWindow` 协议按需取更早的窗口，
+  webview 去重后前插，Virtuoso `firstItemIndex` 锚定滚动位置。
+  子任务链接的全量下标耦合通过**宿主侧 `stampSubtaskChildIds`**（在完整历史上把 `childTaskId` 盖到每个 newTask 消息）
+  解除；检查点跳转、编辑/删除分别基于「已加载窗口」和「宿主完整数组」，自然降级，无需改。
+  **默认窗口 300 → 普通任务整段历史仍一次发完，行为不变、零风险**；只有超长任务才走窗口化。
+  宿主侧逻辑（`stampSubtaskChildIds` / `windowClineMessages` / `olderClineMessagesBefore`）已单测覆盖；
+  **webview 端的"滚顶加载+滚动锚定"交互需在真实扩展里 e2e 验收**（本环境无法启动 UI）。
 - **2-B. 更早压缩（已实现 opt-in 部分）**：新增设置 `autoCondenseContextMessageCount`（默认 0=关）。
   当「自上次摘要以来的消息数」≥ 该阈值时，即使 token 百分比未到也触发 condense，从而在长任务里更早回收
   `apiConversationHistory` 内存。在 [context-management/index.ts](../src/core/context-management/index.ts) 的
@@ -107,15 +114,15 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 
 ## 4. 阶段任务与进度
 
-| ID  | 阶段 | 任务                                              | 状态                              |
-| --- | ---- | ------------------------------------------------- | --------------------------------- |
-| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化     | ✅ 完成                           |
-| 1-B | 1    | `aggregatedCostsMap` 改 LRU                       | ✅ 完成                           |
-| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`         | ✅ 完成                           |
-| 3   | 3    | 注入 `memoryUsage` 探针并计测                     | ✅ 完成（探针就绪，待实环境计测） |
-| 2-A | 2    | Webview 消息虚拟化保留 + 图片引用化               | ⬜ 未开始（待计测）               |
-| 2-B | 2    | 更早压缩（opt-in 消息条数阈值；落盘按需读回不做） | ✅ 完成                           |
-| 2-C | 2    | 图片 base64 → 引用（C1–C6 全部完成）              | ✅ 完成                           |
+| ID  | 阶段 | 任务                                                        | 状态                              |
+| --- | ---- | ----------------------------------------------------------- | --------------------------------- |
+| 1-A | 1    | Bedrock `previousCachePointPlacements` 有界化               | ✅ 完成                           |
+| 1-B | 1    | `aggregatedCostsMap` 改 LRU                                 | ✅ 完成                           |
+| 1-C | 1    | 合并 `ChatRow` window 监听器到 `ChatView`                   | ✅ 完成                           |
+| 3   | 3    | 注入 `memoryUsage` 探针并计测                               | ✅ 完成（探针就绪，待实环境计测） |
+| 2-A | 2    | Webview 历史窗口化（干净版，宿主已测；webview 待 e2e 验收） | ✅ 完成（待 e2e 验收 UI）         |
+| 2-B | 2    | 更早压缩（opt-in 消息条数阈值；落盘按需读回不做）           | ✅ 完成                           |
+| 2-C | 2    | 图片 base64 → 引用（C1–C6 全部完成）                        | ✅ 完成                           |
 
 > 实施顺序：先完成阶段 1（1-A → 1-B → 1-C），再做阶段 3 计测以数字坐实主因，最后据计测结果推进阶段 2。
 > 每完成一项更新本表状态（⬜ 未开始 / 🔄 进行中 / ✅ 完成），并保证 `pnpm lint` 与 `pnpm check-types` 通过、相关测试通过。

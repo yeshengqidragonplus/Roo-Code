@@ -851,9 +851,14 @@ export const ChatRowContent = ({
 				// Only get the child task ID if this newTask has been approved (has a corresponding entry in childIds)
 				// This prevents showing a link to a previous task when the current newTask is still awaiting approval
 				// Note: We don't use delegatedToId here because it persists after child tasks complete and would
-				// incorrectly point to the previous task when a new newTask is awaiting approval
+				// incorrectly point to the previous task when a new newTask is awaiting approval.
+				// Prefer the host-stamped childTaskId (correct even when the history is windowed, 2-A);
+				// fall back to the index-based derivation for non-windowed / legacy messages.
 				const childTaskId =
-					thisNewTaskIndex >= 0 && thisNewTaskIndex < childIds.length ? childIds[thisNewTaskIndex] : undefined
+					message.childTaskId ??
+					(thisNewTaskIndex >= 0 && thisNewTaskIndex < childIds.length
+						? childIds[thisNewTaskIndex]
+						: undefined)
 
 				// Check if the next message is a subtask_result - if so, don't show the button
 				// since the result is displayed right after this message
