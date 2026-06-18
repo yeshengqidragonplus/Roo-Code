@@ -41,6 +41,11 @@ async function main() {
 	const buildOptions = {
 		bundle: true,
 		minify,
+		// Preserve function/class names under minification. Some code paths dispatch or
+		// branch on names (e.g. constructor.name / instanceof), which silently break when
+		// the production build mangles identifiers — symptoms only appear in the packaged
+		// VSIX, never under F5 (dev build is unminified).
+		keepNames: true,
 		sourcemap,
 		logLevel: "silent",
 		format: "cjs",
