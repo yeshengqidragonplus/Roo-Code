@@ -311,6 +311,7 @@ export type ExtensionState = Pick<
 	showRooIgnoredFiles: boolean // Whether to show .rooignore'd files in listings
 	enableSubfolderRules: boolean // Whether to load rules from subdirectories
 	useProjectMemory: boolean // Whether to inject persisted project memory from .roo/memory
+	enableSelfReflection: boolean // Whether to run one self-evaluation pass after attempt_completion
 	maxReadFileLine?: number // Maximum line limit for read_file tool (-1 for default)
 	maxImageFileSize: number // Maximum size of image files to process in MB
 	maxTotalImageSize: number // Maximum total size for all images in a single read operation in MB

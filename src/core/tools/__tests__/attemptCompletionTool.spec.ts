@@ -71,6 +71,10 @@ describe("attemptCompletionTool", () => {
 			taskId: "task_1",
 			apiConfiguration: { apiProvider: "test" } as any,
 			api: { getModel: vi.fn().mockReturnValue({ id: "test-model", info: {} }) } as any,
+			// Default provider state: self-reflection disabled.
+			providerRef: {
+				deref: () => ({ getState: vi.fn().mockResolvedValue({ enableSelfReflection: false }) }),
+			} as any,
 		}
 	})
 
@@ -557,16 +561,15 @@ describe("attemptCompletionTool", () => {
 		})
 
 		const enableReflection = () => {
-			mockGetConfiguration.mockReturnValue({
-				get: vi.fn((key: string, defaultValue: any) => (key === "enableSelfReflection" ? true : defaultValue)),
-			})
-			vi.mocked(vscode.workspace.getConfiguration).mockImplementation(mockGetConfiguration)
+			mockTask.providerRef = {
+				deref: () => ({ getState: vi.fn().mockResolvedValue({ enableSelfReflection: true }) }),
+			} as any
 		}
 
 		it("injects the reflection prompt instead of completing when enabled", async () => {
 			enableReflection()
 			mockTask.didSelfReflect = false
-			mockTask.parentTaskId = undefined
+			;(mockTask as any).parentTaskId = undefined
 
 			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
 
@@ -588,7 +591,7 @@ describe("attemptCompletionTool", () => {
 		it("does not reflect for subtasks", async () => {
 			enableReflection()
 			mockTask.didSelfReflect = false
-			mockTask.parentTaskId = "parent_1"
+			;(mockTask as any).parentTaskId = "parent_1"
 
 			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
 

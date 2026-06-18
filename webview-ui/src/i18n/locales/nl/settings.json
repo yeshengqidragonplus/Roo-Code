@@ -668,6 +668,10 @@
 		"useProjectMemory": {
 			"label": "Project memory",
 			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
+		},
+		"enableSelfReflection": {
+			"label": "Self-evaluate after completion",
+			"description": "After attempt_completion, run one self-evaluation pass: review the finished work as an independent reviewer, fix real issues, then complete. Adds one model turn per task. You can also run /reflect manually at any time."
 		}
 	},
 	"terminal": {

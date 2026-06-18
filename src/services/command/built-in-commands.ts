@@ -1,5 +1,6 @@
 import { Command } from "./commands"
 import { SELF_REFLECTION_PROMPT } from "../../core/prompts/instructions/self-reflection"
+import { REMEMBER_PROMPT } from "../../core/prompts/instructions/remember"
 
 interface BuiltInCommandDefinition {
 	name: string
@@ -287,6 +288,12 @@ Remember: The goal is to create documentation that enables AI assistants to be i
 		name: "reflect",
 		description: "Critically self-evaluate the work just completed and fix any real issues found",
 		content: SELF_REFLECTION_PROMPT,
+	},
+	remember: {
+		name: "remember",
+		description: "Save a durable lesson to project memory (.roo/memory) or rules (.roo/rules)",
+		argumentHint: "[what to remember]",
+		content: REMEMBER_PROMPT,
 	},
 }
 

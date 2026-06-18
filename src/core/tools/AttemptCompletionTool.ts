@@ -80,9 +80,7 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 
 			// Optional self-evaluation: when enabled, run one reflection pass before finalizing.
 			// Runs at most once per task and only for top-level tasks (subtasks delegate to their parent).
-			const enableSelfReflection = vscode.workspace
-				.getConfiguration(Package.name)
-				.get<boolean>("enableSelfReflection", false)
+			const enableSelfReflection = (await task.providerRef.deref()?.getState())?.enableSelfReflection ?? false
 
 			if (enableSelfReflection && !task.didSelfReflect && !task.parentTaskId) {
 				task.didSelfReflect = true

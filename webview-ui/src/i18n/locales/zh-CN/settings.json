@@ -668,6 +668,10 @@
 		"useProjectMemory": {
 			"label": "项目记忆",
 			"description": "从 .roo/memory 目录加载持久化的项目记忆并注入系统提示。关闭后将忽略已保存的记忆。"
+		},
+		"enableSelfReflection": {
+			"label": "任务完成后自评估",
+			"description": "在 attempt_completion 之后运行一次自评估：以独立审查者视角审视已完成的工作、修复发现的真实问题后再完成。每个任务会多一次模型调用，默认关闭。也可随时手动运行 /reflect。"
 		}
 	},
 	"terminal": {

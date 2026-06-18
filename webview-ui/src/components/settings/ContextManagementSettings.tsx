@@ -35,6 +35,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	showRooIgnoredFiles?: boolean
 	enableSubfolderRules?: boolean
 	useProjectMemory?: boolean
+	enableSelfReflection?: boolean
 	maxImageFileSize?: number
 	maxTotalImageSize?: number
 	profileThresholds?: Record<string, number>
@@ -55,6 +56,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "showRooIgnoredFiles"
 		| "enableSubfolderRules"
 		| "useProjectMemory"
+		| "enableSelfReflection"
 		| "maxImageFileSize"
 		| "maxTotalImageSize"
 		| "profileThresholds"
@@ -77,6 +79,7 @@ export const ContextManagementSettings = ({
 	showRooIgnoredFiles,
 	enableSubfolderRules,
 	useProjectMemory,
+	enableSelfReflection,
 	setCachedStateField,
 	maxImageFileSize,
 	maxTotalImageSize,
@@ -266,6 +269,23 @@ export const ContextManagementSettings = ({
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
 						{t("settings:contextManagement.useProjectMemory.description")}
+					</div>
+				</SearchableSetting>
+
+				<SearchableSetting
+					settingId="context-enable-self-reflection"
+					section="contextManagement"
+					label={t("settings:contextManagement.enableSelfReflection.label")}>
+					<VSCodeCheckbox
+						checked={enableSelfReflection}
+						onChange={(e: any) => setCachedStateField("enableSelfReflection", e.target.checked)}
+						data-testid="enable-self-reflection-checkbox">
+						<label className="block font-medium mb-1">
+							{t("settings:contextManagement.enableSelfReflection.label")}
+						</label>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
+						{t("settings:contextManagement.enableSelfReflection.description")}
 					</div>
 				</SearchableSetting>
 

@@ -347,11 +347,6 @@
 					"default": false,
 					"description": "%commands.preventCompletionWithOpenTodos.description%"
 				},
-				"qcode.enableSelfReflection": {
-					"type": "boolean",
-					"default": false,
-					"description": "%settings.enableSelfReflection.description%"
-				},
 				"qcode.vsCodeLmModelSelector": {
 					"type": "object",
 					"properties": {

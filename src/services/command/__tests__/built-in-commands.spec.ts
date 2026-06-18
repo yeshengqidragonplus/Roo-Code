@@ -5,8 +5,8 @@ describe("Built-in Commands", () => {
 		it("should return all built-in commands", async () => {
 			const commands = await getBuiltInCommands()
 
-			expect(commands).toHaveLength(2)
-			expect(commands.map((cmd) => cmd.name)).toEqual(expect.arrayContaining(["init", "reflect"]))
+			expect(commands).toHaveLength(3)
+			expect(commands.map((cmd) => cmd.name)).toEqual(expect.arrayContaining(["init", "reflect", "remember"]))
 
 			// Verify all commands have required properties
 			commands.forEach((command) => {
@@ -35,6 +35,10 @@ describe("Built-in Commands", () => {
 			const reflectCommand = commands.find((cmd) => cmd.name === "reflect")
 			expect(reflectCommand).toBeDefined()
 			expect(reflectCommand!.content).toContain("self-evaluate")
+
+			const rememberCommand = commands.find((cmd) => cmd.name === "remember")
+			expect(rememberCommand).toBeDefined()
+			expect(rememberCommand!.content).toContain(".roo/memory")
 		})
 	})
 
@@ -67,10 +71,10 @@ describe("Built-in Commands", () => {
 		it("should return all built-in command names", async () => {
 			const names = await getBuiltInCommandNames()
 
-			expect(names).toHaveLength(2)
-			expect(names).toEqual(expect.arrayContaining(["init", "reflect"]))
+			expect(names).toHaveLength(3)
+			expect(names).toEqual(expect.arrayContaining(["init", "reflect", "remember"]))
 			// Order doesn't matter since it's based on filesystem order
-			expect(names.sort()).toEqual(["init", "reflect"])
+			expect(names.sort()).toEqual(["init", "reflect", "remember"])
 		})
 
 		it("should return array of strings", async () => {

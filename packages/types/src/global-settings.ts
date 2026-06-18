@@ -165,6 +165,7 @@ export const globalSettingsSchema = z.object({
 	showRooIgnoredFiles: z.boolean().optional(),
 	enableSubfolderRules: z.boolean().optional(),
 	useProjectMemory: z.boolean().optional(),
+	enableSelfReflection: z.boolean().optional(),
 	maxImageFileSize: z.number().optional(),
 	maxTotalImageSize: z.number().optional(),
 

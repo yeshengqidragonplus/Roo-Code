@@ -23,6 +23,6 @@ Review against these dimensions and report concrete findings (not a score):
 Then:
 - If you find one or more REAL issues, list them, FIX them, and continue working. Do not re-run completion until they are addressed.
 - If after honest review there are genuinely no real issues, say so in one or two sentences and complete.
-- If you uncovered a durable, non-obvious lesson about this project, persist it to \`.roo/memory/\` (one fact per file) so future tasks benefit.
+- If you uncovered a durable, non-obvious lesson about this project, persist it to \`.roo/memory/\` (one fact per file) so future tasks benefit — the \`/remember\` command does exactly this in one step.
 
 Be specific and honest. Surfacing a real problem now is far more valuable than confirming the work looks fine.`
