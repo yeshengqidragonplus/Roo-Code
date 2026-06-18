@@ -74,12 +74,16 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 | C2     | 摄入：图片在 `Task.say` 内落盘并替换为引用（单一出口，调用方的 base64 数组不变）                                      | 中           | ✅         |
 | C3     | 发模型：无需改动 — `say` 只改本地副本，调用方 `images` 仍为 base64，API 路径不变                                      | —            | ✅（免做） |
 | C5     | webview 渲染：两个出口（`ClineProvider.getStateToPostToWebview` / `Task.updateClineMessage`）将引用解析为 webview URI | 中           | ✅         |
-| C4     | `apiConversationHistory` 存盘外置 / 发送内联（**最后做，单独测**）                                                    | 高           | ⬜         |
-| C6     | 兼容并存与回归测试（旧 base64 任务仍可打开/显示/发送）                                                                | —            | 🔄 进行中  |
+| C4     | `apiConversationHistory` 存盘外置 / 读取内联（**仅磁盘边界**，发送路径不动；克隆后外置，零风险）                      | 高           | ✅         |
+| C6     | 兼容并存与回归测试（旧 base64 任务仍可打开/显示/发送）：235 测试全绿，lint/check-types 通过                           | —            | ✅         |
 
 > 实施记录：C2 最终落在 `Task.say`（唯一把图片写入 `clineMessages` 的出口；`ask` 不带图片），而非入站处。
 > 因 `say` 只重写其本地 `images` 参数，调用方数组仍是 base64，发模型路径无需改动（C3 免做）。
-> 这把 base64 从 `clineMessages` 内存与 `ui_messages.json` 磁盘上去掉了；`apiConversationHistory` 仍内联 base64，留待 C4。
+> 这把 base64 从 `clineMessages` 内存与 `ui_messages.json` 磁盘上去掉了。
+> C4 进一步把 `api_conversation_history.json` 上的 base64 也外置到图片库（仅在磁盘读写边界转换，
+> `externalizeApiImages` 先 `structuredClone` 再外置，内存中发给模型的数组始终保持 base64，对模型调用零风险）。
+> 注：`apiConversationHistory` 的**内存**表示目前仍为 base64（单份，宿主侧）；如需进一步削减其内存常驻，
+> 可作为后续在「构建 API 请求时才内联」的增强项，但需触及 send 路径，风险较高，暂未做。
 
 ### 阶段 3 —— 监控
 
@@ -105,7 +109,7 @@ QCode 从 Roo Code 最后一个分支 fork 而来，继承了 Roo Code 系扩展
 | 3   | 3    | 注入 `memoryUsage` 探针并计测                 | ✅ 完成（探针就绪，待实环境计测） |
 | 2-A | 2    | Webview 消息虚拟化保留 + 图片引用化           | ⬜ 未开始（待计测）               |
 | 2-B | 2    | 宿主历史落盘 + condense 自动触发              | ⬜ 未开始（待计测）               |
-| 2-C | 2    | 图片 base64 → Blob/引用                       | ⬜ 未开始（待计测）               |
+| 2-C | 2    | 图片 base64 → 引用（C1–C6 全部完成）          | ✅ 完成                           |
 
 > 实施顺序：先完成阶段 1（1-A → 1-B → 1-C），再做阶段 3 计测以数字坐实主因，最后据计测结果推进阶段 2。
 > 每完成一项更新本表状态（⬜ 未开始 / 🔄 进行中 / ✅ 完成），并保证 `pnpm lint` 与 `pnpm check-types` 通过、相关测试通过。

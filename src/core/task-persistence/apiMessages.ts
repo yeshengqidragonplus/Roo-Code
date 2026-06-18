@@ -8,6 +8,7 @@ import { fileExistsAtPath } from "../../utils/fs"
 
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import { getTaskDirectoryPath } from "../../utils/storage"
+import { externalizeApiImages, inlineApiImages } from "./apiImageStore"
 
 export type ApiMessage = Anthropic.MessageParam & {
 	ts?: number
@@ -62,7 +63,7 @@ export async function readApiMessages({
 					`[Roo-Debug] readApiMessages: Found API conversation history file, but it's empty (parsed as []). TaskId: ${taskId}, Path: ${filePath}`,
 				)
 			}
-			return parsedData
+			return await inlineApiImages(parsedData, taskDir)
 		} catch (error) {
 			console.warn(
 				`[readApiMessages] Error parsing API conversation history file, returning empty. TaskId: ${taskId}, Path: ${filePath}, Error: ${error}`,
@@ -88,7 +89,7 @@ export async function readApiMessages({
 					)
 				}
 				await fs.unlink(oldPath)
-				return parsedData
+				return await inlineApiImages(parsedData, taskDir)
 			} catch (error) {
 				console.warn(
 					`[readApiMessages] Error parsing OLD API conversation history file (claude_messages.json), returning empty. TaskId: ${taskId}, Path: ${oldPath}, Error: ${error}`,
@@ -117,5 +118,8 @@ export async function saveApiMessages({
 }) {
 	const taskDir = await getTaskDirectoryPath(globalStoragePath, taskId)
 	const filePath = path.join(taskDir, GlobalFileNames.apiConversationHistory)
-	await safeWriteJson(filePath, messages)
+	// Externalize base64 images to the on-disk store so the JSON stays small (2-C / C4).
+	// Operates on a clone — the in-memory `messages` keep their base64 for the live send path.
+	const toPersist = await externalizeApiImages(messages, taskDir)
+	await safeWriteJson(filePath, toPersist)
 }
