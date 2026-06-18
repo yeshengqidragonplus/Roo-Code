@@ -82,6 +82,9 @@ vi.mock("@vscode/webview-ui-toolkit/react", () => ({
 		</label>
 	),
 	VSCodeTextArea: ({ value, onChange, ...props }: any) => <textarea value={value} onChange={onChange} {...props} />,
+	VSCodeTextField: ({ value, onInput, "data-testid": dataTestId, ...props }: any) => (
+		<input value={value} onChange={onInput} data-testid={dataTestId} {...props} />
+	),
 }))
 
 describe("ContextManagementSettings", () => {

@@ -3926,6 +3926,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			mode,
 			autoCondenseContext = true,
 			autoCondenseContextPercent = 100,
+			autoCondenseContextMessageCount = 0,
 			profileThresholds = {},
 		} = state ?? {}
 
@@ -4049,6 +4050,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					apiHandler: this.api,
 					autoCondenseContext,
 					autoCondenseContextPercent,
+					autoCondenseContextMessageCount,
 					systemPrompt,
 					taskId: this.taskId,
 					customCondensingPrompt,

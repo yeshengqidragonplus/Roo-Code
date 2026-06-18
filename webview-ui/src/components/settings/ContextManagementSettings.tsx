@@ -1,7 +1,7 @@
 import { HTMLAttributes } from "react"
 import React from "react"
 import { useAppTranslation } from "@/i18n/TranslationContext"
-import { VSCodeCheckbox, VSCodeTextArea } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeCheckbox, VSCodeTextArea, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import { FoldVertical } from "lucide-react"
 
 import { supportPrompt } from "@roo/support-prompt"
@@ -28,6 +28,7 @@ import { vscode } from "@/utils/vscode"
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
+	autoCondenseContextMessageCount?: number
 	listApiConfigMeta: any[]
 	maxOpenTabsContext: number
 	maxWorkspaceFiles: number
@@ -47,6 +48,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
+		| "autoCondenseContextMessageCount"
 		| "maxOpenTabsContext"
 		| "maxWorkspaceFiles"
 		| "showRooIgnoredFiles"
@@ -66,6 +68,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 export const ContextManagementSettings = ({
 	autoCondenseContext,
 	autoCondenseContextPercent,
+	autoCondenseContextMessageCount,
 	listApiConfigMeta,
 	maxOpenTabsContext,
 	maxWorkspaceFiles,
@@ -553,6 +556,30 @@ export const ContextManagementSettings = ({
 											threshold: autoCondenseContextPercent,
 										})
 									: t("settings:contextManagement.condensingThreshold.profileDescription")}
+							</div>
+						</div>
+
+						{/* Opt-in: condense after N messages, independent of the token threshold (memory) */}
+						<div>
+							<div className="flex items-center gap-2">
+								<VSCodeTextField
+									type="text"
+									inputMode="numeric"
+									value={String(autoCondenseContextMessageCount ?? 0)}
+									className="w-28"
+									data-testid="condense-message-count-input"
+									onInput={(e: any) => {
+										const parsed = parseInt(e.target.value, 10)
+										setCachedStateField(
+											"autoCondenseContextMessageCount",
+											Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+										)
+									}}
+								/>
+								<span>{t("settings:contextManagement.condenseMessageCount.label")}</span>
+							</div>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:contextManagement.condenseMessageCount.description")}
 							</div>
 						</div>
 					</div>

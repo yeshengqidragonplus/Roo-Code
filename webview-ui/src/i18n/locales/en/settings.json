@@ -711,6 +711,10 @@
 			"inheritDescription": "This profile inherits the global default threshold ({{threshold}}%)",
 			"usesGlobal": "(uses global {{threshold}}%)"
 		},
+		"condenseMessageCount": {
+			"label": "Condense after this many messages (0 = off)",
+			"description": "Optional: automatically condense once this many messages accumulate since the last summary, regardless of the token threshold. Helps reclaim memory on long tasks. Leave at 0 to rely only on the percentage threshold above."
+		},
 		"includeCurrentTime": {
 			"label": "Include current time in context",
 			"description": "When enabled, the current time and timezone information will be included in the system prompt. Disable this if models are stopping work due to time concerns."

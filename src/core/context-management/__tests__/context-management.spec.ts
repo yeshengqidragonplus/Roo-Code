@@ -628,6 +628,72 @@ describe("Context Management", () => {
 			summarizeSpy.mockRestore()
 		})
 
+		it("should condense by message count (opt-in) even when tokens are well below the percent threshold", async () => {
+			const mockSummarizeResponse: condenseModule.SummarizeResponse = {
+				messages: [{ role: "user", content: "summary", isSummary: true }],
+				summary: "summary",
+				cost: 0.01,
+				newContextTokens: 10,
+			}
+			const summarizeSpy = vi
+				.spyOn(condenseModule, "summarizeConversation")
+				.mockResolvedValue(mockSummarizeResponse)
+
+			const modelInfo = createModelInfo(100000, 30000)
+			const lowTokens = 10 // far below any percent threshold
+			const manyMessages = Array.from({ length: 6 }, (_, i) => ({
+				role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+				content: "m",
+			}))
+
+			const result = await manageContext({
+				messages: manyMessages,
+				totalTokens: lowTokens,
+				contextWindow: modelInfo.contextWindow,
+				maxTokens: modelInfo.maxTokens,
+				apiHandler: mockApiHandler,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100,
+				autoCondenseContextMessageCount: 5,
+				systemPrompt: "System prompt",
+				taskId,
+				profileThresholds: {},
+				currentProfileId: "default",
+			})
+
+			expect(summarizeSpy).toHaveBeenCalled()
+			expect(result).toMatchObject({ summary: "summary" })
+			summarizeSpy.mockRestore()
+		})
+
+		it("should NOT condense by message count when the setting is 0 (default off) and tokens are low", async () => {
+			const summarizeSpy = vi.spyOn(condenseModule, "summarizeConversation")
+
+			const modelInfo = createModelInfo(100000, 30000)
+			const manyMessages = Array.from({ length: 50 }, (_, i) => ({
+				role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+				content: "m",
+			}))
+
+			await manageContext({
+				messages: manyMessages,
+				totalTokens: 10,
+				contextWindow: modelInfo.contextWindow,
+				maxTokens: modelInfo.maxTokens,
+				apiHandler: mockApiHandler,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100,
+				autoCondenseContextMessageCount: 0,
+				systemPrompt: "System prompt",
+				taskId,
+				profileThresholds: {},
+				currentProfileId: "default",
+			})
+
+			expect(summarizeSpy).not.toHaveBeenCalled()
+			summarizeSpy.mockRestore()
+		})
+
 		it("should fall back to truncateConversation when autoCondenseContext is true but summarization fails", async () => {
 			// Mock the summarizeConversation function to return an error
 			const mockSummarizeResponse: condenseModule.SummarizeResponse = {

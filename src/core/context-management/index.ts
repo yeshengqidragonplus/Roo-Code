@@ -2,7 +2,13 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import crypto from "crypto"
 
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
-import { MAX_CONDENSE_THRESHOLD, MIN_CONDENSE_THRESHOLD, summarizeConversation, SummarizeResponse } from "../condense"
+import {
+	MAX_CONDENSE_THRESHOLD,
+	MIN_CONDENSE_THRESHOLD,
+	summarizeConversation,
+	SummarizeResponse,
+	getMessagesSinceLastSummary,
+} from "../condense"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { ANTHROPIC_DEFAULT_MAX_TOKENS } from "@roo-code/types"
 import { RooIgnoreController } from "../ignore/RooIgnoreController"
@@ -210,6 +216,12 @@ export type ContextManagementOptions = {
 	apiHandler: ApiHandler
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
+	/**
+	 * Opt-in: condense once this many messages have accumulated since the last summary, independent of
+	 * the token-percentage threshold. 0/undefined disables it (default). Lets memory be reclaimed on
+	 * long tasks well before the context window fills up (2-B).
+	 */
+	autoCondenseContextMessageCount?: number
 	systemPrompt: string
 	taskId: string
 	customCondensingPrompt?: string
@@ -248,6 +260,7 @@ export async function manageContext({
 	apiHandler,
 	autoCondenseContext,
 	autoCondenseContextPercent,
+	autoCondenseContextMessageCount,
 	systemPrompt,
 	taskId,
 	customCondensingPrompt,
@@ -301,7 +314,14 @@ export async function manageContext({
 
 	if (autoCondenseContext) {
 		const contextPercent = (100 * prevContextTokens) / contextWindow
-		if (contextPercent >= effectiveThreshold || prevContextTokens > allowedTokens) {
+		// Opt-in early trigger: condense once enough messages have piled up since the last summary,
+		// regardless of token percentage (2-B). 0/undefined keeps the original token-only behavior.
+		const messagesSinceSummary = getMessagesSinceLastSummary(messages).length
+		const hitMessageCount =
+			!!autoCondenseContextMessageCount &&
+			autoCondenseContextMessageCount > 0 &&
+			messagesSinceSummary >= autoCondenseContextMessageCount
+		if (contextPercent >= effectiveThreshold || prevContextTokens > allowedTokens || hitMessageCount) {
 			// Attempt to intelligently condense the context
 			const result = await summarizeConversation({
 				messages,
