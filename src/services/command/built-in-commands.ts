@@ -1,4 +1,5 @@
 import { Command } from "./commands"
+import { SELF_REFLECTION_PROMPT } from "../../core/prompts/instructions/self-reflection"
 
 interface BuiltInCommandDefinition {
 	name: string
@@ -281,6 +282,11 @@ Please analyze this codebase and create an AGENTS.md file containing:
 </quality_criteria>
 
 Remember: The goal is to create documentation that enables AI assistants to be immediately productive in this codebase, focusing on project-specific knowledge that isn't obvious from the code structure alone.`,
+	},
+	reflect: {
+		name: "reflect",
+		description: "Critically self-evaluate the work just completed and fix any real issues found",
+		content: SELF_REFLECTION_PROMPT,
 	},
 }
 

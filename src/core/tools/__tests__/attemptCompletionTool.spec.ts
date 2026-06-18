@@ -538,4 +538,71 @@ describe("attemptCompletionTool", () => {
 			})
 		})
 	})
+
+	describe("self-reflection", () => {
+		const completionBlock: AttemptCompletionToolUse = {
+			type: "tool_use",
+			name: "attempt_completion",
+			params: { result: "Task completed successfully" },
+			nativeArgs: { result: "Task completed successfully" },
+			partial: false,
+		}
+
+		const makeCallbacks = (): AttemptCompletionCallbacks => ({
+			askApproval: mockAskApproval,
+			handleError: mockHandleError,
+			pushToolResult: mockPushToolResult,
+			askFinishSubTaskApproval: mockAskFinishSubTaskApproval,
+			toolDescription: mockToolDescription,
+		})
+
+		const enableReflection = () => {
+			mockGetConfiguration.mockReturnValue({
+				get: vi.fn((key: string, defaultValue: any) => (key === "enableSelfReflection" ? true : defaultValue)),
+			})
+			vi.mocked(vscode.workspace.getConfiguration).mockImplementation(mockGetConfiguration)
+		}
+
+		it("injects the reflection prompt instead of completing when enabled", async () => {
+			enableReflection()
+			mockTask.didSelfReflect = false
+			mockTask.parentTaskId = undefined
+
+			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
+
+			expect(mockTask.didSelfReflect).toBe(true)
+			expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("self-evaluate"))
+			// Should not show the completion result or ask for acceptance yet.
+			expect(mockTask.say).not.toHaveBeenCalledWith("completion_result", expect.anything(), undefined, false)
+		})
+
+		it("completes normally on the second pass after reflection already ran", async () => {
+			enableReflection()
+			mockTask.didSelfReflect = true
+
+			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
+
+			expect(mockTask.say).toHaveBeenCalledWith("completion_result", expect.anything(), undefined, false)
+		})
+
+		it("does not reflect for subtasks", async () => {
+			enableReflection()
+			mockTask.didSelfReflect = false
+			mockTask.parentTaskId = "parent_1"
+
+			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
+
+			expect(mockTask.didSelfReflect).toBe(false)
+			expect(mockTask.say).toHaveBeenCalledWith("completion_result", expect.anything(), undefined, false)
+		})
+
+		it("does not reflect when the setting is off (default)", async () => {
+			mockTask.didSelfReflect = false
+
+			await attemptCompletionTool.handle(mockTask as Task, completionBlock, makeCallbacks())
+
+			expect(mockTask.didSelfReflect).toBe(false)
+			expect(mockTask.say).toHaveBeenCalledWith("completion_result", expect.anything(), undefined, false)
+		})
+	})
 })

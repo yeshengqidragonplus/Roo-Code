@@ -383,6 +383,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	didRejectTool = false
 	didAlreadyUseTool = false
 	didToolFailInCurrentTurn = false
+	didSelfReflect = false
 	didCompleteReadingStream = false
 	private _started = false
 	// No streaming parser is required.

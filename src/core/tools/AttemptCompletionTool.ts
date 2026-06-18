@@ -7,6 +7,7 @@ import { formatResponse } from "../prompts/responses"
 import { Package } from "../../shared/package"
 import type { ToolUse } from "../../shared/tools"
 import { t } from "../../i18n"
+import { SELF_REFLECTION_PROMPT } from "../prompts/instructions/self-reflection"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 
@@ -76,6 +77,18 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 			}
 
 			task.consecutiveMistakeCount = 0
+
+			// Optional self-evaluation: when enabled, run one reflection pass before finalizing.
+			// Runs at most once per task and only for top-level tasks (subtasks delegate to their parent).
+			const enableSelfReflection = vscode.workspace
+				.getConfiguration(Package.name)
+				.get<boolean>("enableSelfReflection", false)
+
+			if (enableSelfReflection && !task.didSelfReflect && !task.parentTaskId) {
+				task.didSelfReflect = true
+				pushToolResult(formatResponse.toolResult(SELF_REFLECTION_PROMPT))
+				return
+			}
 
 			await task.say("completion_result", result, undefined, false)
 
