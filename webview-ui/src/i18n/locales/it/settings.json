@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Abilita regole sottocartelle",
 			"description": "Scopri e carica ricorsivamente i file .roo/rules e AGENTS.md dalle sottodirectory. Utile per i monorepo con regole per pacchetto."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

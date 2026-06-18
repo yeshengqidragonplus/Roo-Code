@@ -208,6 +208,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		cwd: "",
 		showRooIgnoredFiles: true, // Default to showing .rooignore'd files with lock symbol (current behavior).
 		enableSubfolderRules: false, // Default to disabled - must be enabled to load rules from subdirectories
+		useProjectMemory: true, // Default to enabled - inject persisted project memory from .roo/memory
 		renderContext: "sidebar",
 		maxReadFileLine: -1, // Default max line limit for read_file tool (-1 for default)
 		maxImageFileSize: 5, // Default max image file size in MB

@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Submap-regels inschakelen",
 			"description": "Recursief .roo/rules en AGENTS.md-bestanden uit submappen ontdekken en laden. Handig voor monorepo's met regels per pakket."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

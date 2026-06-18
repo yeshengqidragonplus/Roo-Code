@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "启用子文件夹规则",
 			"description": "递归发现并加载子目录中的 .roo/rules 和 AGENTS.md 文件。适用于具有每包规则的 monorepo。"
+		},
+		"useProjectMemory": {
+			"label": "项目记忆",
+			"description": "从 .roo/memory 目录加载持久化的项目记忆并注入系统提示。关闭后将忽略已保存的记忆。"
 		}
 	},
 	"terminal": {

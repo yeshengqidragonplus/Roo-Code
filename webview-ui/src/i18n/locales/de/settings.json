@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Unterordner-Regeln aktivieren",
 			"description": "Rekursiv .roo/rules und AGENTS.md-Dateien aus Unterverzeichnissen laden. Nützlich für Monorepos mit paketspezifischen Regeln."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

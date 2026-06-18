@@ -18,6 +18,7 @@ export const generateSystemPrompt = async (provider: ClineProvider, message: Web
 		experiments,
 		language,
 		enableSubfolderRules,
+		useProjectMemory,
 	} = await provider.getState()
 
 	const diffStrategy = new MultiSearchReplaceDiffStrategy()
@@ -56,6 +57,7 @@ export const generateSystemPrompt = async (provider: ClineProvider, message: Web
 			todoListEnabled: apiConfiguration?.todoListEnabled ?? true,
 			useAgentRules: vscode.workspace.getConfiguration(Package.name).get<boolean>("useAgentRules") ?? true,
 			enableSubfolderRules: enableSubfolderRules ?? false,
+			useProjectMemory: useProjectMemory ?? true,
 			newTaskRequireTodos: vscode.workspace
 				.getConfiguration(Package.name)
 				.get<boolean>("newTaskRequireTodos", false),

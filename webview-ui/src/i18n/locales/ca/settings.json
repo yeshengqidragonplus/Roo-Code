@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Activa les regles dels subdirectoris",
 			"description": "Descobreix i carrega recursivament fitxers .roo/rules i AGENTS.md des de subdirectoris. Útil per a monorepos amb regles per paquet."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

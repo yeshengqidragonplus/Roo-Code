@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Alt klasör kurallarını etkinleştir",
 			"description": "Alt dizinlerden .roo/rules ve AGENTS.md dosyalarını yinelemeli olarak keşfet ve yükle. Paket başına kuralları olan monorepo'lar için kullanışlı."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

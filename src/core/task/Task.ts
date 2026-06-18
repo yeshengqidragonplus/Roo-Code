@@ -3706,6 +3706,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			language,
 			apiConfiguration,
 			enableSubfolderRules,
+			useProjectMemory,
 		} = state ?? {}
 
 		return await (async () => {
@@ -3735,6 +3736,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					useAgentRules:
 						vscode.workspace.getConfiguration(Package.name).get<boolean>("useAgentRules") ?? true,
 					enableSubfolderRules: enableSubfolderRules ?? false,
+					useProjectMemory: useProjectMemory ?? true,
 					newTaskRequireTodos: vscode.workspace
 						.getConfiguration(Package.name)
 						.get<boolean>("newTaskRequireTodos", false),

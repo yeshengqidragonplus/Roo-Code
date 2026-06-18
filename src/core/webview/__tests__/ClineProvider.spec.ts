@@ -517,6 +517,7 @@ describe("ClineProvider", () => {
 			maxWorkspaceFiles: 200,
 			showRooIgnoredFiles: false,
 			enableSubfolderRules: false,
+			useProjectMemory: true,
 			renderContext: "sidebar",
 			maxImageFileSize: 5,
 			maxTotalImageSize: 20,

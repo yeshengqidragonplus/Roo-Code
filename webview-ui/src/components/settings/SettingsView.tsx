@@ -185,6 +185,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		writeDelayMs,
 		showRooIgnoredFiles,
 		enableSubfolderRules,
+		useProjectMemory,
 		maxImageFileSize,
 		maxTotalImageSize,
 		customSupportPrompts,
@@ -391,6 +392,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					maxWorkspaceFiles: Math.min(Math.max(0, maxWorkspaceFiles ?? 200), 500),
 					showRooIgnoredFiles: showRooIgnoredFiles ?? true,
 					enableSubfolderRules: enableSubfolderRules ?? false,
+					useProjectMemory: useProjectMemory ?? true,
 					maxImageFileSize: maxImageFileSize ?? 5,
 					maxTotalImageSize: maxTotalImageSize ?? 20,
 					includeDiagnosticMessages:
@@ -824,6 +826,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								maxWorkspaceFiles={maxWorkspaceFiles ?? 200}
 								showRooIgnoredFiles={showRooIgnoredFiles}
 								enableSubfolderRules={enableSubfolderRules}
+								useProjectMemory={useProjectMemory}
 								maxImageFileSize={maxImageFileSize}
 								maxTotalImageSize={maxTotalImageSize}
 								profileThresholds={profileThresholds}

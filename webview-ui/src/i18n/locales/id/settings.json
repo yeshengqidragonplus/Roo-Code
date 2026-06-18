@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Aktifkan aturan subfolder",
 			"description": "Temukan dan muat file .roo/rules dan AGENTS.md secara rekursif dari subdirektori. Berguna untuk monorepo dengan aturan per-paket."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

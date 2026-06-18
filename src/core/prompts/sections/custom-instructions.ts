@@ -239,6 +239,45 @@ export async function loadRuleFiles(cwd: string, enableSubfolderRules: boolean =
 }
 
 /**
+ * Load project memory files from global and project-local `.roo/memory/` directories.
+ *
+ * This is the storage layer for the "memory-type evolution" feature: facts the agent
+ * has learned about a project are persisted as markdown under `.roo/memory/` and injected
+ * back into the system prompt on subsequent tasks. Mirrors `loadRuleFiles` exactly so it
+ * reuses the same directory ordering (global first, then project-local), file filtering,
+ * and alphabetical sorting.
+ *
+ * @param cwd - Current working directory (project root)
+ * @param enableSubfolderRules - Whether to include memory from subdirectories (default: false)
+ */
+export async function loadMemoryFiles(cwd: string, enableSubfolderRules: boolean = false): Promise<string> {
+	const memories: string[] = []
+	const rooDirectories = enableSubfolderRules ? await getAllRooDirectoriesForCwd(cwd) : getRooDirectoriesForCwd(cwd)
+
+	for (const rooDir of rooDirectories) {
+		const memoryDir = path.join(rooDir, "memory")
+		if (await directoryExists(memoryDir)) {
+			const files = await readTextFilesFromDirectory(memoryDir)
+			if (files.length > 0) {
+				const content = files
+					.map((file) => {
+						const displayPath = path.relative(cwd, file.filename)
+						return `# Memory from ${displayPath}:\n${file.content}`
+					})
+					.join("\n\n")
+				memories.push(content)
+			}
+		}
+	}
+
+	if (memories.length > 0) {
+		return "\n# Project memory from .roo directories:\n\n" + memories.join("\n\n")
+	}
+
+	return ""
+}
+
+/**
  * Read content from an agent rules file (AGENTS.md, AGENT.md, etc.)
  * Handles symlink resolution.
  *
@@ -485,6 +524,14 @@ export async function addCustomInstructions(
 	const genericRuleContent = await loadRuleFiles(cwd, enableSubfolderRules)
 	if (genericRuleContent && genericRuleContent.trim()) {
 		rules.push(genericRuleContent.trim())
+	}
+
+	// Add project memory (.roo/memory) if enabled (default: true)
+	if (options.settings?.useProjectMemory !== false) {
+		const memoryContent = await loadMemoryFiles(cwd, enableSubfolderRules)
+		if (memoryContent && memoryContent.trim()) {
+			rules.push(memoryContent.trim())
+		}
 	}
 
 	if (rules.length > 0) {

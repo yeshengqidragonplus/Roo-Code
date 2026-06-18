@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Bật quy tắc thư mục con",
 			"description": "Khám phá và tải đệ quy các tệp .roo/rules và AGENTS.md từ các thư mục con. Hữu ích cho monorepo có quy tắc theo gói."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

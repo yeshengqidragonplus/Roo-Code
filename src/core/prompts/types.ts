@@ -9,4 +9,6 @@ export interface SystemPromptSettings {
 	newTaskRequireTodos: boolean
 	/** When true, model should hide vendor/company identity in responses */
 	isStealthModel?: boolean
+	/** When true, inject persisted project memory from .roo/memory into the system prompt (default: true) */
+	useProjectMemory?: boolean
 }

@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "सबफ़ोल्डर नियम सक्षम करें",
 			"description": "उपनिर्देशिकाओं से .roo/rules और AGENTS.md फ़ाइलों को पुनरावर्ती रूप से खोजें और लोड करें। प्रति-पैकेज नियमों वाले मोनोरेपो के लिए उपयोगी।"
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

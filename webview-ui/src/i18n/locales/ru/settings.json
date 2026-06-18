@@ -664,6 +664,10 @@
 		"enableSubfolderRules": {
 			"label": "Включить правила подпапок",
 			"description": "Рекурсивно обнаруживать и загружать файлы .roo/rules и AGENTS.md из подкаталогов. Полезно для монорепозиториев с правилами для каждого пакета."
+		},
+		"useProjectMemory": {
+			"label": "Project memory",
+			"description": "Load persisted project memory from .roo/memory and inject it into the system prompt. Disable to ignore saved memory."
 		}
 	},
 	"terminal": {

@@ -34,6 +34,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	maxWorkspaceFiles: number
 	showRooIgnoredFiles?: boolean
 	enableSubfolderRules?: boolean
+	useProjectMemory?: boolean
 	maxImageFileSize?: number
 	maxTotalImageSize?: number
 	profileThresholds?: Record<string, number>
@@ -53,6 +54,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "maxWorkspaceFiles"
 		| "showRooIgnoredFiles"
 		| "enableSubfolderRules"
+		| "useProjectMemory"
 		| "maxImageFileSize"
 		| "maxTotalImageSize"
 		| "profileThresholds"
@@ -74,6 +76,7 @@ export const ContextManagementSettings = ({
 	maxWorkspaceFiles,
 	showRooIgnoredFiles,
 	enableSubfolderRules,
+	useProjectMemory,
 	setCachedStateField,
 	maxImageFileSize,
 	maxTotalImageSize,
@@ -246,6 +249,23 @@ export const ContextManagementSettings = ({
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
 						{t("settings:contextManagement.enableSubfolderRules.description")}
+					</div>
+				</SearchableSetting>
+
+				<SearchableSetting
+					settingId="context-use-project-memory"
+					section="contextManagement"
+					label={t("settings:contextManagement.useProjectMemory.label")}>
+					<VSCodeCheckbox
+						checked={useProjectMemory}
+						onChange={(e: any) => setCachedStateField("useProjectMemory", e.target.checked)}
+						data-testid="use-project-memory-checkbox">
+						<label className="block font-medium mb-1">
+							{t("settings:contextManagement.useProjectMemory.label")}
+						</label>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
+						{t("settings:contextManagement.useProjectMemory.description")}
 					</div>
 				</SearchableSetting>
 
