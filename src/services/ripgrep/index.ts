@@ -1,4 +1,4 @@
-import * as childProcess from "child_process"
+﻿import * as childProcess from "child_process"
 import * as path from "path"
 import * as readline from "readline"
 
@@ -30,26 +30,31 @@ Usage example:
 const results = await regexSearchFiles('/path/to/cwd', '/path/to/search', 'TODO:', '*.ts');
 
 rel/path/to/app.ts
-│----
-│function processData(data: any) {
-│  // Some processing logic here
-│  // TODO: Implement error handling
-│  return processedData;
-│}
-│----
+鈹?---
+鈹俧unction processData(data: any) {
+鈹? // Some processing logic here
+鈹? // TODO: Implement error handling
+鈹? return processedData;
+鈹倉
+鈹?---
 
 rel/path/to/helper.ts
-│----
-│  let result = 0;
-│  for (let i = 0; i < input; i++) {
-│    // TODO: Optimize this function for performance
-│    result += Math.pow(i, 2);
-│  }
-│----
+鈹?---
+鈹? let result = 0;
+鈹? for (let i = 0; i < input; i++) {
+鈹?   // TODO: Optimize this function for performance
+鈹?   result += Math.pow(i, 2);
+鈹? }
+鈹?---
 */
 
 const isWindows = process.platform.startsWith("win")
 const binName = isWindows ? "rg.exe" : "rg"
+
+// Newer VSCode builds ship ripgrep as `@vscode/ripgrep-universal` with a
+// per-platform subfolder (e.g. bin/win32-x64/rg.exe), replacing the legacy
+// `@vscode/ripgrep` package. Compute the platform-arch segment once.
+const platformArch = `${process.platform}-${process.arch}`
 
 interface SearchFileResult {
 	file: string
@@ -88,11 +93,27 @@ export async function getBinPath(vscodeAppRoot: string): Promise<string | undefi
 		return (await fileExistsAtPath(fullPath)) ? fullPath : undefined
 	}
 
+	// checkPath variant for the universal layout: bin/<platform-arch>/<binName>
+	const checkPathUniversal = async (pkgFolder: string) => {
+		const fullPath = path.join(vscodeAppRoot, pkgFolder, platformArch, binName)
+		return (await fileExistsAtPath(fullPath)) ? fullPath : undefined
+	}
+
+	// Fallback to the extension's own bundled @vscode/ripgrep binary.
+	const extensionRoot = path.join(__dirname, "..")
+	const checkExtensionBundled = async () => {
+		const fullPath = path.join(extensionRoot, "node_modules", "@vscode", "ripgrep", "bin", binName)
+		return (await fileExistsAtPath(fullPath)) ? fullPath : undefined
+	}
+
 	return (
+		(await checkPathUniversal("node_modules/@vscode/ripgrep-universal/bin/")) ||
+		(await checkPathUniversal("node_modules.asar.unpacked/@vscode/ripgrep-universal/bin/")) ||
 		(await checkPath("node_modules/@vscode/ripgrep/bin/")) ||
 		(await checkPath("node_modules/vscode-ripgrep/bin")) ||
 		(await checkPath("node_modules.asar.unpacked/vscode-ripgrep/bin/")) ||
-		(await checkPath("node_modules.asar.unpacked/@vscode/ripgrep/bin/"))
+		(await checkPath("node_modules.asar.unpacked/@vscode/ripgrep/bin/")) ||
+		(await checkExtensionBundled())
 	)
 }
 
