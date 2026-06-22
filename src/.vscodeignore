@@ -10,12 +10,19 @@
 !package.json
 !package.nls.*
 
-# Include the built extension
+# Include the built extension (entry point + workers + wasm + locales)
+# NOTE: With a leading "**" exclusion, "!dist" only re-includes the directory
+# itself; its contents stay ignored. We must also add "!dist/**" so that
+# dist/extension.js, dist/workers/*, dist/*.wasm, dist/bin/*, dist/i18n/** etc.
+# are actually packaged. Without this the VSIX ships without the extension
+# entry point and the sidebar fails to load on a clean install.
 !dist
+!dist/**
 
 # Include the built webview
 !**/*.map
-!webview-ui/audio
+!webview-ui
+!webview-ui/**
 !webview-ui/build/assets/*.js
 !webview-ui/build/assets/*.ttf
 !webview-ui/build/assets/*.css
@@ -24,12 +31,20 @@
 !webview-ui/build/assets/fonts/*.ttf
 
 # Include default themes JSON files used in getTheme
+!integrations
+!integrations/theme
+!integrations/theme/default-themes
 !integrations/theme/default-themes/**
 
 # Include icons and images
+!assets
+!assets/codicons
 !assets/codicons/**
+!assets/vscode-material-icons
 !assets/vscode-material-icons/**
+!assets/icons
 !assets/icons/**
+!assets/images
 !assets/images/**
 
 # Include .env file for telemetry
