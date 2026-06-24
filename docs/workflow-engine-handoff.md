@@ -73,6 +73,22 @@ QCode（一个 Roo Code 的 VS Code 扩展 fork）要支持**长程任务**，�
 
 工作流引擎**不直接操作 QCode 内部**，只通过下面两个约定与 QCode 交互。
 
+### 4.0 解耦原则：契约稳定 + 运行时加载
+
+AIWorkflow 与 QCode 是**两个独立项目，进度可以不同步**。解耦靠两条：
+
+1. **冻结的契约**是唯一稳定边界（4.2 的 `start/advance` + 3.x 的图 JSON / 节点词汇 / 引用语法）。只要契约不变，两边随便改。
+2. **QCode 运行时加载引擎，不编译/不 import 引擎源码**。AIWorkflow 自行构建发布产物，QCode 在运行时按契约调用。
+
+传输方式对契约无影响，可二选一（QCode 侧已抽象为可替换的 provider）：
+
+- **插件（主路）**：QCode 在运行时动态 `import()` 引擎的构建产物（一个 JS 模块，需导出 `createEngine(workflow)`），在进程内调用。零每步进程开销，适合 VS Code 的 Node 宿主。
+- **CLI（备选）**：把引擎包装成跨平台命令行工具，QCode spawn 子进程、传/收 JSON。完全进程隔离。
+
+> AIWorkflow 侧产出建议：一个**可被动态 import 的构建产物**（导出 `createEngine`），Mac/Win 通用。若要 CLI，再加一个 `start`/`advance` 子命令读写 JSON 的薄入口即可——引擎核心（可序列化 state）两种都不用改。
+>
+> QCode 侧：`WorkflowEngineProvider` 抽象 + 动态加载 provider 已实现（`src/core/expert/WorkflowEngineProvider.ts`），并已用真实引擎冒烟验证 `triage-flow` 跑通。引擎产物路径由 QCode 配置项指定；缺失时类型 A 专家优雅降级。
+
 ### 4.1 工作流即技能（Workflow-as-Skill）
 
 - 一条工作流 JSON **注册为 QCode `.roo/skills` 下的一个技能**（数据驱动，无需改 QCode 代码）。
