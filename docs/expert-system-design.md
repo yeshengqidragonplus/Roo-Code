@@ -156,13 +156,14 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 
 ---
 
-## 5. 落地优先级（QCode 本会话聚焦）
+## 5. 落地优先级与进度（QCode 本会话聚焦）
 
-1. **统一"专家"抽象**：建模为 `mode + 可选 workflow 引用 + skills`，A/B 两类都用它。
-2. **先实现类型 B**：放开 Task loop 自驱，最接近现成。
-3. **宿主侧工作流循环**：实现 3.1 的 `start/advance` 驱动 + `nextPrompt`/`action` 分发；引擎主体在外部仓库。
-4. **专家间协作先串行**，结果只回传摘要；含委派 reopen 时**恢复工作流循环**（3.2）。
-5. **最后再上并行子专家**（需重构单活动任务模型）。
+1. ✅ **统一"专家"抽象**：`ModeConfig` 上挂 `kind/workflow/delegation/terminationHint`（`packages/types/src/expert.ts` + `mode.ts`）。
+2. ✅ **类型 B 自驱**：`terminationHint` 注入系统提示词（`src/core/prompts/system.ts`）；示例 `.roomodes` 的 `first-principles`。
+3. ✅ **宿主侧工作流循环（骨架）**：`WorkflowExpertRunner`（依赖注入、可单测）+ `WorkflowEngineProvider`（运行时加载、已用真引擎验证）。
+4. ✅ **工作流加载 + 字段 + UI + 状态持久化**：`WorkflowRegistry`（扫 `.roo/workflows/`）、`workflowId` 字段、mode 创建界面工作流下拉、`workflow_state.json` 会话级持久化。
+5. ⬜ **最后一公里：串进 Task.ts**（见 §7）——让类型 A 专家在 app 里真跑。
+6. ⬜ **并行子专家**（需重构单活动任务模型，后置）。
 
 ---
 
@@ -176,6 +177,57 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 
 ---
 
+## 7. 最后一公里：把工作流串进 Task 循环（待决策）
+
+> 状态：方案稿，**未实现**。基于对 `Task.ts` 主循环的深入分析。等本节决策确定后再动手。
+
+### 7.1 关键结论：Task 循环当主控，工作流当"下一步提供者"
+
+`WorkflowExpertRunner`（§5.3）原设计是"**runner 当主控**、调注入的 `runLlmTurn`"。但 QCode 的 Task 循环（`initiateTaskLoop` → `recursivelyMakeClineRequests`，[Task.ts:2447](../src/core/task/Task.ts)）独占流式、abort、UI、持久化、委派——**它必须当主控**。让外部 runner 反过来"驱动一个 turn 再停"会与这套深度状态机冲突。
+
+因此真实接线**反转控制方向**：
+
+- **Task 循环当主控**；工作流退化为"**每个 turn 之间提供下一条 user 内容**"的提供者。
+- 现成的缝：`initiateTaskLoop` 外层循环在 turn 之间已有一个"决定下一条 user 内容"的点（[Task.ts:2476](../src/core/task/Task.ts)，现注入 `formatResponse.noToolsUsed()`）。工作流专家把这个点替换成"问工作流要下一步"。
+
+```js
+while (!this.abort) {
+  const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, ...)
+  if (didEndLoop) break
+  // 现状：           nextUserContent = noToolsUsed()
+  // 工作流专家：      advance(本轮文本) → done?停 : nextUserContent = [{text: nextPrompt}]
+}
+```
+
+> 推论：真实接线**不走 `WorkflowExpertRunner` 的循环**，而是把 `start/advance` 内联进 `initiateTaskLoop`。runner 仍保留为"被完整单测过的同一套循环语义参考实现"，供将来 headless/CLI 路径复用。
+
+### 7.2 分阶段方案
+
+复杂度全在"硬动作"。建议三阶段，软步骤极简、风险集中且小。
+
+**Phase 1 — 仅软步骤（低风险，可端到端 demo）**：只支持 `nextPrompt`。改三处：
+1. **任务启动**：`kind==="workflow"` 专家 → 先 `workflow.start(inputs)`（用户任务消息作为 `inputs`），首个 `nextPrompt` 作为首轮 user 内容。
+2. **turn 间**（[Task.ts:2476](../src/core/task/Task.ts)）：捕获本轮 assistant 最终文本 → `advance(text)` → `saveWorkflowState`（已就绪）→ `done` 则停，否则注入下一个 `nextPrompt`。
+3. **会话恢复**：`resumeTaskFromHistory` 读 `readWorkflowState`、重建 engine，从持久化状态续跑。
+   无需 dispose/reopen，无需机械执行工具。
+
+**Phase 2 — 硬 `delegate`**：复用 `delegateParentAndOpenChild` + `reopenParentFromDelegation`。难点：委派会 **dispose 父任务**，advance 不能内联 await——须在 reopen（`resumeAfterDelegation`，[Task.ts:2381](../src/core/task/Task.ts)）时读回工作流状态、把子专家摘要当 `lastOutput` 续 advance（`resumeFrom` 语义）。
+
+**Phase 3 — 硬 `tool`/`skill`**：宿主"机械地"直调工具/技能 handler（绕过 `presentAssistantMessage` 的模型驱动流程）。最繁琐，最后做。
+
+### 7.3 Phase 1 待拍板的两个设计点
+
+1. **`attempt_completion` 拦截**：工作流专家里模型可能在某软步骤误调 `attempt_completion` 提前结束循环。已抑制 TASK COMPLETION CRITERIA 段（§4 / 3.x）可减少；更稳的是每步提示词明确"只做这一步、勿调 attempt_completion"，并在工作流专家里**把模型的 `attempt_completion` 拦截为"本步结果"喂给 advance**而非真结束。倾向：**Phase 1 即做拦截**（否则易被模型提前打断）。
+2. **捕获"本轮最终文本"**：`assistantMessage` 是流式循环局部变量，turn 结束后不可见。需在 turn 结束前存到 task 属性（如 `this.lastAssistantText`）。非侵入小改动。
+
+### 7.4 风险与边界
+
+- ⚠️ **不破坏现有路径**：类型 B / 普通对话不进入工作流分支（以 `kind==="workflow"` 且有 `workflow` 绑定为唯一开关），改动须严格门控。
+- ⚠️ **Phase 2 的跨 dispose 续跑**是最易出错处；`resumeFrom` + `workflow_state.json` 已为此设计，但接到真实 reopen 回调要仔细。
+- 建议：**先做 Phase 1 端到端跑通**，再随 AIWorkflow 实测推进 Phase 2/3。
+
+---
+
 ## 附：相关现有文件索引
 
 - 核心循环：[src/core/task/Task.ts](../src/core/task/Task.ts)
@@ -185,3 +237,14 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 - 模式 → 工具过滤：[src/core/prompts/tools/filter-tools-for-mode.ts](../src/core/prompts/tools/filter-tools-for-mode.ts)
 - 模式定义：[.roomodes](../.roomodes)
 - 上下文压缩：[src/core/condense/](../src/core/condense/)
+
+### 专家系统新增文件（已实现）
+
+- 专家类型/字段：[packages/types/src/expert.ts](../packages/types/src/expert.ts)
+- 工作流引擎契约：[packages/types/src/workflow.ts](../packages/types/src/workflow.ts)
+- 宿主循环（参考实现）：[src/core/expert/WorkflowExpertRunner.ts](../src/core/expert/WorkflowExpertRunner.ts)
+- 引擎运行时加载：[src/core/expert/WorkflowEngineProvider.ts](../src/core/expert/WorkflowEngineProvider.ts)
+- 工作流注册表：[src/core/expert/WorkflowRegistry.ts](../src/core/expert/WorkflowRegistry.ts)
+- 会话级状态持久化：[src/core/task-persistence/workflowState.ts](../src/core/task-persistence/workflowState.ts)
+- 创建 UI 工作流下拉：[webview-ui/src/components/modes/ModesView.tsx](../webview-ui/src/components/modes/ModesView.tsx)
+- 类型 B 完成标准注入：[src/core/prompts/system.ts](../src/core/prompts/system.ts)
