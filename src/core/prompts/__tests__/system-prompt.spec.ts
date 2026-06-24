@@ -420,7 +420,7 @@ describe("SYSTEM_PROMPT", () => {
 				roleDefinition: "Workflow role definition",
 				groups: ["read"] as const,
 				kind: "workflow",
-				workflow: { workflowSkillName: "release-flow" },
+				workflow: { workflowId: "release-flow" },
 				terminationHint: "Should be ignored for workflow experts.",
 			},
 		]

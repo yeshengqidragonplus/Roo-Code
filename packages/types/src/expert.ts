@@ -29,13 +29,15 @@ export const expertKindSchema = z.enum(["autonomous", "workflow"])
 export type ExpertKind = z.infer<typeof expertKindSchema>
 
 /**
- * Reference to a workflow (type-A experts only). The workflow graph itself is
- * registered as a skill under `.roo/skills`; the expert stores only the
- * reference, never the graph, keeping it decoupled from the graph format.
+ * Reference to a workflow (type-A experts only). Workflow graphs live as JSON
+ * files under a `.roo/workflows/` directory (project + global); the expert
+ * stores only the id (the JSON filename without extension), never the graph,
+ * keeping it decoupled from the graph format. Resolved at runtime by the
+ * WorkflowRegistry.
  */
 export const workflowBindingSchema = z.object({
-	/** Name of the workflow skill registered under `.roo/skills`. */
-	workflowSkillName: z.string().min(1),
+	/** Workflow id = the JSON filename (without `.json`) under `.roo/workflows/`. */
+	workflowId: z.string().min(1),
 	/** Default start inputs passed to `workflow.start()`. */
 	inputs: z.record(z.unknown()).optional(),
 })
