@@ -1,19 +1,26 @@
 import { z } from "zod"
 
-import { modeConfigSchema } from "./mode.js"
+import type { ModeConfig } from "./mode.js"
 
 /**
  * Expert system types.
  *
  * An "Expert" is the unit that executes a long-horizon task. It is modeled as
- * an enhanced custom mode (reusing `.roomodes`), so existing mode machinery
- * (role/tool-group filtering, system-prompt construction) consumes it
- * unchanged. The only difference between the two expert kinds is configuration:
+ * an enhanced custom mode (reusing `.roomodes`): the expert fields below are
+ * mixed into `modeConfigSchema` (see mode.ts) as optional fields, so existing
+ * mode machinery (role/tool-group filtering, system-prompt construction, the
+ * `.roomodes` loader) carries them through unchanged and a plain mode entry
+ * validates as a default `autonomous` expert with zero migration.
  *
+ * The only difference between the two expert kinds is configuration:
  * - `autonomous` (type B): the Task loop runs free; the LLM decides each step.
  * - `workflow`   (type A): a host loop calls a bound workflow's `start/advance`
  *   each turn to obtain the next instruction; the LLM stays the actor and the
  *   workflow only constrains direction. See docs/expert-system-design.md §3.
+ *
+ * NOTE: this module must not import `modeConfigSchema` at runtime (mode.ts
+ * imports these schemas, so a value import would be circular). The `ModeConfig`
+ * import above is type-only and erased at compile time.
  */
 
 /** Execution form of an expert. */
@@ -62,28 +69,43 @@ export const delegationPolicySchema = z.object({
 export type DelegationPolicy = z.infer<typeof delegationPolicySchema>
 
 /**
- * Expert configuration = an enhanced ModeConfig.
- *
- * A plain custom mode with none of the extra fields validates as an
- * `autonomous` expert with default delegation, so existing `.roomodes` entries
- * keep working with zero migration.
+ * The expert-specific fields mixed into `modeConfigSchema`. All optional so a
+ * plain mode entry remains valid. mode.ts spreads this into its object schema.
  */
-export const expertConfigSchema = modeConfigSchema
-	.extend({
-		kind: expertKindSchema.default("autonomous"),
-		/** Required when `kind === "workflow"`. */
-		workflow: workflowBindingSchema.optional(),
-		delegation: delegationPolicySchema.default({}),
-		/**
-		 * Soft guidance for type-B experts on when the task is considered done.
-		 * Kept separate from `customInstructions` to allow future programmatic
-		 * completion checks.
-		 */
-		terminationHint: z.string().optional(),
-	})
-	.refine((d) => d.kind !== "workflow" || !!d.workflow, {
-		message: "A workflow-kind expert must declare a `workflow` binding",
-		path: ["workflow"],
-	})
+export const expertModeFields = {
+	kind: expertKindSchema.optional(),
+	/** Required (validated separately) when `kind === "workflow"`. */
+	workflow: workflowBindingSchema.optional(),
+	delegation: delegationPolicySchema.optional(),
+	/**
+	 * Soft guidance for type-B experts on when the task is considered done.
+	 * Kept separate from `customInstructions` to allow future programmatic
+	 * completion checks.
+	 */
+	terminationHint: z.string().optional(),
+} as const
 
-export type ExpertConfig = z.infer<typeof expertConfigSchema>
+/**
+ * A mode config viewed as an expert. Since the expert fields live on
+ * `ModeConfig`, this is just `ModeConfig`; the alias documents intent at call
+ * sites that treat a mode as an expert.
+ */
+export type ExpertConfig = ModeConfig
+
+/** True when this expert is workflow-driven (type A) rather than autonomous. */
+export function isWorkflowExpert(expert: ExpertConfig): boolean {
+	return expert.kind === "workflow"
+}
+
+/**
+ * Validates the cross-field invariant that a workflow-kind expert declares a
+ * workflow binding. The base mode schema is intentionally lenient (both fields
+ * optional) so non-expert modes parse freely; callers that treat a mode as an
+ * expert use this to enforce the rule.
+ */
+export function validateExpertConfig(expert: ExpertConfig): { ok: true } | { ok: false; error: string } {
+	if (expert.kind === "workflow" && !expert.workflow) {
+		return { ok: false, error: `Expert "${expert.slug}" is workflow-kind but declares no \`workflow\` binding` }
+	}
+	return { ok: true }
+}

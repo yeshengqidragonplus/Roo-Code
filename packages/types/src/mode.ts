@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { deprecatedToolGroups, toolGroupsSchema } from "./tool.js"
+import { expertModeFields } from "./expert.js"
 
 /**
  * GroupOptions
@@ -102,6 +103,9 @@ export const modeConfigSchema = z.object({
 	customInstructions: z.string().optional(),
 	groups: groupEntryArraySchema,
 	source: z.enum(["global", "project"]).optional(),
+	// Expert system fields (optional; a plain mode is a default autonomous
+	// expert). Defined in expert.ts; see docs/expert-system-design.md.
+	...expertModeFields,
 })
 
 export type ModeConfig = z.infer<typeof modeConfigSchema>
