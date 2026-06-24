@@ -383,6 +383,65 @@ describe("SYSTEM_PROMPT", () => {
 		expect(customInstructionsIndex).toBeGreaterThan(userInstructionsHeader)
 	})
 
+	it("should inject TASK COMPLETION CRITERIA for an autonomous expert with a terminationHint", async () => {
+		const customModes: ModeConfig[] = [
+			{
+				slug: "expert-mode",
+				name: "Expert Mode",
+				roleDefinition: "Expert role definition",
+				groups: ["read"] as const,
+				kind: "autonomous",
+				terminationHint: "All acceptance criteria are met.",
+			},
+		]
+
+		const prompt = await SYSTEM_PROMPT(
+			mockContext,
+			"/test/path",
+			false,
+			undefined, // mcpHub
+			undefined, // diffStrategy
+			"expert-mode", // mode
+			undefined, // customModePrompts
+			customModes, // customModes
+			undefined, // globalCustomInstructions
+			experiments,
+		)
+
+		expect(prompt).toContain("TASK COMPLETION CRITERIA")
+		expect(prompt).toContain("All acceptance criteria are met.")
+	})
+
+	it("should suppress TASK COMPLETION CRITERIA for a workflow expert", async () => {
+		const customModes: ModeConfig[] = [
+			{
+				slug: "workflow-expert",
+				name: "Workflow Expert",
+				roleDefinition: "Workflow role definition",
+				groups: ["read"] as const,
+				kind: "workflow",
+				workflow: { workflowSkillName: "release-flow" },
+				terminationHint: "Should be ignored for workflow experts.",
+			},
+		]
+
+		const prompt = await SYSTEM_PROMPT(
+			mockContext,
+			"/test/path",
+			false,
+			undefined, // mcpHub
+			undefined, // diffStrategy
+			"workflow-expert", // mode
+			undefined, // customModePrompts
+			customModes, // customModes
+			undefined, // globalCustomInstructions
+			experiments,
+		)
+
+		expect(prompt).not.toContain("TASK COMPLETION CRITERIA")
+		expect(prompt).not.toContain("Should be ignored for workflow experts.")
+	})
+
 	it("should use promptComponent roleDefinition when available", async () => {
 		const customModePrompts = {
 			[defaultModeSlug]: {

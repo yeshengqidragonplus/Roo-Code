@@ -83,6 +83,15 @@ async function generatePrompt(
 	// Tools catalog is not included in the system prompt.
 	const toolsCatalog = ""
 
+	// Expert system: a workflow-driven (type A) expert is steered turn-by-turn by
+	// its workflow, so we suppress the self-judged completion criteria. An
+	// autonomous (type B) expert relies on its terminationHint to know when the
+	// long-horizon task is done. See docs/expert-system-design.md.
+	const terminationSection =
+		modeConfig.kind !== "workflow" && modeConfig.terminationHint
+			? `\n====\n\nTASK COMPLETION CRITERIA\n\nThis task is considered complete when:\n${modeConfig.terminationHint}\n\nKeep working autonomously until these criteria are met; only then use attempt_completion.\n`
+			: ""
+
 	const basePrompt = `${roleDefinition}
 
 ${markdownFormattingSection()}
@@ -100,7 +109,7 @@ ${getRulesSection(cwd, settings)}
 ${getSystemInfoSection(cwd)}
 
 ${getObjectiveSection()}
-
+${terminationSection}
 ${getMemoryInstructionsSection(settings)}
 
 ${await addCustomInstructions(baseInstructions, globalCustomInstructions || "", cwd, mode, {
