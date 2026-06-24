@@ -2600,6 +2600,21 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			await handleRequestSkills(provider)
 			break
 		}
+		case "requestWorkflows": {
+			try {
+				const registry = provider.getWorkflowRegistry()
+				if (registry) {
+					await registry.discover()
+					await provider.postMessageToWebview({ type: "workflows", workflows: registry.list() })
+				} else {
+					await provider.postMessageToWebview({ type: "workflows", workflows: [] })
+				}
+			} catch (error) {
+				provider.log(`Error fetching workflows: ${error instanceof Error ? error.message : String(error)}`)
+				await provider.postMessageToWebview({ type: "workflows", workflows: [] })
+			}
+			break
+		}
 		case "createSkill": {
 			await handleCreateSkill(provider, message)
 			break

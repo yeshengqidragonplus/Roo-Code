@@ -74,3 +74,17 @@ export interface WorkflowEngine {
 	start(inputs?: Record<string, unknown>): Promise<WorkflowStep> | WorkflowStep
 	advance(state: WorkflowState, lastOutput: string): Promise<WorkflowStep> | WorkflowStep
 }
+
+/**
+ * Discovery metadata for a workflow JSON file under `.roo/workflows/`. The `id`
+ * (filename without extension) is the stable reference stored in an expert's
+ * `workflow.workflowId`; `name`/`description` are display-only. Shared between
+ * the host (WorkflowRegistry) and the webview (expert-creation dropdown).
+ */
+export interface WorkflowSummary {
+	id: string
+	name: string
+	description: string
+	source: "global" | "project"
+	path: string
+}

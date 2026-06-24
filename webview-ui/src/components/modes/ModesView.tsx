@@ -74,7 +74,13 @@ const ModesView = () => {
 		customInstructions,
 		setCustomInstructions,
 		customModes,
+		workflows,
 	} = useExtensionState()
+
+	// Request the available workflows once so the expert workflow dropdown can populate.
+	useEffect(() => {
+		vscode.postMessage({ type: "requestWorkflows" })
+	}, [])
 
 	// Use a local state to track the visually active mode
 	// This prevents flickering when switching modes rapidly by:
@@ -311,6 +317,8 @@ const ModesView = () => {
 	const [newModeCustomInstructions, setNewModeCustomInstructions] = useState("")
 	const [newModeGroups, setNewModeGroups] = useState<GroupEntry[]>(availableGroups)
 	const [newModeSource, setNewModeSource] = useState<ModeSource>("global")
+	// Empty string = autonomous (type B); a workflow id = workflow-driven (type A).
+	const [newModeWorkflowId, setNewModeWorkflowId] = useState("")
 
 	// Field-specific error states
 	const [nameError, setNameError] = useState<string>("")
@@ -330,6 +338,7 @@ const ModesView = () => {
 		setNewModeWhenToUse("")
 		setNewModeCustomInstructions("")
 		setNewModeSource("global")
+		setNewModeWorkflowId("")
 		// Reset error states
 		setNameError("")
 		setSlugError("")
@@ -388,6 +397,10 @@ const ModesView = () => {
 			customInstructions: newModeCustomInstructions.trim() || undefined,
 			groups: newModeGroups,
 			source,
+			// Type-A expert when a workflow is chosen; otherwise a default autonomous expert.
+			...(newModeWorkflowId
+				? { kind: "workflow" as const, workflow: { workflowId: newModeWorkflowId } }
+				: {}),
 		}
 
 		// Validate the mode against the schema
@@ -436,6 +449,7 @@ const ModesView = () => {
 		newModeCustomInstructions,
 		newModeGroups,
 		newModeSource,
+		newModeWorkflowId,
 		updateCustomMode,
 	])
 
@@ -1506,6 +1520,28 @@ const ModesView = () => {
 									rows={3}
 									className="w-full"
 								/>
+							</div>
+							<div className="mb-4">
+								<div className="font-bold mb-1">Workflow (Expert type)</div>
+								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+									Leave as None for an autonomous expert that drives itself. Pick a workflow to make
+									this a workflow-driven expert constrained by that flow.
+								</div>
+								<Select
+									value={newModeWorkflowId || "__none__"}
+									onValueChange={(v) => setNewModeWorkflowId(v === "__none__" ? "" : v)}>
+									<SelectTrigger className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__none__">None (autonomous)</SelectItem>
+										{(workflows ?? []).map((wf) => (
+											<SelectItem key={wf.id} value={wf.id}>
+												{wf.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="mb-4">
 								<div className="font-bold mb-1">{t("prompts:createModeDialog.tools.label")}</div>

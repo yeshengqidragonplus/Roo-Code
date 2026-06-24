@@ -11,6 +11,7 @@ import {
 	type ExtensionMessage,
 	type ExtensionState,
 	type SkillMetadata,
+	type WorkflowSummary,
 	type Command,
 	type McpServer,
 	RouterModels,
@@ -129,6 +130,7 @@ export interface ExtensionStateContextType extends ExtensionState {
 	showWorktreesInHomeScreen: boolean
 	setShowWorktreesInHomeScreen: (value: boolean) => void
 	skills?: SkillMetadata[]
+	workflows?: WorkflowSummary[]
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -257,6 +259,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [alwaysAllowFollowupQuestions, setAlwaysAllowFollowupQuestions] = useState(false) // Add state for follow-up questions auto-approve
 	const [followupAutoApproveTimeoutMs, setFollowupAutoApproveTimeoutMs] = useState<number | undefined>(undefined) // Will be set from global settings
 	const [skills, setSkills] = useState<SkillMetadata[]>([])
+	const [workflows, setWorkflows] = useState<WorkflowSummary[]>([])
 	const [includeTaskHistoryInEnhance, setIncludeTaskHistoryInEnhance] = useState(true)
 	const [includeCurrentTime, setIncludeCurrentTime] = useState(true)
 	const [includeCurrentCost, setIncludeCurrentCost] = useState(true)
@@ -373,6 +376,12 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 						}
 						return { ...prevState, clineMessages: [...toPrepend, ...prevState.clineMessages] }
 					})
+					break
+				}
+				case "workflows": {
+					if (message.workflows) {
+						setWorkflows(message.workflows)
+					}
 					break
 				}
 				case "skills": {
@@ -561,6 +570,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		includeCurrentCost,
 		setIncludeCurrentCost,
 		skills,
+		workflows,
 		showWorktreesInHomeScreen: state.showWorktreesInHomeScreen ?? true,
 		setShowWorktreesInHomeScreen: (value) =>
 			setState((prevState) => ({ ...prevState, showWorktreesInHomeScreen: value })),

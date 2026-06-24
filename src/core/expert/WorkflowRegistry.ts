@@ -1,21 +1,11 @@
 import * as fs from "fs/promises"
 import * as path from "path"
 
+import type { WorkflowSummary } from "@roo-code/types"
+
 import { getGlobalRooDirectory } from "../../services/roo-config"
 
-/**
- * Discovery metadata for a workflow JSON file. The `id` (filename without
- * extension) is the stable reference stored in an expert's
- * `workflow.workflowId`; `name`/`description` are display-only (read from the
- * JSON) and may change without breaking the reference.
- */
-export interface WorkflowSummary {
-	id: string
-	name: string
-	description: string
-	source: "global" | "project"
-	path: string
-}
+export type { WorkflowSummary }
 
 /** Workflow ids follow the same slug rule as skills/mode slugs. */
 const WORKFLOW_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

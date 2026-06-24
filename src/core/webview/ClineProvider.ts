@@ -62,6 +62,7 @@ import { ShadowCheckpointService } from "../../services/checkpoints/ShadowCheckp
 import { CodeIndexManager } from "../../services/code-index/manager"
 import type { IndexProgressUpdate } from "../../services/code-index/interfaces/manager"
 import { SkillsManager } from "../../services/skills/SkillsManager"
+import { WorkflowRegistry, getWorkflowDirectories } from "../expert/WorkflowRegistry"
 
 import { fileExistsAtPath } from "../../utils/fs"
 import { setTtsEnabled, setTtsSpeed } from "../../utils/tts"
@@ -131,6 +132,7 @@ export class ClineProvider
 	private _workspaceTracker?: WorkspaceTracker // workSpaceTracker read-only for access outside this class
 	protected mcpHub?: McpHub // Change from private to protected
 	protected skillsManager?: SkillsManager
+	protected workflowRegistry?: WorkflowRegistry
 	private taskCreationCallback: (task: Task) => void
 	private taskEventListeners: WeakMap<Task, Array<() => void>> = new WeakMap()
 	private currentWorkspacePath: string | undefined
@@ -203,6 +205,12 @@ export class ClineProvider
 		this.skillsManager = new SkillsManager(this)
 		this.skillsManager.initialize().catch((error) => {
 			this.log(`Failed to initialize Skills Manager: ${error}`)
+		})
+
+		// Initialize Workflow Registry for type-A expert workflow discovery
+		this.workflowRegistry = new WorkflowRegistry(getWorkflowDirectories(this.cwd), (msg) => this.log(msg))
+		this.workflowRegistry.discover().catch((error) => {
+			this.log(`Failed to initialize Workflow Registry: ${error}`)
 		})
 
 		// Forward <most> task events to the provider.
@@ -2437,6 +2445,10 @@ export class ClineProvider
 
 	public getSkillsManager(): SkillsManager | undefined {
 		return this.skillsManager
+	}
+
+	public getWorkflowRegistry(): WorkflowRegistry | undefined {
+		return this.workflowRegistry
 	}
 
 	/**
