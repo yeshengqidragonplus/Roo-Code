@@ -48,17 +48,19 @@ QCode（一个 Roo Code 的 VS Code 扩展 fork）要支持**长程任务**，�
 
 这是**编辑器、执行引擎、QCode 三方共同依赖的地基**。开发前先冻结这张表。
 
-每个节点执行时，引擎选择**软**（返回 `nextPrompt` 给 LLM）或**硬**（返回 `action` 让宿主直接执行，不花 LLM turn）——见第 4 章。
+**软/硬由工作流作者在编辑器里逐节点指定**，通过节点 `data.exec` 字段（`'soft' | 'hard'`）。引擎只读取、不推断；缺省按类型默认。软=返回 `nextPrompt` 给 LLM；硬=返回 `action` 让宿主直接执行（不花 LLM turn）——见第 4 章。
 
-| `type`      | 含义                     | 节点 `data` 关键字段                        | 软/硬           |
-| ----------- | ------------------------ | ------------------------------------------- | --------------- |
-| `tool`      | 调用一个 QCode 工具      | `toolName`, `params`                        | 可软可硬        |
-| `skill`     | 运行一个技能             | `skillName`, `args`                         | 可软可硬        |
-| `expert`    | 委派子专家并等待其汇报   | `expertId/mode`, `subtaskPrompt`            | 可软可硬        |
-| `llm`       | 让 LLM 做一次判断 / 生成 | `prompt`, `outputSchema?`                   | 软              |
-| `condition` | 条件分支                 | `expression`（依据状态 / 上一轮输出求值）   | 引擎内部，无 IO |
-| `parallel`  | 并发执行多分支           | —（**先占位，QCode 并发能力就绪前不启用**） | —               |
+| `type`      | 含义                     | 节点 `data` 关键字段                        | `exec` 默认 | 允许值        |
+| ----------- | ------------------------ | ------------------------------------------- | ----------- | ------------- |
+| `tool`      | 调用一个 QCode 工具      | `toolName`, `params`                        | `hard`      | soft / hard   |
+| `skill`     | 运行一个技能             | `skillName`, `args`                         | `hard`      | soft / hard   |
+| `expert`    | 委派子专家并等待其汇报   | `expertId/mode`, `subtaskPrompt`            | `hard`      | soft / hard   |
+| `llm`       | 让 LLM 做一次判断 / 生成 | `prompt`, `outputSchema?`                   | `soft`      | soft（恒定）  |
+| `condition` | 条件分支                 | `expression`（依据状态 / 上一轮输出求值）   | —           | 引擎内部，无 IO |
+| `parallel`  | 并发执行多分支           | —（**先占位，QCode 并发能力就绪前不启用**） | —           | —             |
 
+> **动态选软硬**不放进单个节点（第一阶段不做运行时推断）；需要时用 `condition` 分叉到一个 hard 分支和一个 soft 分支表达。
+>
 > 节点间数据传递：每个节点执行后产出结果并写入工作流状态，下游节点（尤其 `condition` / `llm`）可引用。建议约定简单引用语法（如 `{{nodeId.output}}`），三方统一。
 
 ### 3.3 工作流元数据
