@@ -264,7 +264,11 @@
 			"commandPlaceholder": "Introduïu prefix de comanda (ex. 'git ')",
 			"deniedCommandPlaceholder": "Introduïu prefix de comanda a denegar (ex. 'rm -rf')",
 			"addButton": "Afegir",
-			"autoDenied": "Les comandes amb el prefix `{{prefix}}` han estat prohibides per l'usuari. No eludeixis aquesta restricció executant una altra comanda."
+			"autoDenied": "Les comandes amb el prefix `{{prefix}}` han estat prohibides per l'usuari. No eludeixis aquesta restricció executant una altra comanda.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Màximes Sol·licituds",

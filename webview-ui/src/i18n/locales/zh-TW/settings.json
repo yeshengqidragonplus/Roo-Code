@@ -272,7 +272,11 @@
 			"commandPlaceholder": "輸入命令前綴（例如 'git '）",
 			"deniedCommandPlaceholder": "輸入要拒絕的命令前綴（例如 'rm -rf'）",
 			"addButton": "新增",
-			"autoDenied": "前綴為 `{{prefix}}` 的命令已被使用者禁止。請勿透過執行其他命令來繞過此限制。"
+			"autoDenied": "前綴為 `{{prefix}}` 的命令已被使用者禁止。請勿透過執行其他命令來繞過此限制。",
+			"bulkImportButton": "批次匯入",
+			"importButton": "匯入",
+			"cancelButton": "取消",
+			"bulkImportPlaceholder": "貼上多個命令前綴，每行一個（也可用逗號/分號分隔）"
 		},
 		"apiRequestLimit": {
 			"title": "請求次數上限",

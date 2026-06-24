@@ -264,7 +264,11 @@
 			"commandPlaceholder": "Komut öneki girin (örn. 'git ')",
 			"deniedCommandPlaceholder": "Reddetmek için komut öneki girin (örn. 'rm -rf')",
 			"addButton": "Ekle",
-			"autoDenied": "`{{prefix}}` önekli komutlar kullanıcı tarafından yasaklandı. Başka bir komut çalıştırarak bu kısıtlamayı aşma."
+			"autoDenied": "`{{prefix}}` önekli komutlar kullanıcı tarafından yasaklandı. Başka bir komut çalıştırarak bu kısıtlamayı aşma.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Maksimum İstek",

@@ -264,7 +264,11 @@
 			"commandPlaceholder": "Digite o prefixo do comando (ex. 'git ')",
 			"deniedCommandPlaceholder": "Digite o prefixo do comando para negar (ex. 'rm -rf')",
 			"addButton": "Adicionar",
-			"autoDenied": "Comandos com o prefixo `{{prefix}}` foram proibidos pelo usuário. Não contorne esta restrição executando outro comando."
+			"autoDenied": "Comandos com o prefixo `{{prefix}}` foram proibidos pelo usuário. Não contorne esta restrição executando outro comando.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Máximo de Solicitações",

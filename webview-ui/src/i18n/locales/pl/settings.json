@@ -264,7 +264,11 @@
 			"commandPlaceholder": "Wprowadź prefiks polecenia (np. 'git ')",
 			"deniedCommandPlaceholder": "Wprowadź prefiks polecenia do odrzucenia (np. 'rm -rf')",
 			"addButton": "Dodaj",
-			"autoDenied": "Polecenia z prefiksem `{{prefix}}` zostały zabronione przez użytkownika. Nie obchodź tego ograniczenia uruchamiając inne polecenie."
+			"autoDenied": "Polecenia z prefiksem `{{prefix}}` zostały zabronione przez użytkownika. Nie obchodź tego ograniczenia uruchamiając inne polecenie.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Maksymalna liczba żądań",

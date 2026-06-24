@@ -264,7 +264,11 @@
 			"commandPlaceholder": "कमांड प्रीफिक्स दर्ज करें (उदा. 'git ')",
 			"deniedCommandPlaceholder": "अस्वीकार करने के लिए कमांड प्रीफिक्स दर्ज करें (उदा. 'rm -rf')",
 			"addButton": "जोड़ें",
-			"autoDenied": "प्रीफिक्स `{{prefix}}` वाले कमांड उपयोगकर्ता द्वारा प्रतिबंधित किए गए हैं। दूसरा कमांड चलाकर इस प्रतिबंध को दरकिनार न करें।"
+			"autoDenied": "प्रीफिक्स `{{prefix}}` वाले कमांड उपयोगकर्ता द्वारा प्रतिबंधित किए गए हैं। दूसरा कमांड चलाकर इस प्रतिबंध को दरकिनार न करें।",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "अधिकतम अनुरोध",

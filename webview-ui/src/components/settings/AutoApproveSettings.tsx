@@ -75,6 +75,10 @@ export const AutoApproveSettings = ({
 	const { t } = useAppTranslation()
 	const [commandInput, setCommandInput] = useState("")
 	const [deniedCommandInput, setDeniedCommandInput] = useState("")
+	const [bulkInput, setBulkInput] = useState("")
+	const [deniedBulkInput, setDeniedBulkInput] = useState("")
+	const [showBulkImport, setShowBulkImport] = useState(false)
+	const [showDeniedBulkImport, setShowDeniedBulkImport] = useState(false)
 	const { autoApprovalEnabled, setAutoApprovalEnabled } = useExtensionState()
 
 	const toggles = useAutoApprovalToggles()
@@ -100,6 +104,35 @@ export const AutoApproveSettings = ({
 			setCachedStateField("deniedCommands", newCommands)
 			setDeniedCommandInput("")
 			vscode.postMessage({ type: "updateSettings", updatedSettings: { deniedCommands: newCommands } })
+		}
+	}
+
+	// Parse a free-form blob into command prefixes, split on newline / comma / semicolon.
+	const parseBulkCommands = (text: string): string[] =>
+		text
+			.split(/[\n,;]+/)
+			.map((c) => c.trim())
+			.filter((c) => c.length > 0)
+
+	const handleBulkImport = (
+		field: "allowedCommands" | "deniedCommands",
+		current: string[] | undefined,
+		text: string,
+	) => {
+		const parsed = parseBulkCommands(text)
+		if (parsed.length === 0) {
+			return
+		}
+		// Merge while preserving order and dropping duplicates (case-sensitive, matching the matcher).
+		const merged = Array.from(new Set([...(current ?? []), ...parsed]))
+		setCachedStateField(field, merged)
+		vscode.postMessage({ type: "updateSettings", updatedSettings: { [field]: merged } })
+		if (field === "allowedCommands") {
+			setBulkInput("")
+			setShowBulkImport(false)
+		} else {
+			setDeniedBulkInput("")
+			setShowDeniedBulkImport(false)
 		}
 	}
 
@@ -306,7 +339,44 @@ export const AutoApproveSettings = ({
 							<Button className="h-8" onClick={handleAddCommand} data-testid="add-command-button">
 								{t("settings:autoApprove.execute.addButton")}
 							</Button>
+							<Button
+								variant="secondary"
+								className="h-8"
+								onClick={() => setShowBulkImport((v) => !v)}
+								data-testid="bulk-import-command-button">
+								{t("settings:autoApprove.execute.bulkImportButton")}
+							</Button>
 						</div>
+
+						{showBulkImport && (
+							<div className="flex flex-col gap-2">
+								<textarea
+									value={bulkInput}
+									onChange={(e) => setBulkInput(e.target.value)}
+									placeholder={t("settings:autoApprove.execute.bulkImportPlaceholder")}
+									rows={6}
+									className="w-full p-2 font-mono text-sm rounded bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border focus:outline-none focus:border-vscode-focusBorder"
+									data-testid="bulk-import-command-textarea"
+								/>
+								<div className="flex gap-2">
+									<Button
+										className="h-8"
+										onClick={() => handleBulkImport("allowedCommands", allowedCommands, bulkInput)}
+										data-testid="confirm-bulk-import-command-button">
+										{t("settings:autoApprove.execute.importButton")}
+									</Button>
+									<Button
+										variant="secondary"
+										className="h-8"
+										onClick={() => {
+											setBulkInput("")
+											setShowBulkImport(false)
+										}}>
+										{t("settings:autoApprove.execute.cancelButton")}
+									</Button>
+								</div>
+							</div>
+						)}
 
 						<div className="flex flex-wrap gap-2">
 							{(allowedCommands ?? []).map((cmd, index) => (
@@ -365,7 +435,46 @@ export const AutoApproveSettings = ({
 								data-testid="add-denied-command-button">
 								{t("settings:autoApprove.execute.addButton")}
 							</Button>
+							<Button
+								variant="secondary"
+								className="h-8"
+								onClick={() => setShowDeniedBulkImport((v) => !v)}
+								data-testid="bulk-import-denied-command-button">
+								{t("settings:autoApprove.execute.bulkImportButton")}
+							</Button>
 						</div>
+
+						{showDeniedBulkImport && (
+							<div className="flex flex-col gap-2">
+								<textarea
+									value={deniedBulkInput}
+									onChange={(e) => setDeniedBulkInput(e.target.value)}
+									placeholder={t("settings:autoApprove.execute.bulkImportPlaceholder")}
+									rows={6}
+									className="w-full p-2 font-mono text-sm rounded bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border focus:outline-none focus:border-vscode-focusBorder"
+									data-testid="bulk-import-denied-command-textarea"
+								/>
+								<div className="flex gap-2">
+									<Button
+										className="h-8"
+										onClick={() =>
+											handleBulkImport("deniedCommands", deniedCommands, deniedBulkInput)
+										}
+										data-testid="confirm-bulk-import-denied-command-button">
+										{t("settings:autoApprove.execute.importButton")}
+									</Button>
+									<Button
+										variant="secondary"
+										className="h-8"
+										onClick={() => {
+											setDeniedBulkInput("")
+											setShowDeniedBulkImport(false)
+										}}>
+										{t("settings:autoApprove.execute.cancelButton")}
+									</Button>
+								</div>
+							</div>
+						)}
 
 						<div className="flex flex-wrap gap-2">
 							{(deniedCommands ?? []).map((cmd, index) => (

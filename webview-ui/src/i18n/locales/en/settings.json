@@ -324,7 +324,11 @@
 			"commandPlaceholder": "Enter command prefix (e.g., 'git ')",
 			"deniedCommandPlaceholder": "Enter command prefix to deny (e.g., 'rm -rf')",
 			"addButton": "Add",
-			"autoDenied": "Commands with the prefix `{{prefix}}` have been forbidden by the user. Do not bypass this restriction by running another command."
+			"autoDenied": "Commands with the prefix `{{prefix}}` have been forbidden by the user. Do not bypass this restriction by running another command.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Max Count",

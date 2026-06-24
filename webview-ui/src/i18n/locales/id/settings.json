@@ -264,7 +264,11 @@
 			"commandPlaceholder": "Masukkan prefix perintah (misalnya, 'git ')",
 			"deniedCommandPlaceholder": "Masukkan prefix perintah untuk ditolak (misalnya, 'rm -rf')",
 			"addButton": "Tambah",
-			"autoDenied": "Perintah dengan awalan `{{prefix}}` telah dilarang oleh pengguna. Jangan menghindari pembatasan ini dengan menjalankan perintah lain."
+			"autoDenied": "Perintah dengan awalan `{{prefix}}` telah dilarang oleh pengguna. Jangan menghindari pembatasan ini dengan menjalankan perintah lain.",
+			"bulkImportButton": "Bulk Import",
+			"importButton": "Import",
+			"cancelButton": "Cancel",
+			"bulkImportPlaceholder": "Paste multiple command prefixes, one per line (or separated by commas/semicolons)"
 		},
 		"apiRequestLimit": {
 			"title": "Permintaan Maks",
