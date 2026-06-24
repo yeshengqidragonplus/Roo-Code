@@ -42,29 +42,65 @@
 
 ## 3. 执行模型
 
-### 3.1 共享内核
+### 3.1 共享内核：LLM 为主，工作流为"导演"
 
-两类专家底层都是同一个 **Task loop**（[Task.ts](../src/core/task/Task.ts)）：观察 → 决策下一步工具 → 执行 → 再观察。
+两类专家底层都是同一个 **Task loop**（[Task.ts](../src/core/task/Task.ts)）：观察 → 决策下一步 → 执行 → 再观察。LLM 始终是行动者，**系统提示词不变**。
 
 - **类型 B** = 直接放开该 loop，由 LLM 每步动态决策（QCode 现状最接近，几乎现成）。
-- **类型 A** = 在 loop 外套一层 **workflow 引擎**，由引擎决定"这一步给 LLM 什么子目标 / 调哪个工具"，LLM 只负责节点内的局部智能。
+- **类型 A** = 在 loop 外由**宿主（专家代码）**每个 turn 之前调用一次工作流（一个**有状态的状态机**），拿到"下一步该做什么"再喂给 LLM。工作流**不代替 LLM 执行动作**，只约束方向——像导演给演员递分镜，演员仍自己演。
 
-工具、技能、子专家派遣等能力两类**共用**，不重复实现。
+> 关键反转：工作流不是"引擎逐个执行节点、LLM 填空"，而是"**宿主调用工作流推进状态、LLM 仍是主行动者**"。这消除了工作流对 QCode 内部的耦合（不再需要 `dispatchNode`）。
 
-### 3.2 子专家派遣与汇报（最核心、最难的一环）
+#### 类型 A 的宿主循环
 
-需要三个能力，对应 QCode 现状：
+工作流暴露两个方法（状态 `state` 是引擎自己的不透明 JSON，由 QCode 随 task 持久化）：
 
-| 能力                                               | QCode 现状                                                                               | 备注      |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------- |
-| 派生子专家                                         | `new_task`（[NewTaskTool.ts](../src/core/tools/NewTaskTool.ts)）                         | ✅ 已有   |
-| 子专家完成后回填结果                               | `delegateParentAndOpenChild`（[ClineProvider.ts](../src/core/webview/ClineProvider.ts)） | ✅ 已有   |
-| 父专家拿到汇报后**继续自己的决策**（而非直接结束） | 需确认 / 可能要改恢复逻辑                                                                | ⚠️ 待验证 |
+```
+workflow.start(inputs)              -> { state, nextPrompt?, action?, done }
+workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, finalResult? }
+```
 
-**并发决策**：当前 `clineStack`（LIFO 任务栈）本质是**单活动任务**，只能串行。
+每轮 `advance` 的返回是**软/硬二选一**（这就是"A 和 B 兼得"的来源）：
 
-- **第一阶段先做串行版**（QCode 现成），把"专家协作"整链路跑通。
-- 并行子专家（一次派多个、`Promise.all` 汇总）属于较大重构，**后置**。
+- `nextPrompt`（**软**）：给 LLM 的指示文本，LLM 自己决定怎么做 → 走一个 LLM turn。
+- `action`（**硬**）：给宿主的结构化指令，宿主直接执行、**不花 LLM turn**：
+  - `{ type:"delegate", expert, goal }` —— 硬触发委派子专家
+  - `{ type:"tool", name, params }` —— 机械地调工具
+  - `{ type:"skill", name, args }` —— 机械地跑技能
+
+宿主分发逻辑：
+
+```
+{ state, nextPrompt, action, done } = workflow.advance(state, lastOutput)
+if (done)        finish(finalResult)
+else if (action) → 宿主直接执行 action，拿结果 → 立刻再 advance（不花 LLM turn）
+else if (prompt) → 注入给 LLM（system 不变）→ runOneTurn → 收割最终文本 → 再 advance
+```
+
+- **喂回工作流的"上一轮输出"** = LLM 这一轮的**最终文本结果**（不含中间工具执行细节）。
+- **纯机械步骤**通过 `action` 出口跳过 LLM turn，节省 token。
+
+### 3.2 子专家派遣与汇报
+
+**触发的决定权分两类**（实际发起委派始终是宿主/LLM，见下）：
+
+- **类型 B**：由 **LLM 自己**决定何时拆子任务（model-driven，同现状）。
+- **类型 A**：由**工作流**决定——走到委派步骤时返回 `action:{type:"delegate",...}`（硬触发，宿主直接发起），或在 `nextPrompt` 里指示 LLM 去派（软触发）。
+
+QCode 现有委派机制**已完整支持串行协作**（已核实，非"待验证"）：
+
+| 能力                                       | QCode 现状                                                                                | 备注                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------- | --------------------- |
+| 派生子专家                                 | `new_task` → `delegateParentAndOpenChild`（[ClineProvider.ts:2807](../src/core/webview/ClineProvider.ts)） | ✅ 已有；父任务被 dispose 到磁盘，子任务成为唯一活动任务 |
+| 子专家完成回填 + **父专家恢复后继续决策**  | `reopenParentFromDelegation`（[ClineProvider.ts:2942](../src/core/webview/ClineProvider.ts)） | ✅ 已核实：子任务摘要以 `tool_result` 注入父任务，父 loop 无缝续跑 |
+| 只回摘要                                   | `attempt_completion` 的 result 字符串                                                     | ✅ 天然成立，不回传子任务完整历史 |
+
+**新增的集成要求（采用宿主驱动工作流后）**：类型 A 专家委派时，父任务会被 **dispose → 之后 reopen**。因此：
+
+- **工作流状态必须随父任务持久化**（不能只在内存）。
+- 父任务 **reopen 时，宿主要恢复工作流循环**，把子任务摘要作为"上一轮 LLM 输出"喂回 `workflow.advance()`，拿下一步继续。
+
+**并发**：当前委派强制**单活动任务**（父任务被 dispose）。真并行子专家（一次派多个、`Promise.all` 汇总）需重构这里，**后置**；第一阶段只做串行。
 
 ### 3.3 上下文管理（长程任务的真正瓶颈）
 
@@ -89,23 +125,34 @@
 ### 4.2 工作流即技能（Workflow-as-Skill）
 
 - 一个工作流 = 一份图 JSON 定义，**注册为 `.roo/skills` 下的技能**。
-- 类型 A 专家执行时，引擎读该 JSON，驱动 Task loop。
+- 类型 A 专家执行时，宿主加载该工作流并按 3.1 的 `start/advance` 循环驱动。
 - 类型 B 专家可在 loop 中**把工作流当成一个工具/高级动作调用**（例："走一遍标准发布流程" → 调用名为 `release-flow` 的工作流技能）。
 
-### 4.3 节点类型词汇表（编辑器与执行引擎的共同地基）
+### 4.3 接口：状态机，而非节点执行器（取代旧的 `dispatchNode`）
 
-执行引擎的 dispatch 分支与编辑器的可拖拽节点一一对应：
+工作流引擎与 QCode 的边界是一个**有状态的状态机**，由 QCode 宿主调用（见 3.1）：
+
+```
+workflow.start(inputs)              -> { state, nextPrompt?, action?, done }
+workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, finalResult? }
+```
+
+- 引擎负责**控制流**（图遍历 / 分支 / 状态推进 / 决定下一步软或硬）。
+- QCode 负责**动作落地**：`nextPrompt` 走 LLM turn；`action` 由宿主直接执行（delegate / tool / skill）。
+- 引擎**不直接执行 QCode 工具**，因此无需懂 QCode 内部 —— 旧的 `dispatchNode` 契约已作废。
+
+### 4.4 节点类型词汇表（编辑器用；执行语义见上）
+
+画布的可拖拽节点种类如下。注意：节点在执行时多数**产出给 LLM 的指示**（`nextPrompt`），仅 tool/skill/expert 等可选择硬执行（`action`）：
 
 | 节点类型    | 含义                                  |
 | ----------- | ------------------------------------- |
-| `tool`      | 调用一个 QCode 工具                   |
-| `skill`     | 运行一个技能                          |
-| `expert`    | 派生子专家，等待其汇报                |
-| `llm`       | 让 LLM 做一次判断 / 生成              |
-| `condition` | 条件分支                              |
+| `tool`      | 调用一个 QCode 工具（可软可硬）       |
+| `skill`     | 运行一个技能（可软可硬）              |
+| `expert`    | 委派子专家，等待其摘要汇报（可软可硬）|
+| `llm`       | 让 LLM 做一次判断 / 生成（软）        |
+| `condition` | 条件分支（依据上一轮输出 / 状态求值） |
 | `parallel`  | 并发（待 QCode 并发能力就绪后再启用） |
-
-> QCode 侧需提供稳定的"按节点类型 dispatch 到 tool/skill/new_task"的执行入口，供外部引擎调用。
 
 ---
 
@@ -113,18 +160,19 @@
 
 1. **统一"专家"抽象**：建模为 `mode + 可选 workflow 引用 + skills`，A/B 两类都用它。
 2. **先实现类型 B**：放开 Task loop 自驱，最接近现成。
-3. **轻量 workflow 引擎对接**（引擎主体在外部仓库；QCode 提供节点 dispatch 入口）。
-4. **专家间协作先串行**，结果只回传摘要。
-5. **最后再上并行子专家**（需重构 `clineStack` 单活动任务模型）。
+3. **宿主侧工作流循环**：实现 3.1 的 `start/advance` 驱动 + `nextPrompt`/`action` 分发；引擎主体在外部仓库。
+4. **专家间协作先串行**，结果只回传摘要；含委派 reopen 时**恢复工作流循环**（3.2）。
+5. **最后再上并行子专家**（需重构单活动任务模型）。
 
 ---
 
 ## 6. 已识别的关键风险 / 待办
 
-- ⚠️ **父专家恢复后继续决策**的逻辑需验证（3.2）。
-- ⚠️ **并发**需重构单活动任务模型（`clineStack`），不要在第一阶段碰。
+- ✅ **父专家恢复后继续决策**已核实可用（`reopenParentFromDelegation`，3.2）。
+- ⚠️ **工作流状态持久化 + reopen 恢复循环**：类型 A 委派时父任务 dispose→reopen，工作流状态须随 task 存盘并在 reopen 时恢复（3.2，新增集成点）。
+- ⚠️ **并发**需重构单活动任务模型（委派时父任务被 dispose），不要在第一阶段碰。
 - ⚠️ **上下文膨胀**：必须强制"子专家只回摘要"，否则父专家上下文爆炸。
-- 🔗 **跨仓库契约**：节点类型词汇表（4.3）是编辑器/引擎/QCode 三方共同依赖，**先冻结再开发**。
+- 🔗 **跨仓库契约**：`start/advance` 状态机接口（4.3）+ 节点词汇表（4.4）是两仓库共同依赖，**先冻结再开发**。
 
 ---
 
