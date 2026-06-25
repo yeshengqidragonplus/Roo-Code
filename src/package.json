@@ -455,6 +455,11 @@
 					"default": false,
 					"description": "%settings.newTaskRequireTodos.description%"
 				},
+				"qcode.workflowEnginePath": {
+					"type": "string",
+					"default": "",
+					"description": "Absolute path to the workflow engine build artifact (an ES module exporting createEngine), used to drive workflow-bound (type-A) expert modes. Leave empty to disable workflow experts (they run autonomously)."
+				},
 				"qcode.codeIndex.embeddingBatchSize": {
 					"type": "number",
 					"default": 60,

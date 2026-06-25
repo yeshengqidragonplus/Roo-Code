@@ -8,6 +8,7 @@ import { Package } from "../../shared/package"
 import type { ToolUse } from "../../shared/tools"
 import { t } from "../../i18n"
 import { SELF_REFLECTION_PROMPT } from "../prompts/instructions/self-reflection"
+import { frameWorkflowStepPrompt } from "../expert/WorkflowSession"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 
@@ -77,6 +78,31 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 			}
 
 			task.consecutiveMistakeCount = 0
+
+			// Workflow expert (type A): attempt_completion marks a per-STEP boundary, not the
+			// whole task. Feed the result to the workflow; if it isn't done, show the stage
+			// result and continue the loop with the next step's prompt. Only when the workflow
+			// itself reports done do we fall through to real completion. (Top-level only;
+			// sub-experts delegate to their parent via the parentTaskId path below.)
+			if (task.workflowSession && !task.parentTaskId) {
+				let nextStep: Awaited<ReturnType<typeof task.workflowSession.advance>> | undefined
+				try {
+					nextStep = await task.workflowSession.advance(result)
+				} catch (error) {
+					await task.say(
+						"error",
+						`Workflow step failed: ${error instanceof Error ? error.message : String(error)}`,
+					)
+					// Fall through to normal completion so the user isn't trapped.
+				}
+
+				if (nextStep && !nextStep.done && nextStep.prompt) {
+					await task.say("completion_result", result, undefined, false)
+					pushToolResult(formatResponse.toolResult(frameWorkflowStepPrompt(nextStep.prompt)))
+					return
+				}
+				// nextStep.done (or error) → fall through to the normal completion flow below.
+			}
 
 			// Optional self-evaluation: when enabled, run one reflection pass before finalizing.
 			// Runs at most once per task and only for top-level tasks (subtasks delegate to their parent).

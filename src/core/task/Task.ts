@@ -113,7 +113,11 @@ import {
 	readTaskMessages,
 	saveTaskMessages,
 	taskMetadata,
+	readWorkflowState,
+	saveWorkflowState,
 } from "../task-persistence"
+import { WorkflowSession, frameWorkflowStepPrompt, type WorkflowSessionDeps } from "../expert/WorkflowSession"
+import { createDynamicImportProvider } from "../expert/WorkflowEngineProvider"
 import { getEnvironmentDetails } from "../environment/getEnvironmentDetails"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
 import {
@@ -278,6 +282,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	abortReason?: ClineApiReqCancelReason
 	isInitialized = false
 	isPaused: boolean = false
+	/** Set for a type-A (workflow) expert; drives per-step prompts. See docs/expert-system-design.md §7. */
+	workflowSession?: WorkflowSession
 
 	// API
 	apiConfiguration: ProviderSettings
@@ -2444,11 +2450,104 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	// Task Loop
 
+	/**
+	 * If the current mode is a type-A (workflow) expert, set up the workflow
+	 * session and return the initial user content to drive the first step. On a
+	 * fresh start this is the framed first prompt; on resume the session is
+	 * rebuilt from persisted state and the original content is returned (the
+	 * in-flight step prompt is already in conversation history). Any failure
+	 * (no engine configured, load error) degrades gracefully to normal
+	 * autonomous behavior. Phase 1 = soft-only; see docs/expert-system-design.md §7.
+	 */
+	private async initWorkflowSession(
+		userContent: Anthropic.Messages.ContentBlockParam[],
+	): Promise<Anthropic.Messages.ContentBlockParam[]> {
+		if (this.workflowSession) {
+			return userContent // already active in this process
+		}
+
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return userContent
+		}
+
+		const state = await provider.getState()
+		const modeSlug = this._taskMode || defaultModeSlug
+		const modeConfig = getModeBySlug(modeSlug, state?.customModes)
+		const workflowId = modeConfig?.kind === "workflow" ? modeConfig.workflow?.workflowId : undefined
+		if (!workflowId) {
+			return userContent // not a workflow expert
+		}
+
+		const registry = provider.getWorkflowRegistry?.()
+		const enginePath = vscode.workspace
+			.getConfiguration(Package.name)
+			.get<string>("workflowEnginePath")
+			?.trim()
+
+		if (!registry || !enginePath) {
+			provider.log(
+				`[workflow] Mode "${modeSlug}" is a workflow expert but the engine is not available ` +
+					`(${!registry ? "no registry" : "qcode.workflowEnginePath unset"}); running autonomously.`,
+			)
+			return userContent
+		}
+
+		const deps: WorkflowSessionDeps = {
+			createEngine: async (id) => {
+				const graph = await registry.load(id)
+				return createDynamicImportProvider(enginePath)(graph)
+			},
+			persist: async (id, engineState) =>
+				saveWorkflowState({
+					taskId: this.taskId,
+					globalStoragePath: this.globalStoragePath,
+					workflowId: id,
+					engineState,
+					now: Date.now(),
+				}),
+		}
+
+		try {
+			const persisted = await readWorkflowState({
+				taskId: this.taskId,
+				globalStoragePath: this.globalStoragePath,
+			})
+
+			if (persisted && persisted.workflowId === workflowId) {
+				// Resume: the in-flight step prompt is already in conversation history.
+				this.workflowSession = await WorkflowSession.resume(workflowId, persisted.engineState, deps)
+				return userContent
+			}
+
+			// Fresh start: the user's task message becomes the workflow input.
+			const taskText = userContent
+				.map((block) => (block.type === "text" ? block.text : ""))
+				.join("\n")
+				.trim()
+			const { session, turn } = await WorkflowSession.start(workflowId, { task: taskText }, deps)
+			this.workflowSession = session
+
+			if (turn.done || !turn.prompt) {
+				return userContent // workflow finished immediately / nothing to drive
+			}
+			return [{ type: "text", text: frameWorkflowStepPrompt(turn.prompt) }]
+		} catch (error) {
+			this.workflowSession = undefined
+			provider.log(
+				`[workflow] Failed to start workflow "${workflowId}" for mode "${modeSlug}", running autonomously: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+			return userContent
+		}
+	}
+
 	private async initiateTaskLoop(userContent: Anthropic.Messages.ContentBlockParam[]): Promise<void> {
 		// Kicks off the checkpoints initialization process in the background.
 		getCheckpointService(this)
 
-		let nextUserContent = userContent
+		let nextUserContent = await this.initWorkflowSession(userContent)
 		let includeFileDetails = true
 
 		this.emit(RooCodeEventName.TaskStarted)
