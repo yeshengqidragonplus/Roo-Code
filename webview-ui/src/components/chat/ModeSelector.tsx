@@ -275,6 +275,15 @@ export const ModeSelector = ({
 							<div className="py-1">
 								{filteredModes.map((mode) => {
 									const isSelected = mode.slug === value
+									// Distinguish long-horizon experts from plain conversational modes:
+									// workflow-driven (type A) vs autonomous long-horizon (type B, has a
+									// terminationHint). Plain modes get no badge.
+									const expertBadge =
+										mode.kind === "workflow" && mode.workflow?.workflowId
+											? { label: "Workflow", title: `Workflow expert: ${mode.workflow.workflowId}` }
+											: mode.terminationHint
+												? { label: "Expert", title: "Long-horizon autonomous expert" }
+												: null
 									return (
 										<div
 											key={mode.slug}
@@ -289,7 +298,16 @@ export const ModeSelector = ({
 											)}
 											data-testid="mode-selector-item">
 											<div className="flex-1 min-w-0">
-												<div className="font-bold truncate">{mode.name}</div>
+												<div className="font-bold truncate flex items-center gap-1.5">
+													<span className="truncate">{mode.name}</span>
+													{expertBadge && (
+														<span
+															title={expertBadge.title}
+															className="shrink-0 text-[10px] font-normal leading-none px-1 py-0.5 rounded bg-vscode-badge-background text-vscode-badge-foreground">
+															{expertBadge.label}
+														</span>
+													)}
+												</div>
 												{mode.description && (
 													<div className="text-xs text-vscode-descriptionForeground truncate">
 														{mode.description}
