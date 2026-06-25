@@ -181,9 +181,11 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 
 > 状态：方案稿，**未实现**。基于对 `Task.ts` 主循环的深入分析。等本节决策确定后再动手。
 
-### 7.1 关键结论：Task 循环当主控，工作流当"下一步提供者"
+### 7.1 关键结论：Task 循环（=专家）当主控，工作流当"下一步提供者"〔已确认〕
 
-`WorkflowExpertRunner`（§5.3）原设计是"**runner 当主控**、调注入的 `runLlmTurn`"。但 QCode 的 Task 循环（`initiateTaskLoop` → `recursivelyMakeClineRequests`，[Task.ts:2447](../src/core/task/Task.ts)）独占流式、abort、UI、持久化、委派——**它必须当主控**。让外部 runner 反过来"驱动一个 turn 再停"会与这套深度状态机冲突。
+与设计者的模型一致：**专家做循环，工作流辅助限制专家下一条 message 的内容**。
+
+`WorkflowExpertRunner`（§5.3）原设计是"**runner 当主控**、调注入的 `runLlmTurn`"。但 QCode 的 Task 循环（`initiateTaskLoop` → `recursivelyMakeClineRequests`，[Task.ts:2447](../src/core/task/Task.ts)）独占流式、abort、UI、持久化、委派——**它必须当主控**。让外部 runner 反过来"驱动一个 turn 再停"会与这套深度状态机冲突。**结论已定**：专家（Task 循环）当主控，不走 runner 循环（runner 保留为参考实现）。
 
 因此真实接线**反转控制方向**：
 
@@ -215,10 +217,19 @@ while (!this.abort) {
 
 **Phase 3 — 硬 `tool`/`skill`**：宿主"机械地"直调工具/技能 handler（绕过 `presentAssistantMessage` 的模型驱动流程）。最繁琐，最后做。
 
-### 7.3 Phase 1 待拍板的两个设计点
+### 7.3 Phase 1 设计点
 
-1. **`attempt_completion` 拦截**：工作流专家里模型可能在某软步骤误调 `attempt_completion` 提前结束循环。已抑制 TASK COMPLETION CRITERIA 段（§4 / 3.x）可减少；更稳的是每步提示词明确"只做这一步、勿调 attempt_completion"，并在工作流专家里**把模型的 `attempt_completion` 拦截为"本步结果"喂给 advance**而非真结束。倾向：**Phase 1 即做拦截**（否则易被模型提前打断）。
-2. **捕获"本轮最终文本"**：`assistantMessage` 是流式循环局部变量，turn 结束后不可见。需在 turn 结束前存到 task 属性（如 `this.lastAssistantText`）。非侵入小改动。
+1. **`attempt_completion` 拦截 + 阶段/整体完成语义〔已决定：拦截〕**
+
+   工作流专家里，模型某轮调 `attempt_completion` 表示**某个流程节点/阶段的完成**——这是大目标拆出的小目标，小到无需起子任务。它**不等于整个任务完成**。语义如下：
+
+   - 模型的 `attempt_completion`（在工作流专家中）被**拦截**：其结果文本作为**本步输出喂给 `advance()`**，工作流推进到下一节点，**专家继续朝更大目标走**，循环不结束。
+   - **整个任务真正完成的唯一闸门 = `advance()` 返回 `done:true`**（工作流走到终点）。
+   - "专家也判定整体目标完成"这件事，**表达为工作流的最后一个节点**（如一个让专家确认"整体是否达成"的 `llm`/`condition` 节点）；只有它通过，工作流才 `done`。
+
+   这样：阶段完成 ≠ 整体完成；直到工作流终点（且其终点可要求专家确认整体达成）才真正完成。完成由**工作流闸门**裁决，而非模型随口的 `attempt_completion`——契合"工作流约束专家不跑偏"。
+
+2. **捕获"本轮最终文本"**：`assistantMessage` 是流式循环局部变量，turn 结束后不可见。需在 turn 结束前存到 task 属性（如 `this.lastAssistantText`），作为喂给 `advance` 的本轮输出。非侵入小改动。
 
 ### 7.4 风险与边界
 
