@@ -304,4 +304,31 @@ describe("MessageEnhancer", () => {
 			consoleSpy.mockRestore()
 		})
 	})
+
+	describe("language preservation", () => {
+		it("labels the prompt with the detected language for non-Latin input", async () => {
+			await MessageEnhancer.enhanceMessage({
+				text: "帮我写一个函数来计算斐波那契数列",
+				apiConfiguration: mockApiConfiguration,
+				listApiConfigMeta: mockListApiConfigMeta,
+				providerSettingsManager: mockProviderSettingsManager,
+			})
+
+			const calledPrompt = mockSingleCompletionHandler.mock.calls[0][1]
+			expect(calledPrompt).toContain("language: 简体中文")
+		})
+
+		it("uses a neutral language instruction for English (Latin) input", async () => {
+			await MessageEnhancer.enhanceMessage({
+				text: "Refactor this function to use async/await",
+				apiConfiguration: mockApiConfiguration,
+				listApiConfigMeta: mockListApiConfigMeta,
+				providerSettingsManager: mockProviderSettingsManager,
+			})
+
+			const calledPrompt = mockSingleCompletionHandler.mock.calls[0][1]
+			expect(calledPrompt).toContain("language: the same language as the input")
+			expect(calledPrompt).not.toContain("简体中文")
+		})
+	})
 })

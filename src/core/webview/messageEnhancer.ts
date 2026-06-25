@@ -1,5 +1,7 @@
 import { ProviderSettings, ClineMessage, GlobalState } from "@roo-code/types"
 import { supportPrompt } from "../../shared/support-prompt"
+import { LANGUAGES } from "../../shared/language"
+import { detectPromptLanguage } from "../../utils/prompt-language"
 import { singleCompletionHandler } from "../../utils/single-completion-handler"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import { ClineProvider } from "./ClineProvider"
@@ -68,10 +70,16 @@ export class MessageEnhancer {
 				}
 			}
 
+			// Detect the input language so the enhanced prompt keeps the same
+			// language. Latin-script input (e.g. English) returns null, in which
+			// case we use a neutral instruction rather than forcing a language.
+			const detected = detectPromptLanguage(text)
+			const detectedLanguageName = detected ? (LANGUAGES[detected] ?? detected) : "the same language as the input"
+
 			// Create the enhancement prompt using the support prompt system
 			const enhancementPrompt = supportPrompt.create(
 				"ENHANCE",
-				{ userInput: promptToEnhance },
+				{ userInput: promptToEnhance, detectedLanguageName },
 				customSupportPrompts,
 			)
 

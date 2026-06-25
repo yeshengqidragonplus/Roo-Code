@@ -47,8 +47,14 @@ type SupportPromptType =
 
 const supportPromptConfigs: Record<SupportPromptType, SupportPromptConfig> = {
 	ENHANCE: {
-		template: `Generate an enhanced version of this prompt (reply with only the enhanced prompt - no conversation, explanations, lead-in, bullet points, placeholders, or surrounding quotes):
+		template: `Generate an enhanced version of this prompt.
 
+CRITICAL RULES:
+- Reply with ONLY the enhanced prompt - no conversation, explanations, lead-in, bullet points, placeholders, or surrounding quotes.
+- Write the enhanced prompt in the SAME natural language as the input, UNLESS the input explicitly requests a specific output language (e.g. "reply in English", "用英文回复") - in that case honor that request. Do NOT translate otherwise.
+- Preserve technical terms, code, file paths, identifiers, and URLs verbatim.
+
+Input prompt (language: \${detectedLanguageName}):
 \${userInput}`,
 	},
 	CONDENSE: {

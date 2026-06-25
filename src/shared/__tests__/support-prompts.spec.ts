@@ -75,14 +75,25 @@ describe("Code Action Prompts", () => {
 		it("should format enhance prompt correctly", () => {
 			const prompt = supportPrompt.create("ENHANCE", {
 				userInput: "test",
+				detectedLanguageName: "简体中文",
 			})
 
-			expect(prompt).toBe(
-				"Generate an enhanced version of this prompt (reply with only the enhanced prompt - no conversation, explanations, lead-in, bullet points, placeholders, or surrounding quotes):\n\ntest",
-			)
-			// Verify it ignores parameters since ENHANCE template doesn't use any
+			expect(prompt).toContain("Generate an enhanced version of this prompt.")
+			expect(prompt).toContain("CRITICAL RULES:")
+			expect(prompt).toContain("Write the enhanced prompt in the SAME natural language as the input")
+			expect(prompt).toContain("Input prompt (language: 简体中文):")
+			expect(prompt).toContain("test")
+			// Verify it ignores unrelated parameters
 			expect(prompt).not.toContain(testFilePath)
 			expect(prompt).not.toContain(testCode)
+		})
+
+		it("should leave the language placeholder empty when not provided", () => {
+			const prompt = supportPrompt.create("ENHANCE", {
+				userInput: "test",
+			})
+
+			expect(prompt).toContain("Input prompt (language: ):")
 		})
 	})
 
