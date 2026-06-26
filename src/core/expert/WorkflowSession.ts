@@ -10,8 +10,10 @@ import type { WorkflowEngine, WorkflowState, WorkflowStep } from "@roo-code/type
  * truly done only when `advance()`/`start()` reports `done` (the workflow
  * terminal). See docs/expert-system-design.md §7.
  *
- * Phase 1 supports soft steps only (`nextPrompt`). A hard `action`
- * (delegate/tool/skill) surfaces as a clear error until Phase 2/3 wire them in.
+ * Phase 1 supports soft steps (`nextPrompt`). Phase 2 adds the hard `delegate`
+ * action: it is surfaced on the turn (`turn.delegate`) so the host can spawn a
+ * sub-expert, then feed its summary back via `advance()`. The other hard actions
+ * (`tool`/`skill`) still surface as a clear error until Phase 3 wires them in.
  */
 
 /** Dependencies injected so the orchestration is testable in isolation. */
@@ -26,6 +28,12 @@ export interface WorkflowSessionDeps {
 export interface WorkflowTurn {
 	/** Prompt to inject for the next LLM step (undefined when done). */
 	prompt?: string
+	/**
+	 * Hard delegate directive: the host must spawn the named sub-expert with this
+	 * goal, then feed the child's summary back into `advance()` to continue.
+	 * Exactly one of `prompt` / `delegate` is set on a non-done turn.
+	 */
+	delegate?: { expert: string; goal: string }
 	/** True when the whole workflow has finished. */
 	done: boolean
 	/** Final result summary when done. */
@@ -72,7 +80,7 @@ export class WorkflowSession {
 		return this.consume(step)
 	}
 
-	/** Apply a step: persist state, and translate it into a WorkflowTurn (soft-only). */
+	/** Apply a step: persist state, and translate it into a WorkflowTurn. */
 	private async consume(step: WorkflowStep): Promise<WorkflowTurn> {
 		this.state = step.state
 		await this.deps.persist(this.workflowId, this.state)
@@ -81,9 +89,14 @@ export class WorkflowSession {
 			return { done: true, finalResult: step.finalResult }
 		}
 		if (step.action) {
+			// Phase 2: surface a delegate so the host can spawn a sub-expert.
+			if (step.action.type === "delegate") {
+				return { delegate: { expert: step.action.expert, goal: step.action.goal }, done: false }
+			}
+			// tool/skill remain Phase 3 — fail clearly rather than silently stalling.
 			throw new Error(
-				`Workflow hard actions (${step.action.type}) are not supported yet — Phase 1 is soft-only. ` +
-					`Use only soft (LLM) steps for now.`,
+				`Workflow hard actions of type "${step.action.type}" are not supported yet (Phase 3). ` +
+					`Only soft (LLM) steps and delegate actions are wired in.`,
 			)
 		}
 		if (step.nextPrompt === undefined) {

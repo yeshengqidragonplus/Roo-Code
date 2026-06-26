@@ -64,9 +64,9 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 
 - `nextPrompt`（**软**）：给 LLM 的指示文本，LLM 自己决定怎么做 → 走一个 LLM turn。
 - `action`（**硬**）：给宿主的结构化指令，宿主直接执行、**不花 LLM turn**：
-  - `{ type:"delegate", expert, goal }` —— 硬触发委派子专家
-  - `{ type:"tool", name, params }` —— 机械地调工具
-  - `{ type:"skill", name, args }` —— 机械地跑技能
+    - `{ type:"delegate", expert, goal }` —— 硬触发委派子专家
+    - `{ type:"tool", name, params }` —— 机械地调工具
+    - `{ type:"skill", name, args }` —— 机械地跑技能
 
 宿主分发逻辑：
 
@@ -89,11 +89,11 @@ else if (prompt) → 注入给 LLM（system 不变）→ runOneTurn → 收割�
 
 QCode 现有委派机制**已完整支持串行协作**（已核实，非"待验证"）：
 
-| 能力                                       | QCode 现状                                                                                | 备注                  |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------- | --------------------- |
-| 派生子专家                                 | `new_task` → `delegateParentAndOpenChild`（[ClineProvider.ts:2807](../src/core/webview/ClineProvider.ts)） | ✅ 已有；父任务被 dispose 到磁盘，子任务成为唯一活动任务 |
-| 子专家完成回填 + **父专家恢复后继续决策**  | `reopenParentFromDelegation`（[ClineProvider.ts:2942](../src/core/webview/ClineProvider.ts)） | ✅ 已核实：子任务摘要以 `tool_result` 注入父任务，父 loop 无缝续跑 |
-| 只回摘要                                   | `attempt_completion` 的 result 字符串                                                     | ✅ 天然成立，不回传子任务完整历史 |
+| 能力                                      | QCode 现状                                                                                                 | 备注                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 派生子专家                                | `new_task` → `delegateParentAndOpenChild`（[ClineProvider.ts:2807](../src/core/webview/ClineProvider.ts)） | ✅ 已有；父任务被 dispose 到磁盘，子任务成为唯一活动任务           |
+| 子专家完成回填 + **父专家恢复后继续决策** | `reopenParentFromDelegation`（[ClineProvider.ts:2942](../src/core/webview/ClineProvider.ts)）              | ✅ 已核实：子任务摘要以 `tool_result` 注入父任务，父 loop 无缝续跑 |
+| 只回摘要                                  | `attempt_completion` 的 result 字符串                                                                      | ✅ 天然成立，不回传子任务完整历史                                  |
 
 **新增的集成要求（采用宿主驱动工作流后）**：类型 A 专家委派时，父任务会被 **dispose → 之后 reopen**。因此：
 
@@ -145,14 +145,14 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 
 软/硬由工作流作者通过节点 `data.exec`（`'soft' | 'hard'`）逐节点指定，引擎只读取、不推断；缺省按类型默认：
 
-| 节点类型    | 含义                                  | `exec` 默认 |
-| ----------- | ------------------------------------- | ----------- |
-| `tool`      | 调用一个 QCode 工具                    | `hard`      |
-| `skill`     | 运行一个技能                          | `hard`      |
-| `expert`    | 委派子专家，等待其摘要汇报            | `hard`      |
-| `llm`       | 让 LLM 做一次判断 / 生成              | `soft`（恒定）|
-| `condition` | 条件分支（依据上一轮输出 / 状态求值） | —           |
-| `parallel`  | 并发（待 QCode 并发能力就绪后再启用） | —           |
+| 节点类型    | 含义                                  | `exec` 默认    |
+| ----------- | ------------------------------------- | -------------- |
+| `tool`      | 调用一个 QCode 工具                   | `hard`         |
+| `skill`     | 运行一个技能                          | `hard`         |
+| `expert`    | 委派子专家，等待其摘要汇报            | `hard`         |
+| `llm`       | 让 LLM 做一次判断 / 生成              | `soft`（恒定） |
+| `condition` | 条件分支（依据上一轮输出 / 状态求值） | —              |
+| `parallel`  | 并发（待 QCode 并发能力就绪后再启用） | —              |
 
 ---
 
@@ -208,26 +208,27 @@ while (!this.abort) {
 复杂度全在"硬动作"。建议三阶段，软步骤极简、风险集中且小。
 
 **Phase 1 — 仅软步骤（低风险，可端到端 demo）**：只支持 `nextPrompt`。改三处：
+
 1. **任务启动**：`kind==="workflow"` 专家 → 先 `workflow.start(inputs)`（用户任务消息作为 `inputs`），首个 `nextPrompt` 作为首轮 user 内容。
 2. **turn 间**（[Task.ts:2476](../src/core/task/Task.ts)）：捕获本轮 assistant 最终文本 → `advance(text)` → `saveWorkflowState`（已就绪）→ `done` 则停，否则注入下一个 `nextPrompt`。
 3. **会话恢复**：`resumeTaskFromHistory` 读 `readWorkflowState`、重建 engine，从持久化状态续跑。
    无需 dispose/reopen，无需机械执行工具。
 
-**Phase 2 — 硬 `delegate`**：复用 `delegateParentAndOpenChild` + `reopenParentFromDelegation`。难点：委派会 **dispose 父任务**，advance 不能内联 await——须在 reopen（`resumeAfterDelegation`，[Task.ts:2381](../src/core/task/Task.ts)）时读回工作流状态、把子专家摘要当 `lastOutput` 续 advance（`resumeFrom` 语义）。
+**Phase 2 — 硬 `delegate`〔已实现〕**：复用 `delegateParentAndOpenChild` + `reopenParentFromDelegation`。委派会 **dispose 父任务**，advance 不能内联 await——在 reopen 后重走的 `initWorkflowSession` resume 分支里，凭 `pendingDelegation` 标记把子专家摘要当 `lastOutput` 续 advance（`resumeFrom` 语义）。接线细节、消息契约处理见 [workflow-phase2-plan.md](workflow-phase2-plan.md)。
 
-**Phase 3 — 硬 `tool`/`skill`**：宿主"机械地"直调工具/技能 handler（绕过 `presentAssistantMessage` 的模型驱动流程）。最繁琐，最后做。
+**Phase 3 — 硬 `tool`/`skill`**：宿主"机械地"直调工具/技能 handler（绕过 `presentAssistantMessage` 的模型驱动流程）。最繁琐，最后做。`WorkflowSession.consume` 目前对 `tool`/`skill` 动作明确抛错（Phase 3 占位）。
 
 ### 7.3 Phase 1 设计点
 
 1. **`attempt_completion` 拦截 + 阶段/整体完成语义〔已决定：拦截〕**
 
-   工作流专家里，模型某轮调 `attempt_completion` 表示**某个流程节点/阶段的完成**——这是大目标拆出的小目标，小到无需起子任务。它**不等于整个任务完成**。语义如下：
+    工作流专家里，模型某轮调 `attempt_completion` 表示**某个流程节点/阶段的完成**——这是大目标拆出的小目标，小到无需起子任务。它**不等于整个任务完成**。语义如下：
 
-   - 模型的 `attempt_completion`（在工作流专家中）被**拦截**：其结果文本作为**本步输出喂给 `advance()`**，工作流推进到下一节点，**专家继续朝更大目标走**，循环不结束。
-   - **整个任务真正完成的唯一闸门 = `advance()` 返回 `done:true`**（工作流走到终点）。
-   - "专家也判定整体目标完成"这件事，**表达为工作流的最后一个节点**（如一个让专家确认"整体是否达成"的 `llm`/`condition` 节点）；只有它通过，工作流才 `done`。
+    - 模型的 `attempt_completion`（在工作流专家中）被**拦截**：其结果文本作为**本步输出喂给 `advance()`**，工作流推进到下一节点，**专家继续朝更大目标走**，循环不结束。
+    - **整个任务真正完成的唯一闸门 = `advance()` 返回 `done:true`**（工作流走到终点）。
+    - "专家也判定整体目标完成"这件事，**表达为工作流的最后一个节点**（如一个让专家确认"整体是否达成"的 `llm`/`condition` 节点）；只有它通过，工作流才 `done`。
 
-   这样：阶段完成 ≠ 整体完成；直到工作流终点（且其终点可要求专家确认整体达成）才真正完成。完成由**工作流闸门**裁决，而非模型随口的 `attempt_completion`——契合"工作流约束专家不跑偏"。
+    这样：阶段完成 ≠ 整体完成；直到工作流终点（且其终点可要求专家确认整体达成）才真正完成。完成由**工作流闸门**裁决，而非模型随口的 `attempt_completion`——契合"工作流约束专家不跑偏"。
 
 2. **捕获"本轮最终文本"**：`assistantMessage` 是流式循环局部变量，turn 结束后不可见。需在 turn 结束前存到 task 属性（如 `this.lastAssistantText`），作为喂给 `advance` 的本轮输出。非侵入小改动。
 

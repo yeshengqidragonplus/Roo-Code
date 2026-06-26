@@ -19,6 +19,14 @@ export interface PersistedWorkflowState {
 	workflowId: string
 	engineState: WorkflowState
 	lastUpdated: number
+	/**
+	 * Phase 2 transient marker: set when the host has spawned a sub-expert for a
+	 * workflow `delegate` action and disposed the parent. On reopen the host
+	 * reads this to know it must `advance()` the workflow with the child's
+	 * summary (rather than just continuing an in-flight soft step). `saveWorkflowState`
+	 * intentionally omits this field, so the next `advance` persist clears it.
+	 */
+	pendingDelegation?: { expert: string }
 }
 
 export type ReadWorkflowStateOptions = {
@@ -63,7 +71,11 @@ export type SaveWorkflowStateOptions = {
 	now: number
 }
 
-/** Persist the workflow state for a task (called each workflow step). */
+/**
+ * Persist the workflow state for a task (called each workflow step). Writes only
+ * the base fields — any `pendingDelegation` marker is intentionally dropped, so a
+ * fresh `advance` after a delegation return clears the marker automatically.
+ */
 export async function saveWorkflowState({
 	taskId,
 	globalStoragePath,
@@ -75,4 +87,40 @@ export async function saveWorkflowState({
 	const filePath = path.join(taskDir, GlobalFileNames.workflowState)
 	const record: PersistedWorkflowState = { workflowId, engineState, lastUpdated: now }
 	await safeWriteJson(filePath, record)
+}
+
+/**
+ * Mark that the host has delegated for a workflow `delegate` action and is about
+ * to dispose the parent. Read-modify-write so the engine state already persisted
+ * by the triggering `advance` is preserved. Must be called AFTER that `advance`.
+ */
+export async function markWorkflowPendingDelegation({
+	taskId,
+	globalStoragePath,
+	expert,
+}: ReadWorkflowStateOptions & { expert: string }): Promise<void> {
+	const existing = await readWorkflowState({ taskId, globalStoragePath })
+	if (!existing) {
+		console.warn(`[markWorkflowPendingDelegation] No workflow state for task ${taskId}; cannot mark delegation.`)
+		return
+	}
+	const taskDir = await getTaskDirectoryPath(globalStoragePath, taskId)
+	const filePath = path.join(taskDir, GlobalFileNames.workflowState)
+	const record: PersistedWorkflowState = { ...existing, pendingDelegation: { expert } }
+	await safeWriteJson(filePath, record)
+}
+
+/** Clear the pendingDelegation marker (idempotent; no-op if absent). */
+export async function clearWorkflowPendingDelegation({
+	taskId,
+	globalStoragePath,
+}: ReadWorkflowStateOptions): Promise<void> {
+	const existing = await readWorkflowState({ taskId, globalStoragePath })
+	if (!existing || !existing.pendingDelegation) {
+		return
+	}
+	const { pendingDelegation: _drop, ...rest } = existing
+	const taskDir = await getTaskDirectoryPath(globalStoragePath, taskId)
+	const filePath = path.join(taskDir, GlobalFileNames.workflowState)
+	await safeWriteJson(filePath, rest)
 }

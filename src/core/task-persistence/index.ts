@@ -6,4 +6,6 @@ export {
 	type PersistedWorkflowState,
 	readWorkflowState,
 	saveWorkflowState,
+	markWorkflowPendingDelegation,
+	clearWorkflowPendingDelegation,
 } from "./workflowState"

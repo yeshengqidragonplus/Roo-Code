@@ -82,9 +82,42 @@ describe("WorkflowSession", () => {
 		expect(advanceArgs).toEqual([{ state: "persisted-state", lastOutput: "output after resume" }])
 	})
 
-	it("throws a clear error on a hard action (Phase 1 is soft-only)", async () => {
-		const engine = scriptedEngine([{ state: 0, action: { type: "tool", name: "read", params: {} }, done: false }])
-		await expect(WorkflowSession.start("wf", {}, makeDeps(engine))).rejects.toThrow(/soft-only/)
+	it("surfaces a delegate action as turn.delegate (Phase 2)", async () => {
+		const engine = scriptedEngine([
+			{ state: 0, action: { type: "delegate", expert: "code", goal: "write the doc" }, done: false },
+		])
+		const { turn } = await WorkflowSession.start("wf", {}, makeDeps(engine))
+		expect(turn).toEqual({ delegate: { expert: "code", goal: "write the doc" }, done: false })
+	})
+
+	it("advance can return a delegate turn, feeding the prior output to the engine", async () => {
+		const advanceArgs: Array<{ state: unknown; lastOutput: unknown }> = []
+		const steps: WorkflowStep[] = [
+			{ state: "s0", nextPrompt: "plan it", done: false },
+			{ state: "s1", action: { type: "delegate", expert: "code", goal: "write it" }, done: false },
+		]
+		let i = 0
+		const engine: WorkflowEngine = {
+			start: () => steps[i++],
+			advance: (state, lastOutput) => {
+				advanceArgs.push({ state, lastOutput })
+				return steps[i++]
+			},
+		}
+		const { session } = await WorkflowSession.start("wf", {}, makeDeps(engine))
+		const turn = await session.advance("the plan")
+		expect(turn).toEqual({ delegate: { expert: "code", goal: "write it" }, done: false })
+		expect(advanceArgs).toEqual([{ state: "s0", lastOutput: "the plan" }])
+	})
+
+	it("throws a clear Phase 3 error on tool/skill hard actions", async () => {
+		const toolEngine = scriptedEngine([
+			{ state: 0, action: { type: "tool", name: "read", params: {} }, done: false },
+		])
+		await expect(WorkflowSession.start("wf", {}, makeDeps(toolEngine))).rejects.toThrow(/Phase 3/)
+
+		const skillEngine = scriptedEngine([{ state: 0, action: { type: "skill", name: "x", args: {} }, done: false }])
+		await expect(WorkflowSession.start("wf", {}, makeDeps(skillEngine))).rejects.toThrow(/Phase 3/)
 	})
 
 	it("throws when a non-done step has no prompt", async () => {

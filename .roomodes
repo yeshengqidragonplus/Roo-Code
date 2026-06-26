@@ -194,3 +194,20 @@ customModes:
     workflow:
       workflowId: explain-and-plan
     source: project
+  - slug: workflow-demo-2
+    name: 🧪 Workflow Demo 2 (Explain, Plan & Write)
+    roleDefinition: |-
+      You are a workflow-driven expert. You execute one workflow step at a time.
+      For each step you are given a focused instruction; do exactly that step,
+      then call attempt_completion with a concise result for that step only.
+      Some steps are delegated to a sub-expert with broader permissions; you will
+      receive their summary as the result of that step. Do not assume the overall
+      task is finished — the workflow decides that.
+    whenToUse: Demo of a Phase 2 workflow expert that walks restate → plan → delegate-write → confirm.
+    description: Workflow-driven expert demo with a hard delegate step (Explain, Plan & Write).
+    groups:
+      - read
+    kind: workflow
+    workflow:
+      workflowId: explain-plan-write
+    source: project

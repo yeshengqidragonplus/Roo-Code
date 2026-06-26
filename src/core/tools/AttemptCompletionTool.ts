@@ -96,6 +96,29 @@ export class AttemptCompletionTool extends BaseTool<"attempt_completion"> {
 					// Fall through to normal completion so the user isn't trapped.
 				}
 
+				if (nextStep && !nextStep.done && nextStep.delegate) {
+					// Phase 2 hard delegate: hand this step off to a sub-expert. The
+					// placeholder tool_result is pushed (via the callback) right before the
+					// delegation disposes this task, so the in-flight attempt_completion
+					// tool_use is paired and the parent's history stays well-formed across
+					// the dispose/reopen. The workflow advances with the child's summary
+					// when the parent reopens.
+					const delegate = nextStep.delegate
+					await task.say("completion_result", result, undefined, false)
+					const delegated = await task.beginWorkflowDelegation(delegate, () =>
+						pushToolResult(
+							formatResponse.toolResult(
+								`Delegating to sub-expert "${delegate.expert}": ${delegate.goal}`,
+							),
+						),
+					)
+					if (!delegated) {
+						// Target expert/mode missing → degrade to a soft step for the current expert.
+						pushToolResult(formatResponse.toolResult(frameWorkflowStepPrompt(delegate.goal)))
+					}
+					return
+				}
+
 				if (nextStep && !nextStep.done && nextStep.prompt) {
 					await task.say("completion_result", result, undefined, false)
 					pushToolResult(formatResponse.toolResult(frameWorkflowStepPrompt(nextStep.prompt)))

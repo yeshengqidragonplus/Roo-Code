@@ -115,8 +115,15 @@ import {
 	taskMetadata,
 	readWorkflowState,
 	saveWorkflowState,
+	markWorkflowPendingDelegation,
+	clearWorkflowPendingDelegation,
 } from "../task-persistence"
-import { WorkflowSession, frameWorkflowStepPrompt, type WorkflowSessionDeps } from "../expert/WorkflowSession"
+import {
+	WorkflowSession,
+	frameWorkflowStepPrompt,
+	type WorkflowSessionDeps,
+	type WorkflowTurn,
+} from "../expert/WorkflowSession"
 import { createDynamicImportProvider } from "../expert/WorkflowEngineProvider"
 import { getEnvironmentDetails } from "../environment/getEnvironmentDetails"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
@@ -2480,10 +2487,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		const registry = provider.getWorkflowRegistry?.()
-		const enginePath = vscode.workspace
-			.getConfiguration(Package.name)
-			.get<string>("workflowEnginePath")
-			?.trim()
+		const enginePath = vscode.workspace.getConfiguration(Package.name).get<string>("workflowEnginePath")?.trim()
 
 		if (!registry || !enginePath) {
 			provider.log(
@@ -2515,8 +2519,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			})
 
 			if (persisted && persisted.workflowId === workflowId) {
-				// Resume: the in-flight step prompt is already in conversation history.
 				this.workflowSession = await WorkflowSession.resume(workflowId, persisted.engineState, deps)
+
+				// Phase 2: returning from a hard delegate. Feed the sub-expert's summary
+				// to the workflow and drive the next step. Otherwise this is an ordinary
+				// mid-step resume (the in-flight prompt is already in conversation history).
+				if (persisted.pendingDelegation) {
+					const childSummary = await this.getDelegationChildSummary()
+					const turn = await this.workflowSession.advance(childSummary)
+					await clearWorkflowPendingDelegation({
+						taskId: this.taskId,
+						globalStoragePath: this.globalStoragePath,
+					})
+					return await this.applyWorkflowTurn(turn, userContent)
+				}
 				return userContent
 			}
 
@@ -2527,11 +2543,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				.trim()
 			const { session, turn } = await WorkflowSession.start(workflowId, { task: taskText }, deps)
 			this.workflowSession = session
-
-			if (turn.done || !turn.prompt) {
-				return userContent // workflow finished immediately / nothing to drive
-			}
-			return [{ type: "text", text: frameWorkflowStepPrompt(turn.prompt) }]
+			return await this.applyWorkflowTurn(turn, userContent)
 		} catch (error) {
 			this.workflowSession = undefined
 			provider.log(
@@ -2540,6 +2552,86 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				}`,
 			)
 			return userContent
+		}
+	}
+
+	/**
+	 * Translate a workflow turn into the next user content for the Task loop.
+	 * - done: return the original content so the normal completion flow runs.
+	 * - delegate (Phase 2): spawn the sub-expert and dispose this task (the loop
+	 *   then exits; the workflow resumes when the parent reopens). If the target
+	 *   expert can't be delegated to, fall back to a soft prompt for the current
+	 *   expert so the task is never stuck.
+	 * - prompt: inject the framed next-step prompt.
+	 */
+	private async applyWorkflowTurn(
+		turn: WorkflowTurn,
+		userContent: Anthropic.Messages.ContentBlockParam[],
+	): Promise<Anthropic.Messages.ContentBlockParam[]> {
+		if (turn.done) {
+			return userContent
+		}
+		if (turn.delegate) {
+			const delegated = await this.beginWorkflowDelegation(turn.delegate)
+			if (delegated) {
+				return userContent // parent is being disposed; the loop will exit
+			}
+			// Fallback: let the current expert attempt the goal as a soft step.
+			return [{ type: "text", text: frameWorkflowStepPrompt(turn.delegate.goal) }]
+		}
+		if (turn.prompt) {
+			return [{ type: "text", text: frameWorkflowStepPrompt(turn.prompt) }]
+		}
+		return userContent
+	}
+
+	/**
+	 * Spawn a sub-expert for a workflow `delegate` action. Marks the workflow
+	 * state as pending-delegation (so the parent advances with the child's
+	 * summary on reopen), then delegates. Returns false (no delegation) if the
+	 * target expert/mode does not exist, so the caller can degrade gracefully.
+	 *
+	 * `onBeforeDelegate` runs in the success path, immediately before the
+	 * delegation disposes this task — the step-boundary caller uses it to push a
+	 * placeholder tool_result for the in-flight `attempt_completion` so the parent's
+	 * history stays well-formed across the dispose/reopen (the dangling tool_use
+	 * would otherwise 400 the API). It must NOT run on the mode-missing path.
+	 */
+	public async beginWorkflowDelegation(
+		delegate: { expert: string; goal: string },
+		onBeforeDelegate?: () => void,
+	): Promise<boolean> {
+		const provider = this.providerRef.deref()
+		const state = await provider?.getState()
+		if (!getModeBySlug(delegate.expert, state?.customModes)) {
+			await this.say(
+				"error",
+				`[workflow] Cannot delegate to expert "${delegate.expert}": no such mode. ` +
+					`Falling back to the current expert for: ${delegate.goal}`,
+			)
+			return false
+		}
+		await markWorkflowPendingDelegation({
+			taskId: this.taskId,
+			globalStoragePath: this.globalStoragePath,
+			expert: delegate.expert,
+		})
+		onBeforeDelegate?.()
+		await this.startSubtask(delegate.goal, [], delegate.expert)
+		return true
+	}
+
+	/** Read the summary the most recently completed child reported back to this task. */
+	private async getDelegationChildSummary(): Promise<string> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return ""
+		}
+		try {
+			const { historyItem } = await provider.getTaskWithId(this.taskId)
+			return historyItem.completionResultSummary ?? ""
+		} catch {
+			return ""
 		}
 	}
 
