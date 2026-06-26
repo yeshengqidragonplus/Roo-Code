@@ -342,6 +342,7 @@ export type ExtensionState = Pick<
 	profileThresholds: Record<string, number>
 	hasOpenedModeSelector: boolean
 	openRouterImageApiKey?: string
+	tavilyApiKey?: string
 	messageQueue?: QueuedMessage[]
 	lastShownAnnouncementId?: string
 	apiModelId?: string

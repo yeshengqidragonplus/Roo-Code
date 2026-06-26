@@ -879,6 +879,15 @@
 			"name": "Enable model-initiated slash commands",
 			"description": "When enabled, Roo can run your slash commands to execute workflows."
 		},
+		"WEB_SEARCH": {
+			"name": "Enable web search",
+			"description": "When enabled, Roo can search the web (via Tavily) and fetch pages to find up-to-date information and documentation.",
+			"tavilyApiKeyLabel": "Tavily API Key",
+			"tavilyApiKeyPlaceholder": "Enter your Tavily API key",
+			"getApiKeyText": "Get your API key from",
+			"warningMissingKey": "⚠️ A Tavily API key is required for web search.",
+			"successConfigured": "✓ Web search is configured and ready to use"
+		},
 		"CUSTOM_TOOLS": {
 			"name": "Enable custom tools",
 			"description": "When enabled, Roo can load and use custom TypeScript/JavaScript tools from your project's .roo/tools directory or ~/.roo/tools for global tools. Note: these tools will automatically be auto-approved.",

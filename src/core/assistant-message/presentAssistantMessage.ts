@@ -34,6 +34,8 @@ import { updateTodoListTool } from "../tools/UpdateTodoListTool"
 import { runSlashCommandTool } from "../tools/RunSlashCommandTool"
 import { skillTool } from "../tools/SkillTool"
 import { generateImageTool } from "../tools/GenerateImageTool"
+import { webSearchTool } from "../tools/WebSearchTool"
+import { webFetchTool } from "../tools/WebFetchTool"
 import { applyDiffTool as applyDiffToolClass } from "../tools/ApplyDiffTool"
 import { isValidToolName, validateToolUse } from "../tools/validateToolUse"
 import { codebaseSearchTool } from "../tools/CodebaseSearchTool"
@@ -840,6 +842,20 @@ export async function presentAssistantMessage(cline: Task) {
 				case "generate_image":
 					await checkpointSaveAndMark(cline)
 					await generateImageTool.handle(cline, block as ToolUse<"generate_image">, {
+						askApproval,
+						handleError,
+						pushToolResult,
+					})
+					break
+				case "web_search":
+					await webSearchTool.handle(cline, block as ToolUse<"web_search">, {
+						askApproval,
+						handleError,
+						pushToolResult,
+					})
+					break
+				case "web_fetch":
+					await webFetchTool.handle(cline, block as ToolUse<"web_fetch">, {
 						askApproval,
 						handleError,
 						pushToolResult,

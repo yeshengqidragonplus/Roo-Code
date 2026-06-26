@@ -82,6 +82,8 @@ export const toolParamNames = [
 	"files",
 	"line_ranges",
 	"line_count", // write_to_file truncation guard: declared total line count
+	"max_results", // web_search parameter
+	"allowed_domains", // web_search parameter
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -117,6 +119,8 @@ export type NativeToolArgs = {
 	update_todo_list: { todos: string }
 	use_mcp_tool: { server_name: string; tool_name: string; arguments?: Record<string, unknown> }
 	write_to_file: { path: string; content: string; line_count?: number }
+	web_search: { query: string; max_results?: number | null; allowed_domains?: string[] | null }
+	web_fetch: { url: string; prompt?: string | null }
 	// Add more tools as they are migrated to native protocol
 }
 
@@ -290,13 +294,15 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	run_slash_command: "run slash command",
 	skill: "load skill",
 	generate_image: "generate images",
+	web_search: "search the web",
+	web_fetch: "fetch web pages",
 	custom_tool: "use custom tools",
 } as const
 
 // Define available tool groups.
 export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 	read: {
-		tools: ["read_file", "search_files", "list_files", "codebase_search"],
+		tools: ["read_file", "search_files", "list_files", "codebase_search", "web_search", "web_fetch"],
 	},
 	edit: {
 		tools: ["apply_diff", "write_to_file", "generate_image"],

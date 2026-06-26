@@ -45,6 +45,8 @@ export const toolNames = [
 	"run_slash_command",
 	"skill",
 	"generate_image",
+	"web_search",
+	"web_fetch",
 	"custom_tool",
 ] as const
 

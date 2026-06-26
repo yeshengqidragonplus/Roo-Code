@@ -199,6 +199,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		imageGenerationProvider,
 		openRouterImageApiKey,
 		openRouterImageGenerationSelectedModel,
+		tavilyApiKey,
 		reasoningBlockCollapsed,
 		enterBehavior,
 		includeCurrentTime,
@@ -332,6 +333,16 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		})
 	}, [])
 
+	const setTavilyApiKey = useCallback((apiKey: string) => {
+		setCachedState((prevState) => {
+			if (prevState.tavilyApiKey !== apiKey) {
+				setChangeDetected(true)
+			}
+
+			return { ...prevState, tavilyApiKey: apiKey }
+		})
+	}, [])
+
 	const setCustomSupportPromptsField = useCallback((prompts: Record<string, string | undefined>) => {
 		setCachedState((prevState) => {
 			const previousStr = JSON.stringify(prevState.customSupportPrompts)
@@ -413,6 +424,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					imageGenerationProvider,
 					openRouterImageApiKey,
 					openRouterImageGenerationSelectedModel,
+					tavilyApiKey,
 					experiments,
 					customSupportPrompts,
 				},
@@ -906,6 +918,8 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								setImageGenerationProvider={setImageGenerationProvider}
 								setOpenRouterImageApiKey={setOpenRouterImageApiKey}
 								setImageGenerationSelectedModel={setImageGenerationSelectedModel}
+								tavilyApiKey={tavilyApiKey as string | undefined}
+								setTavilyApiKey={setTavilyApiKey}
 							/>
 						)}
 

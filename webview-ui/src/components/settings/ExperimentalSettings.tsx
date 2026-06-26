@@ -14,6 +14,7 @@ import { SearchableSetting } from "./SearchableSetting"
 import { ExperimentalFeature } from "./ExperimentalFeature"
 import { ImageGenerationSettings } from "./ImageGenerationSettings"
 import { CustomToolsSettings } from "./CustomToolsSettings"
+import { WebSearchSettings } from "./WebSearchSettings"
 
 type ExperimentalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	experiments: Experiments
@@ -26,6 +27,8 @@ type ExperimentalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setImageGenerationProvider?: (provider: ImageGenerationProvider) => void
 	setOpenRouterImageApiKey?: (apiKey: string) => void
 	setImageGenerationSelectedModel?: (model: string) => void
+	tavilyApiKey?: string
+	setTavilyApiKey?: (apiKey: string) => void
 }
 
 export const ExperimentalSettings = ({
@@ -39,6 +42,8 @@ export const ExperimentalSettings = ({
 	setImageGenerationProvider,
 	setOpenRouterImageApiKey,
 	setImageGenerationSelectedModel,
+	tavilyApiKey,
+	setTavilyApiKey,
 	className,
 	...props
 }: ExperimentalSettingsProps) => {
@@ -79,6 +84,22 @@ export const ExperimentalSettings = ({
 										setImageGenerationProvider={setImageGenerationProvider}
 										setOpenRouterImageApiKey={setOpenRouterImageApiKey}
 										setImageGenerationSelectedModel={setImageGenerationSelectedModel}
+									/>
+								</SearchableSetting>
+							)
+						}
+						if (config[0] === "WEB_SEARCH" && setTavilyApiKey) {
+							return (
+								<SearchableSetting
+									key={config[0]}
+									settingId={`experimental-${config[0].toLowerCase()}`}
+									section="experimental"
+									label={label}>
+									<WebSearchSettings
+										enabled={experiments[EXPERIMENT_IDS.WEB_SEARCH] ?? false}
+										onChange={(enabled) => setExperimentEnabled(EXPERIMENT_IDS.WEB_SEARCH, enabled)}
+										tavilyApiKey={tavilyApiKey}
+										setTavilyApiKey={setTavilyApiKey}
 									/>
 								</SearchableSetting>
 							)
