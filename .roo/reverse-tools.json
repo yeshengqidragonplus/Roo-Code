@@ -1,0 +1,43 @@
+{
+	"_comment": "APK 逆向工具链配置文件。env-check 节点会读取此文件获取工具路径。请根据你的实际安装路径修改。path 为 null 表示工具未安装（非必需工具不影响流程，必需工具缺失会阻断）。",
+	"apktool": {
+		"path": "apktool",
+		"required": true,
+		"description": "APK 反编译工具"
+	},
+	"python": {
+		"path": "python",
+		"required": true,
+		"description": "脚本执行环境"
+	},
+	"il2cppdumper": {
+		"path": null,
+		"required": false,
+		"description": "Unity IL2CPP 元数据提取（Unity 分支需要）"
+	},
+	"assetripper": {
+		"path": null,
+		"required": false,
+		"description": "Unity 资源导出（Unity 分支需要）"
+	},
+	"ida": {
+		"path": null,
+		"required": false,
+		"description": "IDA Pro 反编译（ARM64 反编译需要，商业软件）"
+	},
+	"frida": {
+		"path": null,
+		"required": false,
+		"description": "运行时 hook（动态分析需要，静态分析不需要）"
+	},
+	"mitmproxy": {
+		"path": null,
+		"required": false,
+		"description": "HTTPS 抓包（数据来自 CDN 时需要）"
+	},
+	"adb": {
+		"path": null,
+		"required": false,
+		"description": "Android 设备交互（动态分析/抓包时需要）"
+	}
+}

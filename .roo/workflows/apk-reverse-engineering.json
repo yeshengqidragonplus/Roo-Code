@@ -1,14 +1,13 @@
 {
 	"name": "APK 逆向工程标准流程",
-	"description": "基于 Hexa Away(Unity)、Jewel Coloring(Cocos2dx)、Meowdoku(Godot) 三个实战案例提炼的 APK 逆向工作流。引擎识别后分流到 Unity-IL2CPP / Cocos2dx / Godot 三条分支，每条分支编码了对应引擎的逆向经验、检查清单和止损原则。覆盖信息收集、核心逻辑分析、数据定位、加密破解、增量验证全流程。",
-	"version": "1.0.0",
+	"description": "基于 Hexa Away(Unity)、Jewel Coloring(Cocos2dx)、Meowdoku(Godot) 三个实战案例提炼的 APK 逆向工作流。先确认目标（3选项），再检查环境工具（读 .roo/reverse-tools.json），通过后引擎识别分流到 Unity-IL2CPP / Cocos2dx / Godot 三条分支。每步完成后更新 REVERSE_MAP.md 状态表支持断点续跑。",
+	"version": "2.0.0",
 	"inputs": [
-		{ "name": "apkPath", "type": "string", "required": true, "description": "APK 文件路径（或解包后的目录路径）" },
 		{
-			"name": "goal",
+			"name": "apkPath",
 			"type": "string",
 			"required": true,
-			"description": "逆向目标，如：提取关卡数据 / 还原核心玩法 / 提取美术资源"
+			"description": "APK 文件路径（或解包后的目录路径）"
 		},
 		{
 			"name": "outputDir",
@@ -22,45 +21,133 @@
 		{
 			"id": "env-check",
 			"type": "llm",
-			"position": { "x": 0, "y": -120 },
+			"position": {
+				"x": 0,
+				"y": 120
+			},
 			"data": {
-				"prompt": "环境检查：检测逆向工具链是否可用，记录每个工具的路径。\n\n**本节点目标**：在开始逆向之前，检查所有可能用到的逆向工具是否已安装且可用，记录它们的路径供后续节点使用。\n\n**产出**：JSON 格式的工具可用性报告（含每个工具的路径和状态）。\n\n**请用 execute_command 逐个检测以下工具**（Windows 用 `where`，Linux/Mac 用 `which`）：\n\n| 工具 | 检测命令 | 用途 |\n|------|----------|------|\n| apktool | `where apktool` 或 `apktool --version` | APK 反编译 |\n| Il2CppDumper | `where Il2CppDumper` 或检查常见路径 | Unity IL2CPP 元数据提取 |\n| AssetRipper | `where AssetRipper` 或检查常见路径 | Unity 资源导出 |\n| IDA Pro | `where ida` 或 `where ida64` 或检查常见路径 | ARM64 反编译 |\n| frida | `where frida` 或 `frida --version` | 运行时 hook |\n| mitmproxy | `where mitmproxy` 或 `mitmproxy --version` | HTTPS 抓包 |\n| python | `where python` 或 `python --version` | 脚本执行 |\n| adb | `where adb` 或 `adb version` | Android 设备交互 |\n\n**对于每个工具**：\n- 如果命令可用，记录其完整路径\n- 如果不可用，标记为 null 并注明是否为必需（根据逆向目标判断）\n- 对于 IDA Pro / Il2CppDumper / AssetRipper 等可能不在 PATH 中的工具，检查常见安装路径（如 C:\\Tools\\、~/Tools/ 等）\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"apktool\": { \"path\": \"C:\\\\...\\\\apktool.bat\", \"available\": true },\n  \"il2cppdumper\": { \"path\": \"C:\\\\...\\\\Il2CppDumper.exe\", \"available\": true },\n  \"assetripper\": { \"path\": \"C:\\\\...\\\\AssetRipper.exe\", \"available\": false },\n  \"ida\": { \"path\": \"C:\\\\...\\\\ida64.exe\", \"available\": true },\n  \"frida\": { \"path\": null, \"available\": false },\n  \"mitmproxy\": { \"path\": \"C:\\\\...\\\\mitmproxy.exe\", \"available\": true },\n  \"python\": { \"path\": \"C:\\\\...\\\\python.exe\", \"available\": true },\n  \"adb\": { \"path\": \"C:\\\\...\\\\adb.exe\", \"available\": true },\n  \"warnings\": [\"frida 不可用：x86_64模拟器+ARM64 APK 时 Frida Native hook 不可用（Houdini），不影响静态分析\"]\n}\n```\n\n**经验规则**：\n- 工具不可用不一定要终止流程——静态分析不需要 frida/adb，只有动态分析才需要\n- IDA Pro 是商业软件，可能不在 PATH 中，需检查常见安装路径\n- 如果关键工具（apktool/python）不可用，应在 warnings 中明确标注为阻断性问题\n\n完成后用 attempt_completion 输出上述 JSON。",
+				"prompt": "环境检查：读取工具配置文件，检测逆向工具链是否可用。\n\n**本节点目标**：读取 .roo/reverse-tools.json 配置文件，验证其中配置的工具路径是否真实可用，记录结果供后续节点使用。\n\n**产出**：JSON 格式的工具可用性报告 + tools/tool_paths.json（供脚本读取）。\n\n**请执行**：\n1. 读取 .roo/reverse-tools.json 配置文件（用 read_file）\n2. 对配置文件中每个工具的 path，用 execute_command 验证是否可用：\n   - Windows: where <path> 或直接 <path> --version\n   - Linux/Mac: which <path> 或 <path> --version\n3. 对于 path 为 null 的工具，标记为不可用\n4. 记录每个工具的验证结果\n\n**工具配置文件格式**（.roo/reverse-tools.json）：\n```json\n{\n  \"apktool\": { \"path\": \"apktool\", \"required\": true, \"description\": \"APK 反编译工具\" },\n  \"python\": { \"path\": \"python\", \"required\": true, \"description\": \"脚本执行环境\" },\n  \"ida\": { \"path\": null, \"required\": false, \"description\": \"IDA Pro 反编译\" },\n  ...\n}\n```\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"apktool\": { \"path\": \"...\", \"available\": true, \"required\": true },\n  \"python\": { \"path\": \"...\", \"available\": true, \"required\": true },\n  \"ida\": { \"path\": null, \"available\": false, \"required\": false },\n  \"frida\": { \"path\": null, \"available\": false, \"required\": false },\n  \"mitmproxy\": { \"path\": null, \"available\": false, \"required\": false },\n  \"il2cppdumper\": { \"path\": null, \"available\": false, \"required\": false },\n  \"assetripper\": { \"path\": null, \"available\": false, \"required\": false },\n  \"adb\": { \"path\": null, \"available\": false, \"required\": false },\n  \"warnings\": [\"ida 不可用：IDA Pro 反编译不可用，将无法进行 ARM64 反编译\"]\n}\n```\n\n**同时**：将工具路径写入 tools/tool_paths.json（供后续脚本读取）\n\n**经验规则**：\n- 必需工具（required:true）不可用 = 阻断，非必需工具不可用 = 警告但不阻断\n- frida/adb 不可用不影响静态分析\n- ida 不可用会影响反编译步骤，但不影响纯数据提取（如 Godot 分支）\n\n完成后用 attempt_completion 输出上述 JSON。",
 				"outputSchema": {
 					"type": "object",
 					"properties": {
 						"apktool": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"il2cppdumper": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"assetripper": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"ida": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"frida": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"mitmproxy": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"python": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
 						"adb": {
 							"type": "object",
-							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+							"properties": {
+								"path": {
+									"type": ["string", "null"]
+								},
+								"available": {
+									"type": "boolean"
+								},
+								"required": {
+									"type": "boolean"
+								}
+							}
 						},
-						"warnings": { "type": "array", "items": { "type": "string" } }
+						"warnings": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						}
 					},
 					"required": ["apktool", "python"]
 				}
@@ -69,7 +156,10 @@
 		{
 			"id": "env-gate",
 			"type": "condition",
-			"position": { "x": 0, "y": -60 },
+			"position": {
+				"x": 0,
+				"y": 240
+			},
 			"data": {
 				"expression": "{{env-check.output.apktool.available}} === true && {{env-check.output.python.available}} === true"
 			}
@@ -77,7 +167,10 @@
 		{
 			"id": "env-fail",
 			"type": "llm",
-			"position": { "x": -250, "y": -60 },
+			"position": {
+				"x": -250,
+				"y": 240
+			},
 			"data": {
 				"prompt": "环境检查未通过，流程终止。环境检查结果：{{env-check.output}}\n\n**必需工具不可用**，无法继续逆向流程。请安装缺失的工具后重新启动。\n\n**必需工具**：\n- apktool（APK 反编译）\n- python（脚本执行）\n\n**请执行**：\n1. 列出所有不可用的必需工具\n2. 给出安装建议（官方下载链接或包管理器命令）\n3. 用 attempt_completion 报告：环境检查失败，列出缺失的必需工具和安装建议\n\n注意：这是流程终止节点，不要继续后续步骤。"
 			}
@@ -85,33 +178,53 @@
 		{
 			"id": "init",
 			"type": "llm",
-			"position": { "x": 0, "y": 0 },
+			"position": {
+				"x": 0,
+				"y": 0
+			},
 			"data": {
-				"prompt": "你是 APK 逆向工程项目协调员。请确认以下信息并创建项目结构：\n\n**APK 路径**: {{inputs.apkPath}}\n**逆向目标**: {{inputs.goal}}\n**输出目录**: {{inputs.outputDir}}\n\n**本节点目标**：创建标准逆向项目结构，建立逆向地图（REVERSE_MAP.md）作为项目导航核心，并将环境检查结果写入 REVERSE_MAP.md。\n\n**产出**：\n- REVERSE_MAP.md（项目信息表 + 逆向决策树 + 状态表 + 工具链状态表）\n- doc/ 目录（流程记录、关键发现、问题记录）\n- tools/ 目录（分析脚本）\n- decompiled/ 目录（反编译输出）\n\n**请执行**：\n1. 确认 APK 文件存在（用 read_file 或 execute_command 检查）\n2. 在输出目录下创建上述标准逆向项目结构\n3. 在 REVERSE_MAP.md 中写入：\n   - 项目信息表（APK路径、目标、日期）\n   - 工具链状态表：根据上一步环境检查（env-check 节点）的结果，列出每个工具的名称、路径、可用性。格式：\n     | 工具 | 路径 | 可用 | 用途 |\n     |------|------|------|------|\n     | apktool | ... | ✅/❌ | APK反编译 |\n     | ... | ... | ... | ... |\n   - 空的逆向决策树\n4. 如果环境检查有 warnings，记录到 doc/问题记录.md\n5. 将工具路径写入 tools/tool_paths.json，供后续节点脚本引用：\n   ```json\n   { \"apktool\": \"...\", \"python\": \"...\", \"ida\": \"...\", ... }\n   ```\n\n**经验规则（来自实战）**：\n- 逆向地图是项目的 GPS，每次进展或失败都要更新\n- 主从引用结构：REVERSE_MAP.md 保持精简，详细内容放 doc/ 下从文档\n- 状态标记用 ✅完成 / 🔄进行中 / ❌失败\n- 工具链状态表让后续节点知道哪些工具可用、路径在哪\n- tool_paths.json 让脚本可以读取工具路径，避免硬编码\n\n完成后用 attempt_completion 报告：项目结构已创建、APK 已确认、REVERSE_MAP.md 初始版本已写入（含工具链状态表）、tools/tool_paths.json 已生成。"
+				"prompt": "你是 APK 逆向工程项目协调员。请确认逆向目标并创建项目结构。\n\n**APK 路径**: {{inputs.apkPath}}\n**输出目录**: {{inputs.outputDir}}\n\n**本节点目标**：让用户确认逆向目标，创建项目结构，建立逆向地图（REVERSE_MAP.md）。\n\n**请先向用户展示以下 3 个选项，让用户选择**：\n\n**选项1（默认推荐）**：还原核心玩法逻辑 + 核心玩法关键配置 + 美术资源（尽可能提取）\n- 适合：想完整理解游戏机制、复刻游戏\n- 包含：核心算法逆向、关卡/配置数据提取、美术资源提取\n\n**选项2**：自定义目标（玩家自己填）\n- 适合：有特定需求，如只提取关卡数据、只看加密方式等\n- 用户描述具体目标\n\n**选项3**：停止流程\n- 适合：还没想好，稍后再来\n- 直接终止流程\n\n**如果用户选择选项1或2，请执行**：\n1. 确认 APK 文件存在（用 read_file 或 execute_command 检查）\n2. 在输出目录下创建标准逆向项目结构：\n   - REVERSE_MAP.md（逆向地图，项目导航核心）\n   - doc/（流程记录、关键发现、问题记录）\n   - tools/（分析脚本）\n   - decompiled/（反编译输出）\n3. 在 REVERSE_MAP.md 中写入：\n   - 项目信息表（APK路径、目标、日期）\n   - 状态表（记录每个步骤的完成状态，用于断点续跑）：\n     | 步骤 | 节点ID | 状态 | 产出摘要 |\n     |------|--------|------|----------|\n     | 目标确认 | init | ✅ | ... |\n     | 环境检查 | env-check | 🔄 | |\n     | APK反编译 | decompile | ⏳ | |\n     | 引擎识别 | identify-engine | ⏳ | |\n     | ... | ... | ... | ... |\n   - 空的逆向决策树\n\n**如果用户选择选项3**：\n- 用 attempt_completion 报告：用户选择停止流程，项目未创建。\n- 不要继续后续步骤。\n\n**经验规则（来自实战）**：\n- 逆向地图是项目的 GPS，每次进展或失败都要更新状态表\n- 主从引用结构：REVERSE_MAP.md 保持精简，详细内容放 doc/ 下从文档\n- 状态标记用 ✅完成 / 🔄进行中 / ⏳待处理 / ❌失败\n- 状态表是断点续跑的关键——中途停止后重开时，先读 REVERSE_MAP.md 状态表确定从哪继续\n\n完成后用 attempt_completion 报告：用户选择的目标选项、项目结构已创建、REVERSE_MAP.md 初始版本已写入（含状态表）。"
 			}
 		},
 		{
 			"id": "decompile",
 			"type": "llm",
-			"position": { "x": 0, "y": 120 },
+			"position": {
+				"x": 0,
+				"y": 360
+			},
 			"data": {
-				"prompt": "对 APK 进行基础反编译和信息收集。基于上一步结果：{{init.output}}\n\n**本节点目标**：反编译 APK，收集基础信息（包名、架构、引擎线索、安全防护），为引擎识别提供输入。\n\n**产出**：\n- decompiled/base/（apktool 反编译输出）\n- 所有 split APK 的解包结果（如果是 AAB 分发）\n- 基础信息摘要：包名、主 Activity、架构、加固/反调试检测结果\n\n**请执行**：\n1. 用 execute_command 运行 `apktool d {{inputs.apkPath}} -o {{inputs.outputDir}}/decompiled/base -f` 反编译 APK\n2. 如果是 AAB 分发（多个 split APK），必须解包所有 split APK（base + split_asset_pack* + split_config.*）\n3. 读取 AndroidManifest.xml，提取：包名、主 Activity、权限列表\n4. 检查 lib/ 目录确认 APK 架构（arm64-v8a / armeabi-v7a / x86_64）\n5. 检查是否有加固/壳（class.dex 大小异常、搜索加固特征）\n6. 检查是否有反调试/反 Frida（搜索 frida/xposed/debug 关键字）\n\n**经验规则**：\n- AAB 分发的游戏，数据分布在多个 split APK 中，只解包 base 会遗漏大量数据\n- split_assetPackInstallTime.apk 通常包含游戏主要数据\n- 必须确认架构匹配，x86_64模拟器 + ARM64 APK = Houdini翻译 = Frida Native hook 不可用\n\n完成后用 attempt_completion 报告：反编译完成、包名、架构、是否有加固/反调试、split APK 数量。"
+				"prompt": "对 APK 进行基础反编译和信息收集。基于上一步结果：{{init.output}}\n\n**本节点目标**：反编译 APK，收集基础信息（包名、架构、引擎线索、安全防护），为引擎识别提供输入。\n\n**产出**：\n- decompiled/base/（apktool 反编译输出）\n- 所有 split APK 的解包结果（如果是 AAB 分发）\n- 基础信息摘要：包名、主 Activity、架构、加固/反调试检测结果\n\n**请执行**：\n1. 从 tools/tool_paths.json 读取 apktool 路径\n2. 用 execute_command 运行 `<apktool路径> d {{inputs.apkPath}} -o {{inputs.outputDir}}/decompiled/base -f` 反编译 APK\n2. 如果是 AAB 分发（多个 split APK），必须解包所有 split APK（base + split_asset_pack* + split_config.*）\n3. 读取 AndroidManifest.xml，提取：包名、主 Activity、权限列表\n4. 检查 lib/ 目录确认 APK 架构（arm64-v8a / armeabi-v7a / x86_64）\n5. 检查是否有加固/壳（class.dex 大小异常、搜索加固特征）\n6. 检查是否有反调试/反 Frida（搜索 frida/xposed/debug 关键字）\n\n**经验规则**：\n- AAB 分发的游戏，数据分布在多个 split APK 中，只解包 base 会遗漏大量数据\n- split_assetPackInstallTime.apk 通常包含游戏主要数据\n- 必须确认架构匹配，x86_64模拟器 + ARM64 APK = Houdini翻译 = Frida Native hook 不可用\n\n7. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅，记录产出摘要\n\n完成后用 attempt_completion 报告：反编译完成、包名、架构、是否有加固/反调试、split APK 数量。"
 			}
 		},
 		{
 			"id": "identify-engine",
 			"type": "llm",
-			"position": { "x": 0, "y": 240 },
+			"position": {
+				"x": 0,
+				"y": 240
+			},
 			"data": {
-				"prompt": "识别游戏引擎。基于反编译结果：{{decompile.output}}\n\n**引擎识别方法**（按优先级）：\n1. 检查 lib/ 目录下的 .so 文件名：\n   - libil2cpp.so + libunity.so → **Unity IL2CPP**\n   - libMyGame.so / libcocos2djs.so / libcocos2dlua.so → **Cocos2dx**\n   - libgodot_android.so / libgodot.so → **Godot Engine**\n2. 检查 AndroidManifest.xml 中的 Activity 类名：\n   - com.unity3d.player.UnityPlayerActivity → Unity\n   - org.cocos2dx.cpp.AppActivity → Cocos2dx\n   - org.godot.engine.GodotActivity → Godot\n3. 检查 assets/ 目录特征文件：\n   - assets/bin/Data/ + global-metadata.dat → Unity IL2CPP\n   - assets/bin/Data/mainData → Cocos2dx BigFile\n   - *.gdc 文件 → Godot GDScript 编译\n4. 用 strings 搜索引擎版本字符串\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"engine\": \"unity\" | \"cocos\" | \"godot\" | \"unknown\",\n  \"engineVersion\": \"版本号或未知\",\n  \"scriptBackend\": \"IL2CPP/Mono/JS/Lua/GDScript/原生C++\",\n  \"coreLib\": \"核心 .so 文件名\",\n  \"evidence\": \"识别依据简述\"\n}\n```\n\n完成后用 attempt_completion 输出上述 JSON。",
+				"prompt": "识别游戏引擎。基于反编译结果：{{decompile.output}}\n\n**引擎识别方法**（按优先级）：\n1. 检查 lib/ 目录下的 .so 文件名：\n   - libil2cpp.so + libunity.so → **Unity IL2CPP**\n   - libMyGame.so / libcocos2djs.so / libcocos2dlua.so → **Cocos2dx**\n   - libgodot_android.so / libgodot.so → **Godot Engine**\n2. 检查 AndroidManifest.xml 中的 Activity 类名：\n   - com.unity3d.player.UnityPlayerActivity → Unity\n   - org.cocos2dx.cpp.AppActivity → Cocos2dx\n   - org.godot.engine.GodotActivity → Godot\n3. 检查 assets/ 目录特征文件：\n   - assets/bin/Data/ + global-metadata.dat → Unity IL2CPP\n   - assets/bin/Data/mainData → Cocos2dx BigFile\n   - *.gdc 文件 → Godot GDScript 编译\n4. 用 strings 搜索引擎版本字符串\n5. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅，记录识别到的引擎\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"engine\": \"unity\" | \"cocos\" | \"godot\" | \"unknown\",\n  \"engineVersion\": \"版本号或未知\",\n  \"scriptBackend\": \"IL2CPP/Mono/JS/Lua/GDScript/原生C++\",\n  \"coreLib\": \"核心 .so 文件名\",\n  \"evidence\": \"识别依据简述\"\n}\n```\n\n完成后用 attempt_completion 输出上述 JSON。",
 				"outputSchema": {
 					"type": "object",
 					"properties": {
-						"engine": { "type": "string", "enum": ["unity", "cocos", "godot", "unknown"] },
-						"engineVersion": { "type": "string" },
-						"scriptBackend": { "type": "string" },
-						"coreLib": { "type": "string" },
-						"evidence": { "type": "string" }
+						"engine": {
+							"type": "string",
+							"enum": ["unity", "cocos", "godot", "unknown"]
+						},
+						"engineVersion": {
+							"type": "string"
+						},
+						"scriptBackend": {
+							"type": "string"
+						},
+						"coreLib": {
+							"type": "string"
+						},
+						"evidence": {
+							"type": "string"
+						}
 					},
 					"required": ["engine"]
 				}
@@ -120,7 +233,10 @@
 		{
 			"id": "engine-check",
 			"type": "condition",
-			"position": { "x": 0, "y": 360 },
+			"position": {
+				"x": 0,
+				"y": 360
+			},
 			"data": {
 				"expression": "{{identify-engine.output.engine}} === \"unity\""
 			}
@@ -128,7 +244,10 @@
 		{
 			"id": "cocos-check",
 			"type": "condition",
-			"position": { "x": 200, "y": 360 },
+			"position": {
+				"x": 200,
+				"y": 360
+			},
 			"data": {
 				"expression": "{{identify-engine.output.engine}} === \"cocos\""
 			}
@@ -136,32 +255,43 @@
 		{
 			"id": "godot-check",
 			"type": "condition",
-			"position": { "x": 400, "y": 360 },
+			"position": {
+				"x": 400,
+				"y": 360
+			},
 			"data": {
 				"expression": "{{identify-engine.output.engine}} === \"godot\""
 			}
 		},
-
 		{
 			"id": "unity-il2cpp-dump",
 			"type": "llm",
-			"position": { "x": -200, "y": 480 },
+			"position": {
+				"x": -200,
+				"y": 480
+			},
 			"data": {
-				"prompt": "【Unity IL2CPP 分支】执行 Il2CppDumper 提取元数据。引擎信息：{{identify-engine.output}}\n\n**本节点目标**：从 libil2cpp.so + global-metadata.dat 提取完整的 C# 元数据（类名/方法签名/字段名/RVA地址/字符串字面量），为后续 stub 分析和 IDA 批量反编译提供基础。\n\n**产出**：\n- il2cpp_output/dump.cs（C# 伪代码声明，含所有方法的 RVA 地址）\n- il2cpp_output/stringliteral.json（所有硬编码字符串）\n- il2cpp_output/script.json（IDA 函数名恢复脚本）\n- il2cpp_output/DummyDll/（还原的 .NET DLL）\n- AssetRipper 导出的 C# stub 代码 + Unity 资源\n\n**请执行**：\n1. 定位 libil2cpp.so（在 decompiled/base/lib/arm64-v8a/ 或对应架构目录）\n2. 定位 global-metadata.dat（通常在 assets/bin/Data/Managed/）\n3. 用 execute_command 运行 Il2CppDumper：\n   `Il2CppDumper libil2cpp.so global-metadata.dat {{inputs.outputDir}}/il2cpp_output/`\n4. 确认产出文件：dump.cs、stringliteral.json、script.json、DummyDll/\n5. 用 execute_command 运行 AssetRipper 导出 Unity 项目（C# stub + 资源）\n\n**经验规则**：\n- dump.cs 是 IL2CPP 项目的源码（虽方法体为空，但类名/方法签名/字段名/RVA完整）\n- stringliteral.json 是宝藏，包含所有硬编码字符串（CDN URL、密钥名、API路径）\n- script.json 是 IDA 函数名恢复脚本，必须导入 IDA\n- C# stub 优先策略：先读 stub 梳理架构，能回答 80% 的数据流问题\n\n完成后用 attempt_completion 报告：dump.cs 行数、stringliteral.json 关键字符串数量、script.json 是否生成。"
+				"prompt": "【Unity IL2CPP 分支】执行 Il2CppDumper 提取元数据。引擎信息：{{identify-engine.output}}\n\n**本节点目标**：从 libil2cpp.so + global-metadata.dat 提取完整的 C# 元数据（类名/方法签名/字段名/RVA地址/字符串字面量），为后续 stub 分析和 IDA 批量反编译提供基础。\n\n**产出**：\n- il2cpp_output/dump.cs（C# 伪代码声明，含所有方法的 RVA 地址）\n- il2cpp_output/stringliteral.json（所有硬编码字符串）\n- il2cpp_output/script.json（IDA 函数名恢复脚本）\n- il2cpp_output/DummyDll/（还原的 .NET DLL）\n- AssetRipper 导出的 C# stub 代码 + Unity 资源\n\n**请执行**：\n1. 从 tools/tool_paths.json 读取 il2cppdumper 和 assetripper 路径\n2. 定位 libil2cpp.so（在 decompiled/base/lib/arm64-v8a/ 或对应架构目录）\n2. 定位 global-metadata.dat（通常在 assets/bin/Data/Managed/）\n3. 用 execute_command 运行 Il2CppDumper：\n   `Il2CppDumper libil2cpp.so global-metadata.dat {{inputs.outputDir}}/il2cpp_output/`\n4. 确认产出文件：dump.cs、stringliteral.json、script.json、DummyDll/\n5. 用 execute_command 运行 AssetRipper 导出 Unity 项目（C# stub + 资源）\n6. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- dump.cs 是 IL2CPP 项目的源码（虽方法体为空，但类名/方法签名/字段名/RVA完整）\n- stringliteral.json 是宝藏，包含所有硬编码字符串（CDN URL、密钥名、API路径）\n- script.json 是 IDA 函数名恢复脚本，必须导入 IDA\n- C# stub 优先策略：先读 stub 梳理架构，能回答 80% 的数据流问题\n\n完成后用 attempt_completion 报告：dump.cs 行数、stringliteral.json 关键字符串数量、script.json 是否生成。"
 			}
 		},
 		{
 			"id": "unity-stub-analysis",
 			"type": "llm",
-			"position": { "x": -200, "y": 600 },
+			"position": {
+				"x": -200,
+				"y": 600
+			},
 			"data": {
-				"prompt": "【Unity IL2CPP 分支】C# Stub 静态分析。基于上一步：{{unity-il2cpp-dump.output}}\n\n**本节点目标**：通过 C# stub 梳理架构和数据流，确定目标数据的来源（本地/CDN/API），识别加密类，标记需要 IDA 反编译的关键函数。这是最重要的阶段——stub 能回答 80% 的问题。\n\n**产出**：\n- 核心类关系图（Service → DAO → DTO 链路）\n- 数据加载路径判断（本地存储 / CDN / 服务器API）\n- 加密类识别结果（哪些类涉及加密，但不假设加密方式）\n- 需要查看方法体的关键函数 RVA 列表（供 IDA 批量反编译参考）\n\n**请执行**：\n1. 读取 dump.cs，梳理核心类关系。优先关注后缀：\n   - Service/Manager/Controller/Client（业务逻辑入口，⭐⭐⭐）\n   - DAO/DTO/VO/Model（数据层，⭐⭐）\n2. 追踪目标数据的加载路径：\n   - 目标 DTO → 被哪个 DAO 引用？→ DAO 数据从哪来？\n   - CacheFromJson() → 来自 JSON（CDN/本地）\n   - CacheFromDB() → 来自数据库\n3. 搜索 stringliteral.json 中的关键词：encrypt/url/key/master/api/cdn\n4. 识别加密类（搜索 AesEncryptor/XOR/ES2/SQLCipher）\n5. 确认数据来源：本地存储 / CDN / 服务器API\n6. 标记需要 IDA 反编译的关键函数（加密/解密/数据加载/核心算法）\n\n**经验规则**：\n- 看到加密类 ≠ 所有数据都用该方式加密！先确认目标数据是否真经过该类\n- 从 DTO 类名反向搜索引用它的 Service，快速定位数据消费者\n- C# stub 能回答 80% 的问题，剩下 20% 需要查看方法体实现的才上 IDA\n\n**时间盒**：本阶段 2-4 小时，超时转 IDA 反编译。\n\n完成后用 attempt_completion 报告：核心类关系图、数据加载路径、数据来源判断、加密类识别结果、需要 IDA 反编译的关键函数 RVA 列表。"
+				"prompt": "【Unity IL2CPP 分支】C# Stub 静态分析。基于上一步：{{unity-il2cpp-dump.output}}\n\n**本节点目标**：通过 C# stub 梳理架构和数据流，确定目标数据的来源（本地/CDN/API），识别加密类，标记需要 IDA 反编译的关键函数。这是最重要的阶段——stub 能回答 80% 的问题。\n\n**产出**：\n- 核心类关系图（Service → DAO → DTO 链路）\n- 数据加载路径判断（本地存储 / CDN / 服务器API）\n- 加密类识别结果（哪些类涉及加密，但不假设加密方式）\n- 需要查看方法体的关键函数 RVA 列表（供 IDA 批量反编译参考）\n\n**请执行**：\n1. 读取 dump.cs，梳理核心类关系。优先关注后缀：\n   - Service/Manager/Controller/Client（业务逻辑入口，⭐⭐⭐）\n   - DAO/DTO/VO/Model（数据层，⭐⭐）\n2. 追踪目标数据的加载路径：\n   - 目标 DTO → 被哪个 DAO 引用？→ DAO 数据从哪来？\n   - CacheFromJson() → 来自 JSON（CDN/本地）\n   - CacheFromDB() → 来自数据库\n3. 搜索 stringliteral.json 中的关键词：encrypt/url/key/master/api/cdn\n4. 识别加密类（搜索 AesEncryptor/XOR/ES2/SQLCipher）\n5. 确认数据来源：本地存储 / CDN / 服务器API\n6. 标记需要 IDA 反编译的关键函数（加密/解密/数据加载/核心算法）\n7. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅，记录数据来源判断\n\n**经验规则**：\n- 看到加密类 ≠ 所有数据都用该方式加密！先确认目标数据是否真经过该类\n- 从 DTO 类名反向搜索引用它的 Service，快速定位数据消费者\n- C# stub 能回答 80% 的问题，剩下 20% 需要查看方法体实现的才上 IDA\n\n**时间盒**：本阶段 2-4 小时，超时转 IDA 反编译。\n\n完成后用 attempt_completion 报告：核心类关系图、数据加载路径、数据来源判断、加密类识别结果、需要 IDA 反编译的关键函数 RVA 列表。"
 			}
 		},
 		{
 			"id": "unity-ida-decompile",
 			"type": "llm",
-			"position": { "x": -200, "y": 700 },
+			"position": {
+				"x": -200,
+				"y": 700
+			},
 			"data": {
 				"prompt": "【Unity IL2CPP 分支】IDA Pro 批量反编译所有方法。基于 stub 分析：{{unity-stub-analysis.output}}\n\n**本节点目标**：利用 dump.cs 中所有方法的 RVA 地址，批量反编译全部方法，生成完整的 C 伪代码库供后续分析。\n\n**重点**：Unity IL2CPP 的 dump.cs 包含所有方法的 RVA 地址，应该**批量反编译所有方法**，而不是只挑关键函数。批量反编译一次完成，后续分析时随时可查。\n\n**产出**：tools/ida_decompile_results/<namespace>/*.c — 每个方法一个 .c 文件，含 RVA 头注释。\n\n**执行步骤**（工具链已在 tools/ 目录下实现为 py 脚本）：\n\n步骤1：提取所有方法的 RVA 地址\n```bash\npython tools/extract_rvas.py\n```\n生成 tools/hexa_rvas_complex.json，含所有方法的 {rva, namespace, class, method, signature}。\n\n步骤2：按命名空间生成待反编译列表\n```bash\npython tools/batch_decompile_gen.py <namespace>\n# 对每个命名空间都执行一次，生成 tools/pending_<namespace>.json\n```\n\n步骤3：通过 IDA MCP py_eval 批量反编译（在 IDA 进程内执行）\n- 用 IDA Pro 加载 libil2cpp.so，导入 script.json 恢复函数名（必须！）\n- 使用 IDA MCP 的 py_eval 工具执行以下 Python 代码（对每个命名空间）：\n```python\nimport json, os, ida_hexrays, ida_funcs\nwith open(r'<项目路径>\\tools\\pending_<namespace>.json', 'r', encoding='utf-8') as f:\n    pending = json.load(f)\noutput_dir = r'<项目路径>\\tools\\ida_decompile_results\\<namespace>'\nos.makedirs(output_dir, exist_ok=True)\nresults = {'success': 0, 'failed': 0, 'errors': []}\nfor m in pending:\n    addr = int(m['rva'], 16)\n    func = ida_funcs.get_func(addr)\n    if not func:\n        results['failed'] += 1; continue\n    try:\n        cfunc = ida_hexrays.decompile(func.start_ea)\n        if not cfunc: results['failed'] += 1; continue\n        code = str(cfunc)\n        safe_method = m['method'].replace('<','_').replace('>','_').replace('::','_').replace(' ','_')\n        filename = m['class'] + '_' + safe_method + '_' + m['rva'] + '.c'\n        header = '/* Decompiled by IDA Pro - ' + m['namespace'] + '.' + m['class'] + '::' + m['method'] + '\\n * RVA: ' + m['rva'] + '\\n */\\n\\n'\n        with open(os.path.join(output_dir, filename), 'w', encoding='utf-8') as f:\n            f.write(header + code)\n        results['success'] += 1\n    except Exception as e:\n        results['failed'] += 1; results['errors'].append(m['rva'] + ': ' + str(e))\nprint('Done! Success: ' + str(results['success']) + ', Failed: ' + str(results['failed']))\n```\n\n步骤4（可选）：用 translate_ida.py 自动翻译 IDA 伪代码为 C# 风格（18 pass，处理 vN 变量、_OWORD 类型、字段偏移注释）\n\n**故障排除**：\n- `function not found`：编译器生成的局部函数（如 g__xxx）无独立入口，忽略\n- 文件名过长：Windows 260 字符限制，用短文件名 ClassName_MethodName_RVA.c\n- `decompilation returned None`：检查 RVA 是否正确\n\n**经验规则**：\n- py_eval 方案绕过 MCP 响应大小限制，直接在 IDA 内部执行反编译并保存到磁盘\n- 比逐方法 MCP decompile 快 10 倍以上，实战验证 1728 方法 99.8% 成功率\n- IDA 函数名恢复是必须的，没有 script.json 的 IDA 只能看到 sub_XXXXX\n- translate_ida.py 能处理大部分模式，但复杂控制流（异步状态机、LINQ 链）仍需手动翻译\n\n**IDA 反编译常见模式**（供后续分析参考）：\n| IDA 伪代码 | C# 等价 |\n|-----------|---------|\n| *(this + 0x80) | this.someField（查 dump.cs 确定字段名）|\n| sub_XXXXX(a1, a2) | obj.Method(arg1, arg2) |\n| LODWORD(x)/HIDWORD(x) | (int)(x & 0xFFFFFFFF) / (int)(x >> 32) |\n| 异步状态机 MoveNext() | async/await 编译产物 |\n\n完成后用 attempt_completion 报告：反编译的方法总数、成功率、失败方法列表、输出目录路径。"
 			}
@@ -169,108 +299,242 @@
 		{
 			"id": "unity-data-acquire",
 			"type": "llm",
-			"position": { "x": -200, "y": 820 },
+			"position": {
+				"x": -200,
+				"y": 820
+			},
 			"data": {
-				"prompt": "【Unity IL2CPP 分支】数据获取。基于静态分析和 IDA 反编译：\n- Stub 分析：{{unity-stub-analysis.output}}\n- IDA 反编译：{{unity-ida-decompile.output}}\n\n根据数据来源选择路径：\n\n**路径A：数据在本地**\n- 检查 APK 内资源文件（AssetRipper 导出的 TextAsset）\n- 检查 data.unity3d 等 AssetBundle\n- 检查 ES2/Data.bytes 等加密存储\n\n**路径B：数据来自 CDN（推荐优先尝试）**\n- 从 C# stub 找到 CDN URL 构建逻辑\n- 用 mitmproxy 抓包获取实际 URL\n- 直接下载加密数据文件\n\n**路径C：数据来自服务器 API**\n- 抓包获取 API 请求格式\n- 分析认证/签名机制\n\n**经验规则**：\n- 抓包优先于逆向！目标数据来自网络时，先抓包拿原始数据\n- mitmproxy 比 Fiddler/Charles 更适合自动化\n- 本地资源通常只有种子数据，核心业务数据多来自远程\n- 不要过早深入 IDA 反编译而忽略简单路径——数据来自 CDN 时抓包就能直接获取\n\n完成后用 attempt_completion 报告：获取到的数据文件列表、数据来源路径、是否加密。"
+				"prompt": "【Unity IL2CPP 分支】数据获取。基于静态分析和 IDA 反编译：\n- Stub 分析：{{unity-stub-analysis.output}}\n- IDA 反编译：{{unity-ida-decompile.output}}\n\n根据数据来源选择路径：\n\n**路径A：数据在本地**\n- 检查 APK 内资源文件（AssetRipper 导出的 TextAsset）\n- 检查 data.unity3d 等 AssetBundle\n- 检查 ES2/Data.bytes 等加密存储\n\n**路径B：数据来自 CDN（推荐优先尝试）**\n- 从 C# stub 找到 CDN URL 构建逻辑\n- 用 mitmproxy 抓包获取实际 URL\n- 直接下载加密数据文件\n\n**路径C：数据来自服务器 API**\n- 抓包获取 API 请求格式\n- 分析认证/签名机制\n\n**经验规则**：\n- 抓包优先于逆向！目标数据来自网络时，先抓包拿原始数据\n- mitmproxy 比 Fiddler/Charles 更适合自动化\n- 本地资源通常只有种子数据，核心业务数据多来自远程\n- 不要过早深入 IDA 反编译而忽略简单路径——数据来自 CDN 时抓包就能直接获取\n\n4. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅，记录数据来源和文件数\n\n完成后用 attempt_completion 报告：获取到的数据文件列表、数据来源路径、是否加密。"
 			}
 		},
-
 		{
 			"id": "cocos-ida-analysis",
 			"type": "llm",
-			"position": { "x": 200, "y": 480 },
+			"position": {
+				"x": 200,
+				"y": 480
+			},
 			"data": {
-				"prompt": "【Cocos2dx 分支】IDA Pro 核心逻辑分析。引擎信息：{{identify-engine.output}}\n\nCocos2dx 没有 Il2CppDumper 这样的元数据工具，IDA 分析更依赖手动反编译。\n\n**请执行**：\n1. 确认核心库（libMyGame.so 或 libcocos2d*.so）\n2. 用 IDA Pro 加载核心库，反编译以下关键函数：\n   - GameDirector / GameController（游戏入口）\n   - BoardModel / LevelParser（数据模型和解析）\n   - FileHelper::readFile → FileUtilsAndroid::getContents（文件加载链）\n   - BigFile 相关函数（自定义文件系统）\n3. 理解文件加载链：FileHelper → FileUtils → BigFile\n4. 理解数据格式：从 parseLayers 等函数确认运行时格式\n5. 创建 IDA 类结构文档\n\n**经验规则**：\n- 逆向逻辑优先！先理解代码（文件加载链、数据格式），再搜索资源\n- 反编译结果与 apktool 解包文件交叉验证，避免误判\n- Cocos2dx 资源文件通常更开放（TMX/JSON/PNG），不像 Unity 那样序列化\n\n完成后用 attempt_completion 报告：核心函数反编译结果、文件加载链、数据格式判断。"
+				"prompt": "【Cocos2dx 分支】IDA Pro 核心逻辑分析。引擎信息：{{identify-engine.output}}\n\nCocos2dx 没有 Il2CppDumper 这样的元数据工具，IDA 分析更依赖手动反编译。\n\n**前置检查**：从 tools/tool_paths.json 读取 ida 路径。如果 ida 不可用，用 attempt_completion 报告 IDA Pro 不可用，流程仍继续。\n\n**请执行**：\n1. 确认核心库（libMyGame.so 或 libcocos2d*.so）\n2. 用 IDA Pro 加载核心库，反编译以下关键函数：\n   - GameDirector / GameController（游戏入口）\n   - BoardModel / LevelParser（数据模型和解析）\n   - FileHelper::readFile → FileUtilsAndroid::getContents（文件加载链）\n   - BigFile 相关函数（自定义文件系统）\n3. 理解文件加载链：FileHelper → FileUtils → BigFile\n4. 理解数据格式：从 parseLayers 等函数确认运行时格式\n5. 创建 IDA 类结构文档\n6. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- 逆向逻辑优先！先理解代码（文件加载链、数据格式），再搜索资源\n- 反编译结果与 apktool 解包文件交叉验证，避免误判\n- Cocos2dx 资源文件通常更开放（TMX/JSON/PNG），不像 Unity 那样序列化\n\n完成后用 attempt_completion 报告：核心函数反编译结果、文件加载链、数据格式判断。"
 			}
 		},
 		{
 			"id": "cocos-data-locate",
 			"type": "llm",
-			"position": { "x": 200, "y": 600 },
+			"position": {
+				"x": 200,
+				"y": 600
+			},
 			"data": {
-				"prompt": "【Cocos2dx 分支】数据定位与提取。基于 IDA 分析：{{cocos-ida-analysis.output}}\n\n**请执行**：\n1. 根据文件加载链定位数据包（mainData 等 BigFile）\n2. 分析 BigFile type 系统（不同 type 有不同处理方式）：\n   - type 't'：文本文件，RC4 解密后使用\n   - type 'b'：二进制文件，RC4 解密后作为资源\n   - type 'n'：普通文件，不经过解密，直接读取\n3. 分析加密方式（RC4/AES/XOR/自定义）\n4. 确认密钥来源（硬编码/运行时生成/包名派生）\n\n**经验规则**：\n- 分析文件分类系统！不同分类可能有不同处理方式\n- type 'n' 文件不需要解密，避免在不需解密的文件上浪费时间\n- 全面解包所有 split APK！数据可能分布在多个包中\n\n完成后用 attempt_completion 报告：数据包位置、BigFile type 分析、加密方式判断、密钥来源。"
+				"prompt": "【Cocos2dx 分支】数据定位与提取。基于 IDA 分析：{{cocos-ida-analysis.output}}\n\n**请执行**：\n1. 根据文件加载链定位数据包（mainData 等 BigFile）\n2. 分析 BigFile type 系统（不同 type 有不同处理方式）：\n   - type 't'：文本文件，RC4 解密后使用\n   - type 'b'：二进制文件，RC4 解密后作为资源\n   - type 'n'：普通文件，不经过解密，直接读取\n3. 分析加密方式（RC4/AES/XOR/自定义）\n4. 确认密钥来源（硬编码/运行时生成/包名派生）\n5. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- 分析文件分类系统！不同分类可能有不同处理方式\n- type 'n' 文件不需要解密，避免在不需解密的文件上浪费时间\n- 全面解包所有 split APK！数据可能分布在多个包中\n\n完成后用 attempt_completion 报告：数据包位置、BigFile type 分析、加密方式判断、密钥来源。"
 			}
 		},
-
 		{
 			"id": "godot-gdc-decode",
 			"type": "llm",
-			"position": { "x": 400, "y": 480 },
+			"position": {
+				"x": 400,
+				"y": 480
+			},
 			"data": {
-				"prompt": "【Godot 分支】GDScript .gdc 解码。引擎信息：{{identify-engine.output}}\n\nGodot Engine 的 GDScript 源码（即使编译为 .gdc）比原生库反编译容易得多！\n\n**请执行**：\n1. 提取所有 .gdc 文件（通常在 split_assetPackInstallTime.apk 中）\n2. 分析 GDSC 格式：\n   - 魔数：47 44 53 43（GDSC）\n   - 版本号：Godot 4.x = 101\n   - ZSTD 压缩\n   - 每个 uint32 字节的每个字节 XOR 0xb6\n   - Tokenizer Buffer：标识符表 + 常量表 + token 流\n3. 编写解码器，批量解码 .gdc 文件\n4. 验证 HEADER_DATA_FLAG_64：\n   - Godot 4.0-4.5：0x100\n   - Godot 4.6+：0x10000（版本差异！）\n\n**经验规则**：\n- GDScript 优先策略！先读 GDScript 源码，不需要 IDA Pro\n- 关键业务逻辑（加密、玩法、生成器）都在 GDScript 层\n- 阅读 Godot 开源源码是理解格式的最可靠方式\n- 遇到 Variant 解码错误，先检查 HEADER_DATA_FLAG_64\n\n完成后用 attempt_completion 报告：.gdc 文件数量、解码成功率、关键脚本列表。"
+				"prompt": "【Godot 分支】GDScript .gdc 解码。引擎信息：{{identify-engine.output}}\n\nGodot Engine 的 GDScript 源码（即使编译为 .gdc）比原生库反编译容易得多！\n\n**请执行**：\n1. 提取所有 .gdc 文件（通常在 split_assetPackInstallTime.apk 中）\n2. 分析 GDSC 格式：\n   - 魔数：47 44 53 43（GDSC）\n   - 版本号：Godot 4.x = 101\n   - ZSTD 压缩\n   - 每个 uint32 字节的每个字节 XOR 0xb6\n   - Tokenizer Buffer：标识符表 + 常量表 + token 流\n3. 编写解码器，批量解码 .gdc 文件\n4. 验证 HEADER_DATA_FLAG_64：\n   - Godot 4.0-4.5：0x100\n   - Godot 4.6+：0x10000（版本差异！）\n5. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅，记录解码成功率\n\n**经验规则**：\n- GDScript 优先策略！先读 GDScript 源码，不需要 IDA Pro\n- 关键业务逻辑（加密、玩法、生成器）都在 GDScript 层\n- 阅读 Godot 开源源码是理解格式的最可靠方式\n- 遇到 Variant 解码错误，先检查 HEADER_DATA_FLAG_64\n\n完成后用 attempt_completion 报告：.gdc 文件数量、解码成功率、关键脚本列表。"
 			}
 		},
 		{
 			"id": "godot-find-key",
 			"type": "llm",
-			"position": { "x": 400, "y": 600 },
+			"position": {
+				"x": 400,
+				"y": 600
+			},
 			"data": {
-				"prompt": "【Godot 分支】从 GDScript 源码找加密密钥。基于解码结果：{{godot-gdc-decode.output}}\n\n**请执行**：\n1. 在解码后的 GDScript 源码中搜索加密/解密逻辑\n2. 搜索 const 字符串（密钥通常硬编码）\n3. 确认加密算法（XOR / AES / 自定义）\n4. 确认加密模式（编辑器模式不加密 vs 运行时模式加密）\n5. 编写解密工具，批量解密\n\n**经验规则**：\n- 代码分析优先于暴力破解！分析代码逻辑找密钥比任何暴力破解都高效\n- Godot 项目中，加密密钥通常是 GDScript 中的 const 字符串\n- 禁止暴力破解密码！不要尝试 XOR 密钥穷举、已知明文攻击穷举\n\n完成后用 attempt_completion 报告：密钥值、加密算法、解密成功率。"
+				"prompt": "【Godot 分支】从 GDScript 源码找加密密钥。基于解码结果：{{godot-gdc-decode.output}}\n\n**请执行**：\n1. 在解码后的 GDScript 源码中搜索加密/解密逻辑\n2. 搜索 const 字符串（密钥通常硬编码）\n3. 确认加密算法（XOR / AES / 自定义）\n4. 确认加密模式（编辑器模式不加密 vs 运行时模式加密）\n5. 编写解密工具，批量解密\n6. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- 代码分析优先于暴力破解！分析代码逻辑找密钥比任何暴力破解都高效\n- Godot 项目中，加密密钥通常是 GDScript 中的 const 字符串\n- 禁止暴力破解密码！不要尝试 XOR 密钥穷举、已知明文攻击穷举\n\n完成后用 attempt_completion 报告：密钥值、加密算法、解密成功率。"
 			}
 		},
-
 		{
 			"id": "unknown-engine",
 			"type": "llm",
-			"position": { "x": 600, "y": 480 },
+			"position": {
+				"x": 600,
+				"y": 480
+			},
 			"data": {
-				"prompt": "【未知引擎分支】无法识别引擎，执行通用逆向分析。引擎信息：{{identify-engine.output}}\n\n**请执行**：\n1. 列出 lib/ 目录所有 .so 文件\n2. 用 strings 搜索各 .so 中的特征字符串\n3. 检查 assets/ 目录所有文件类型\n4. 尝试识别是否为：Unreal Engine / 自研引擎 / Web 套壳\n5. 根据发现选择最接近的分析路径\n\n完成后用 attempt_completion 报告：发现的所有线索、最可能的引擎判断、建议的下一步。"
+				"prompt": "【未知引擎分支】无法识别引擎，执行通用逆向分析。引擎信息：{{identify-engine.output}}\n\n**请执行**：\n1. 列出 lib/ 目录所有 .so 文件\n2. 用 strings 搜索各 .so 中的特征字符串\n3. 检查 assets/ 目录所有文件类型\n4. 尝试识别是否为：Unreal Engine / 自研引擎 / Web 套壳\n5. 根据发现选择最接近的分析路径\n6. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n完成后用 attempt_completion 报告：发现的所有线索、最可能的引擎判断、建议的下一步。"
 			}
 		},
-
 		{
 			"id": "decrypt",
 			"type": "llm",
-			"position": { "x": 200, "y": 840 },
+			"position": {
+				"x": 200,
+				"y": 840
+			},
 			"data": {
-				"prompt": "加密数据破解。综合各分支的数据获取结果：\n- Unity: {{unity-data-acquire.output}}\n- Cocos: {{cocos-data-locate.output}}\n- Godot: {{godot-find-key.output}}\n- Unknown: {{unknown-engine.output}}\n\n**核心原则：先看数据，再猜加密；先简单，再复杂。**\n\n**标准流程**：\n1. **Hex dump 前 256 字节**（必须第一步！）\n2. 识别文件头：\n   - 7B22 = {\" → JSON 明文，可能没加密\n   - 504B0304 = PK → ZIP 压缩包\n   - 1F8B → GZIP\n   - 完全随机 → 真加密（AES/RSA）\n3. 尝试已知明文攻击（JSON 以 { 开头）\n4. 字节频率统计分析（判断加密强度）\n5. 编码检查：\n   - 含 CJK 字符时，检查是否码点级 XOR（非字节级）\n   - 加密后仍是有效 UTF-8 → 很可能码点级操作\n6. 全文件验证（不只是开头，检查末尾和非 ASCII 区域）\n\n**经验规则**：\n- 不要根据类名假设加密方式！看到 AesEncryptor ≠ 所有数据用 AES\n- Hex Dump First！拿到未知文件第一步永远是 hex dump\n- 如果简单方法都失败，再用 Unicorn Engine 模拟执行\n- RC4 是流加密，密钥流可预生成，一次 KSA + 多次 XOR 比逐文件快 10 倍\n\n**时间盒**：每个加密方向 30 分钟无突破则切换。\n\n完成后用 attempt_completion 报告：加密方式、密钥、解密结果验证。"
+				"prompt": "加密数据破解。综合各分支的数据获取结果：\n- Unity: {{unity-data-acquire.output}}\n- Cocos: {{cocos-data-locate.output}}\n- Godot: {{godot-find-key.output}}\n- Unknown: {{unknown-engine.output}}\n\n**核心原则：先看数据，再猜加密；先简单，再复杂。**\n\n**标准流程**：\n1. **Hex dump 前 256 字节**（必须第一步！）\n2. 识别文件头：\n   - 7B22 = {\" → JSON 明文，可能没加密\n   - 504B0304 = PK → ZIP 压缩包\n   - 1F8B → GZIP\n   - 完全随机 → 真加密（AES/RSA）\n3. 尝试已知明文攻击（JSON 以 { 开头）\n4. 字节频率统计分析（判断加密强度）\n5. 编码检查：\n   - 含 CJK 字符时，检查是否码点级 XOR（非字节级）\n   - 加密后仍是有效 UTF-8 → 很可能码点级操作\n6. 全文件验证（不只是开头，检查末尾和非 ASCII 区域）\n7. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- 不要根据类名假设加密方式！看到 AesEncryptor ≠ 所有数据用 AES\n- Hex Dump First！拿到未知文件第一步永远是 hex dump\n- 如果简单方法都失败，再用 Unicorn Engine 模拟执行\n- RC4 是流加密，密钥流可预生成，一次 KSA + 多次 XOR 比逐文件快 10 倍\n\n**时间盒**：每个加密方向 30 分钟无突破则切换。\n\n完成后用 attempt_completion 报告：加密方式、密钥、解密结果验证。"
 			}
 		},
 		{
 			"id": "extract-data",
 			"type": "llm",
-			"position": { "x": 200, "y": 960 },
+			"position": {
+				"x": 200,
+				"y": 960
+			},
 			"data": {
-				"prompt": "数据提取与格式分析。基于解密结果：{{decrypt.output}}\n\n**请执行**：\n1. 解析解密后的数据（JSON/XML/自定义二进制）\n2. 与反编译代码交叉验证数据格式\n3. 提取关键配置文件（关卡/道具/配置表）\n4. 建立结构化数据存储（SQLite/JSON）\n5. 批量验证所有文件格式有效性\n\n**经验规则**：\n- 增量验证！每取得阶段性成果就立即验证\n- 数据管道原则：原始数据 → 结构化存储 → 查询接口 → 验证工具\n- 不要跳过结构化存储步骤\n- 检查边界情况（空文件、最小文件、最大文件）\n\n完成后用 attempt_completion 报告：提取的数据表数量、数据格式、验证结果。"
+				"prompt": "数据提取与格式分析。基于解密结果：{{decrypt.output}}\n\n**请执行**：\n1. 解析解密后的数据（JSON/XML/自定义二进制）\n2. 与反编译代码交叉验证数据格式\n3. 提取关键配置文件（关卡/道具/配置表）\n4. 建立结构化数据存储（SQLite/JSON）\n5. 批量验证所有文件格式有效性\n6. **更新 REVERSE_MAP.md 状态表**：将本步骤标记为 ✅\n\n**经验规则**：\n- 增量验证！每取得阶段性成果就立即验证\n- 数据管道原则：原始数据 → 结构化存储 → 查询接口 → 验证工具\n- 不要跳过结构化存储步骤\n- 检查边界情况（空文件、最小文件、最大文件）\n\n完成后用 attempt_completion 报告：提取的数据表数量、数据格式、验证结果。"
 			}
 		},
 		{
 			"id": "verify",
 			"type": "llm",
-			"position": { "x": 200, "y": 1080 },
+			"position": {
+				"x": 200,
+				"y": 1080
+			},
 			"data": {
 				"prompt": "验证与总结。基于提取结果：{{extract-data.output}}\n\n**请执行**：\n1. 验证提取数据的完整性（数量、格式、边界情况）\n2. 与逆向目标 {{inputs.goal}} 对比，确认是否达成\n3. 更新 REVERSE_MAP.md，记录最终状态和关键发现\n4. 编写问题记录表（遇到的问题、原因、解决方案）\n5. 生成最终报告\n\n**经验规则**：\n- 逆向地图是项目的 GPS，完成后必须更新最终状态\n- 问题记录表避免重复踩坑\n- 状态标记让进度一目了然\n\n**一句话总结原则**（来自三个案例）：\n> 先看数据，再猜加密；先抓包，再逆向；先静态，再动态；设时间盒，及时转向。\n\n完成后用 attempt_completion 报告：逆向目标达成情况、提取数据统计、关键经验总结、REVERSE_MAP.md 最终版本路径。"
 			}
 		}
 	],
 	"edges": [
-		{ "id": "e0", "source": "env-check", "target": "env-gate" },
-		{ "id": "e0a", "source": "env-gate", "target": "init", "data": { "branch": "true" } },
-		{ "id": "e0b", "source": "env-gate", "target": "env-fail", "data": { "branch": "false" } },
-		{ "id": "e1", "source": "init", "target": "decompile" },
-		{ "id": "e2", "source": "decompile", "target": "identify-engine" },
-		{ "id": "e3", "source": "identify-engine", "target": "engine-check" },
-		{ "id": "e4", "source": "engine-check", "target": "unity-il2cpp-dump", "data": { "branch": "true" } },
-		{ "id": "e5", "source": "engine-check", "target": "cocos-check", "data": { "branch": "false" } },
-		{ "id": "e6", "source": "cocos-check", "target": "cocos-ida-analysis", "data": { "branch": "true" } },
-		{ "id": "e7", "source": "cocos-check", "target": "godot-check", "data": { "branch": "false" } },
-		{ "id": "e8", "source": "godot-check", "target": "godot-gdc-decode", "data": { "branch": "true" } },
-		{ "id": "e9", "source": "godot-check", "target": "unknown-engine", "data": { "branch": "false" } },
-
-		{ "id": "e10", "source": "unity-il2cpp-dump", "target": "unity-stub-analysis" },
-		{ "id": "e11", "source": "unity-stub-analysis", "target": "unity-ida-decompile" },
-		{ "id": "e11b", "source": "unity-ida-decompile", "target": "unity-data-acquire" },
-		{ "id": "e12", "source": "unity-data-acquire", "target": "decrypt" },
-
-		{ "id": "e13", "source": "cocos-ida-analysis", "target": "cocos-data-locate" },
-		{ "id": "e14", "source": "cocos-data-locate", "target": "decrypt" },
-
-		{ "id": "e15", "source": "godot-gdc-decode", "target": "godot-find-key" },
-		{ "id": "e16", "source": "godot-find-key", "target": "decrypt" },
-
-		{ "id": "e17", "source": "unknown-engine", "target": "decrypt" },
-
-		{ "id": "e18", "source": "decrypt", "target": "extract-data" },
-		{ "id": "e19", "source": "extract-data", "target": "verify" }
+		{
+			"id": "e0",
+			"source": "env-check",
+			"target": "env-gate"
+		},
+		{
+			"id": "e0a",
+			"source": "env-gate",
+			"target": "decompile",
+			"data": {
+				"branch": "true"
+			}
+		},
+		{
+			"id": "e0b",
+			"source": "env-gate",
+			"target": "env-fail",
+			"data": {
+				"branch": "false"
+			}
+		},
+		{
+			"id": "e1",
+			"source": "init",
+			"target": "env-check"
+		},
+		{
+			"id": "e2",
+			"source": "decompile",
+			"target": "identify-engine"
+		},
+		{
+			"id": "e3",
+			"source": "identify-engine",
+			"target": "engine-check"
+		},
+		{
+			"id": "e4",
+			"source": "engine-check",
+			"target": "unity-il2cpp-dump",
+			"data": {
+				"branch": "true"
+			}
+		},
+		{
+			"id": "e5",
+			"source": "engine-check",
+			"target": "cocos-check",
+			"data": {
+				"branch": "false"
+			}
+		},
+		{
+			"id": "e6",
+			"source": "cocos-check",
+			"target": "cocos-ida-analysis",
+			"data": {
+				"branch": "true"
+			}
+		},
+		{
+			"id": "e7",
+			"source": "cocos-check",
+			"target": "godot-check",
+			"data": {
+				"branch": "false"
+			}
+		},
+		{
+			"id": "e8",
+			"source": "godot-check",
+			"target": "godot-gdc-decode",
+			"data": {
+				"branch": "true"
+			}
+		},
+		{
+			"id": "e9",
+			"source": "godot-check",
+			"target": "unknown-engine",
+			"data": {
+				"branch": "false"
+			}
+		},
+		{
+			"id": "e10",
+			"source": "unity-il2cpp-dump",
+			"target": "unity-stub-analysis"
+		},
+		{
+			"id": "e11",
+			"source": "unity-stub-analysis",
+			"target": "unity-ida-decompile"
+		},
+		{
+			"id": "e11b",
+			"source": "unity-ida-decompile",
+			"target": "unity-data-acquire"
+		},
+		{
+			"id": "e12",
+			"source": "unity-data-acquire",
+			"target": "decrypt"
+		},
+		{
+			"id": "e13",
+			"source": "cocos-ida-analysis",
+			"target": "cocos-data-locate"
+		},
+		{
+			"id": "e14",
+			"source": "cocos-data-locate",
+			"target": "decrypt"
+		},
+		{
+			"id": "e15",
+			"source": "godot-gdc-decode",
+			"target": "godot-find-key"
+		},
+		{
+			"id": "e16",
+			"source": "godot-find-key",
+			"target": "decrypt"
+		},
+		{
+			"id": "e17",
+			"source": "unknown-engine",
+			"target": "decrypt"
+		},
+		{
+			"id": "e18",
+			"source": "decrypt",
+			"target": "extract-data"
+		},
+		{
+			"id": "e19",
+			"source": "extract-data",
+			"target": "verify"
+		}
 	]
 }
