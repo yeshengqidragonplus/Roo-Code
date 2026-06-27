@@ -162,8 +162,10 @@ workflow.advance(state, lastOutput) -> { state, nextPrompt?, action?, done, fina
 2. ✅ **类型 B 自驱**：`terminationHint` 注入系统提示词（`src/core/prompts/system.ts`）；示例 `.roomodes` 的 `first-principles`。
 3. ✅ **宿主侧工作流循环（骨架）**：`WorkflowExpertRunner`（依赖注入、可单测）+ `WorkflowEngineProvider`（运行时加载、已用真引擎验证）。
 4. ✅ **工作流加载 + 字段 + UI + 状态持久化**：`WorkflowRegistry`（扫 `.roo/workflows/`）、`workflowId` 字段、mode 创建界面工作流下拉、`workflow_state.json` 会话级持久化。
-5. ⬜ **最后一公里：串进 Task.ts**（见 §7）——让类型 A 专家在 app 里真跑。
-6. ⬜ **并行子专家**（需重构单活动任务模型，后置）。
+5. ✅ **最后一公里：串进 Task.ts**（见 §7）——类型 A 专家已在 app 里真跑（`initWorkflowSession`/`applyWorkflowTurn`，Phase 1）。
+6. ✅ **Phase 2 硬 `delegate`**：跨 dispose 续跑（`pendingDelegation` + reopen resume）。见 [workflow-phase2-plan.md](workflow-phase2-plan.md)。
+7. ✅ **Phase 3 硬 `tool`/`skill`（3a 只读内置）**：`HostToolInvoker` + `toolPolicy` + `runHardToolLoop` 机械执行循环。见 [workflow-phase3-plan.md](workflow-phase3-plan.md)。
+8. ⬜ **并行子专家**（需重构单活动任务模型，后置）。
 
 ---
 
@@ -216,7 +218,7 @@ while (!this.abort) {
 
 **Phase 2 — 硬 `delegate`〔已实现〕**：复用 `delegateParentAndOpenChild` + `reopenParentFromDelegation`。委派会 **dispose 父任务**，advance 不能内联 await——在 reopen 后重走的 `initWorkflowSession` resume 分支里，凭 `pendingDelegation` 标记把子专家摘要当 `lastOutput` 续 advance（`resumeFrom` 语义）。接线细节、消息契约处理见 [workflow-phase2-plan.md](workflow-phase2-plan.md)。
 
-**Phase 3 — 硬 `tool`/`skill`**：宿主"机械地"直调工具/技能 handler（绕过 `presentAssistantMessage` 的模型驱动流程）。最繁琐，最后做。`WorkflowSession.consume` 目前对 `tool`/`skill` 动作明确抛错（Phase 3 占位）。
+**Phase 3 — 硬 `tool`/`skill`〔已实现，3a 只读内置〕**：宿主经 `HostToolInvoker` 机械直调工具 handler（绕过 `presentAssistantMessage` 的模型驱动流程），结果走带外通道喂回 `advance()`（无悬空 tool_use）。`WorkflowSession.consume` 透出 `turn.action`；`Task.runHardToolLoop` 内层循环连跑硬步骤不进 LLM turn；`toolPolicy`（与 mode `groups` 解耦）管权限，默认空=拒绝。3a 仅只读内置工具；3b（MCP）/3c（技能+有副作用）待做。细节见 [workflow-phase3-plan.md](workflow-phase3-plan.md)。
 
 ### 7.3 Phase 1 设计点
 

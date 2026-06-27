@@ -71,6 +71,29 @@ export const delegationPolicySchema = z.object({
 export type DelegationPolicy = z.infer<typeof delegationPolicySchema>
 
 /**
+ * Tool/skill execution policy for workflow (type-A) experts — Phase 3.
+ *
+ * This gates which tools/skills a workflow may mechanically invoke at hard
+ * `tool`/`skill` nodes (no LLM turn). It is deliberately SEPARATE from the
+ * mode's `groups`: `groups` decides which tools appear in the system prompt
+ * (model-visible), whereas `toolPolicy` decides which tools the workflow may
+ * execute directly (model-invisible). Keeping them decoupled preserves the
+ * prompt-cache benefit of hard tools (the tools stay out of the system prompt).
+ * See docs/workflow-phase3-plan.md §4.2.
+ *
+ * Default empty = no hard tool/skill may run (fail-safe). The HostToolInvoker
+ * checks this before every mechanical invocation; unauthorized → reject + error.
+ */
+export const toolPolicySchema = z.object({
+	/** Exact tool/skill names this workflow expert may mechanically invoke. */
+	allowedTools: z.array(z.string()).optional(),
+	/** Optional: allow whole categories at once (e.g. "mcp", "read"). */
+	allowedCategories: z.array(z.enum(["read", "edit", "command", "mcp", "skill"])).optional(),
+})
+
+export type ToolPolicy = z.infer<typeof toolPolicySchema>
+
+/**
  * The expert-specific fields mixed into `modeConfigSchema`. All optional so a
  * plain mode entry remains valid. mode.ts spreads this into its object schema.
  */
@@ -79,6 +102,8 @@ export const expertModeFields = {
 	/** Required (validated separately) when `kind === "workflow"`. */
 	workflow: workflowBindingSchema.optional(),
 	delegation: delegationPolicySchema.optional(),
+	/** Phase 3: which tools/skills a workflow expert may mechanically invoke. */
+	toolPolicy: toolPolicySchema.optional(),
 	/**
 	 * Soft guidance for type-B experts on when the task is considered done.
 	 * Kept separate from `customInstructions` to allow future programmatic

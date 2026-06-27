@@ -124,7 +124,13 @@ import {
 	type WorkflowSessionDeps,
 	type WorkflowTurn,
 } from "../expert/WorkflowSession"
+import { HostToolInvoker, buildReadOnlyToolRegistry, type HardToolInvocation } from "../expert/HostToolInvoker"
 import { createDynamicImportProvider } from "../expert/WorkflowEngineProvider"
+import { readFileTool } from "../tools/ReadFileTool"
+import { listFilesTool } from "../tools/ListFilesTool"
+import { codebaseSearchTool } from "../tools/CodebaseSearchTool"
+import { searchFilesTool } from "../tools/SearchFilesTool"
+import type { ToolPolicy } from "@roo-code/types"
 import { getEnvironmentDetails } from "../environment/getEnvironmentDetails"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
 import {
@@ -2562,6 +2568,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 *   then exits; the workflow resumes when the parent reopens). If the target
 	 *   expert can't be delegated to, fall back to a soft prompt for the current
 	 *   expert so the task is never stuck.
+	 * - action (Phase 3): mechanically execute the hard tool/skill in an inner
+	 *   loop (no LLM turn), feeding each result back via `advance()` until a
+	 *   soft step, a delegate, or `done` is reached. On failure (§5.1 policy C:
+	 *   stop + report), the loop aborts and the task ends.
 	 * - prompt: inject the framed next-step prompt.
 	 */
 	private async applyWorkflowTurn(
@@ -2578,6 +2588,103 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 			// Fallback: let the current expert attempt the goal as a soft step.
 			return [{ type: "text", text: frameWorkflowStepPrompt(turn.delegate.goal) }]
+		}
+		if (turn.action) {
+			return await this.runHardToolLoop(turn, userContent)
+		}
+		if (turn.prompt) {
+			return [{ type: "text", text: frameWorkflowStepPrompt(turn.prompt) }]
+		}
+		return userContent
+	}
+
+	/**
+	 * Phase 3 inner loop: mechanically execute consecutive hard tool/skill
+	 * actions WITHOUT issuing an LLM turn. Each result is fed back into
+	 * `workflow.advance()`; the loop continues while the engine keeps emitting
+	 * `action` turns, and stops on the first soft `prompt`, a `delegate`, or
+	 * `done`. Failure policy (§5.1 C): on tool error or denied approval, report
+	 * and stop the workflow (return userContent so the Task loop ends cleanly).
+	 */
+	private async runHardToolLoop(
+		firstTurn: WorkflowTurn,
+		userContent: Anthropic.Messages.ContentBlockParam[],
+	): Promise<Anthropic.Messages.ContentBlockParam[]> {
+		if (!this.workflowSession) {
+			return userContent
+		}
+
+		const provider = this.providerRef.deref()
+		const state = await provider?.getState()
+		const modeConfig = getModeBySlug(this._taskMode || defaultModeSlug, state?.customModes)
+		const toolPolicy: ToolPolicy | undefined = modeConfig?.toolPolicy
+
+		const registry = buildReadOnlyToolRegistry({
+			readFileTool,
+			listFilesTool,
+			codebaseSearchTool,
+			searchFilesTool,
+		})
+		const invoker = new HostToolInvoker({
+			getTool: (name) => registry.get(name),
+			say: async (type, text) => {
+				await this.say(type as any, text)
+			},
+			askApproval: async (type, partialMessage) => {
+				const { response } = await this.ask(type as any, partialMessage)
+				return response === "yesButtonClicked"
+			},
+		})
+
+		let turn: WorkflowTurn = firstTurn
+		// Guard against runaway hard-tool chains (e.g. a cyclic workflow).
+		for (let i = 0; i < 50 && turn.action; i++) {
+			const invocation: HardToolInvocation = {
+				type: "tool",
+				name: turn.action.name,
+				params: turn.action.type === "tool" ? turn.action.params : turn.action.args,
+			}
+
+			let resultText: string
+			try {
+				const result = await invoker.invoke(this, invocation, toolPolicy)
+				if (result.isError) {
+					// §5.1 policy C: a tool-reported error stops the workflow.
+					await this.say(
+						"error",
+						`[workflow] Hard tool "${invocation.name}" reported an error; stopping workflow: ${result.output}`,
+					)
+					return userContent
+				}
+				resultText = result.output
+			} catch (error) {
+				// Unauthorized, unregistered, or thrown error: stop + report.
+				await this.say(
+					"error",
+					`[workflow] Hard tool "${invocation.name}" failed; stopping workflow: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				)
+				return userContent
+			}
+
+			// Feed the result back and advance. No LLM turn is issued here.
+			turn = await this.workflowSession.advance(resultText)
+			if (turn.done) {
+				return userContent
+			}
+			if (turn.delegate) {
+				// A delegate surfaced after hard steps: hand off to the delegate path.
+				return await this.applyWorkflowTurn(turn, userContent)
+			}
+			// turn.prompt or another turn.action: continue / break out accordingly.
+		}
+
+		if (turn.done) {
+			return userContent
+		}
+		if (turn.delegate) {
+			return await this.applyWorkflowTurn(turn, userContent)
 		}
 		if (turn.prompt) {
 			return [{ type: "text", text: frameWorkflowStepPrompt(turn.prompt) }]

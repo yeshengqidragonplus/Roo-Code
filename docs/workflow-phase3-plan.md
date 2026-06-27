@@ -1,6 +1,7 @@
 # Phase 3 接线方案 —— 硬 `tool` / `skill`（工作流机械执行工具/技能）
 
-> 状态：方案稿，**未实现**。承接 `expert-system-design.md` §7.2 Phase 3、`workflow-phase2-plan.md`。
+> 状态：**已实现**（2026-06-27，3a 只读内置工具）。承接 `expert-system-design.md` §7.2 Phase 3、`workflow-phase2-plan.md`。
+> 实现要点见文末"§9 实现记录"。
 > 目标：让类型 A 工作流走到 `tool`/`skill` 硬节点时，由宿主**机械地**直接执行该工具/技能（不花 LLM turn），拿结果喂回 `advance()` 续跑。
 
 ---
@@ -169,3 +170,30 @@ export const toolPolicySchema = z.object({
 6. 文档回填。
 
 > 建议：**Phase 2 手动 e2e 先落地确认**，再开 Phase 3（Phase 3 是纯新建，无 Phase 2 那种现成机制可借）。
+
+---
+
+## 9. 实现记录（2026-06-27，3a 已完成）
+
+按 §8 落地顺序，步骤 1–4 + 6 已完成（**3a：只读内置工具**）；3b（MCP）/3c（技能 + 有副作用内置）待做。
+
+### 已实现
+
+1. **WorkflowSession.ts**：consume 对 tool/skill 不再抛错，透出到 turn.action（WorkflowHardAction）。WorkflowTurn 加 action 字段。单测 11/11 过。
+2. **packages/types/src/expert.ts**：加 toolPolicySchema（allowedTools + allowedCategories）+ ToolPolicy 类型，混入 expertModeFields。与 mode groups 解耦（不进系统提示词）。单测 15/15 过。顺带重新生成 schemas/roomodes.json，修复预先存在的 workflowSkillName→workflowId schema 漂移。
+3. **src/core/expert/HostToolInvoker.ts（新文件）**：调用器。权限校验（默认空=拒绝）→ 合成 ToolUse（无 model tool_use id）→ 注入捕获版 callbacks（pushToolResult 只捕获、不写 userMessageContent）→ tool.handle() → 返回 {output, isError}。buildReadOnlyToolRegistry 注册 4 个只读工具。单测 19/19 过。
+4. **Task.ts**：applyWorkflowTurn 加 action 分支 → 新私有方法 runHardToolLoop（内层 while：连续硬步骤不进 LLM turn，每步 advance(result)，遇 soft/delegate/done 跳出）。审批路由到 this.ask（复用 auto-approval）。失败语义策略 C（失败即停 + 报告）。tsc --noEmit 通过。
+5. **真引擎集成测试**：real-engine.integration.spec.ts 加一条用 SAMPLE 的 read tool 节点驱动 WorkflowSession，断言 turn.action.type==="tool" + advance 续跑。本机无引擎产物 → skip。
+
+### 测试总计
+
+- core/expert/**tests**/：50 passed / 3 skipped（真引擎，无产物）
+- packages/types/src/**tests**/expert.spec.ts：15 passed
+- packages/types/src/**tests**/roomodes-schema\*.spec.ts：26 passed（含修复的 sync）
+
+### 未实现（后续）
+
+- **3b MCP**：HostToolInvoker 目前只注册只读内置工具。MCP 工具需绕开 use_mcp_tool 模型入口、直调 MCP 客户端。爬虫等专用工具的价值兑现处。
+- **3c 技能 + 有副作用内置**：skill（走 SkillTool）、execute_command/write_to_file/edit 等。最需审批、最易踩边界，最后做。
+- **§5.1 失败语义**：当前用策略 C（失败即停）。若工作流需自处理失败，再上策略 A（扩 advance 契约加失败信号，需与 AIWorkflow 协调）。
+- **手动 e2e**：装 vsix、配带 tool 硬节点的工作流 + 专家 toolPolicy、跑 read_file 验证。

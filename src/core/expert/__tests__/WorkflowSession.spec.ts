@@ -110,14 +110,39 @@ describe("WorkflowSession", () => {
 		expect(advanceArgs).toEqual([{ state: "s0", lastOutput: "the plan" }])
 	})
 
-	it("throws a clear Phase 3 error on tool/skill hard actions", async () => {
-		const toolEngine = scriptedEngine([
-			{ state: 0, action: { type: "tool", name: "read", params: {} }, done: false },
+	it("surfaces a tool hard action on the turn (Phase 3)", async () => {
+		const engine = scriptedEngine([
+			{ state: 0, action: { type: "tool", name: "read_file", params: { path: "a.ts" } }, done: false },
+			{ state: 1, done: true, finalResult: "ok" },
 		])
-		await expect(WorkflowSession.start("wf", {}, makeDeps(toolEngine))).rejects.toThrow(/Phase 3/)
+		const { session, turn } = await WorkflowSession.start("wf", {}, makeDeps(engine))
+		expect(turn).toEqual({
+			action: { type: "tool", name: "read_file", params: { path: "a.ts" } },
+			done: false,
+		})
+		expect(turn.prompt).toBeUndefined()
+		expect(turn.delegate).toBeUndefined()
 
-		const skillEngine = scriptedEngine([{ state: 0, action: { type: "skill", name: "x", args: {} }, done: false }])
-		await expect(WorkflowSession.start("wf", {}, makeDeps(skillEngine))).rejects.toThrow(/Phase 3/)
+		// Feeding the tool result back advances the workflow to completion.
+		const done = await session.advance("file contents here")
+		expect(done).toEqual({ done: true, finalResult: "ok" })
+	})
+
+	it("surfaces a skill hard action on the turn (Phase 3)", async () => {
+		const engine = scriptedEngine([
+			{ state: 0, action: { type: "skill", name: "my-skill", args: { x: 1 } }, done: false },
+		])
+		const { turn } = await WorkflowSession.start("wf", {}, makeDeps(engine))
+		expect(turn).toEqual({
+			action: { type: "skill", name: "my-skill", args: { x: 1 } },
+			done: false,
+		})
+	})
+
+	it("surfaces a tool action with no params field", async () => {
+		const engine = scriptedEngine([{ state: 0, action: { type: "tool", name: "list_files" }, done: false }])
+		const { turn } = await WorkflowSession.start("wf", {}, makeDeps(engine))
+		expect(turn.action).toEqual({ type: "tool", name: "list_files", params: undefined })
 	})
 
 	it("throws when a non-done step has no prompt", async () => {

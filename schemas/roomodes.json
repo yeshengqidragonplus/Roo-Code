@@ -29,22 +29,16 @@
 					},
 					"source": {
 						"type": "string",
-						"enum": [
-							"global",
-							"project"
-						]
+						"enum": ["global", "project"]
 					},
 					"kind": {
 						"type": "string",
-						"enum": [
-							"autonomous",
-							"workflow"
-						]
+						"enum": ["autonomous", "workflow"]
 					},
 					"workflow": {
 						"type": "object",
 						"properties": {
-							"workflowSkillName": {
+							"workflowId": {
 								"type": "string",
 								"minLength": 1
 							},
@@ -53,9 +47,7 @@
 								"additionalProperties": {}
 							}
 						},
-						"required": [
-							"workflowSkillName"
-						],
+						"required": ["workflowId"],
 						"additionalProperties": false
 					},
 					"delegation": {
@@ -73,9 +65,7 @@
 							},
 							"concurrency": {
 								"type": "string",
-								"enum": [
-									"serial"
-								],
+								"enum": ["serial"],
 								"default": "serial"
 							},
 							"maxDepth": {
@@ -85,10 +75,27 @@
 							},
 							"reportMode": {
 								"type": "string",
-								"enum": [
-									"summary"
-								],
+								"enum": ["summary"],
 								"default": "summary"
+							}
+						},
+						"additionalProperties": false
+					},
+					"toolPolicy": {
+						"type": "object",
+						"properties": {
+							"allowedTools": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							"allowedCategories": {
+								"type": "array",
+								"items": {
+									"type": "string",
+									"enum": ["read", "edit", "command", "mcp", "skill"]
+								}
 							}
 						},
 						"additionalProperties": false
@@ -102,14 +109,7 @@
 							"anyOf": [
 								{
 									"type": "string",
-									"enum": [
-										"read",
-										"edit",
-										"command",
-										"mcp",
-										"modes",
-										"browser"
-									]
+									"enum": ["read", "edit", "command", "mcp", "modes", "browser"]
 								},
 								{
 									"type": "array",
@@ -118,14 +118,7 @@
 									"items": [
 										{
 											"type": "string",
-											"enum": [
-												"read",
-												"edit",
-												"command",
-												"mcp",
-												"modes",
-												"browser"
-											]
+											"enum": ["read", "edit", "command", "mcp", "modes", "browser"]
 										},
 										{
 											"type": "object",
@@ -156,26 +149,17 @@
 									"type": "string"
 								}
 							},
-							"required": [
-								"relativePath"
-							],
+							"required": ["relativePath"],
 							"additionalProperties": false
 						}
 					}
 				},
-				"required": [
-					"slug",
-					"name",
-					"roleDefinition",
-					"groups"
-				],
+				"required": ["slug", "name", "roleDefinition", "groups"],
 				"additionalProperties": false
 			}
 		}
 	},
-	"required": [
-		"customModes"
-	],
+	"required": ["customModes"],
 	"additionalProperties": false,
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://github.com/RooCodeInc/Roo-Code/blob/main/schemas/roomodes.json",

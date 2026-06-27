@@ -1,7 +1,7 @@
 import type { WorkflowEngine, WorkflowState, WorkflowStep } from "@roo-code/types"
 
 /**
- * Host-side workflow session for a type-A (workflow) expert — Phase 1: soft-only.
+ * Host-side workflow session for a type-A (workflow) expert.
  *
  * The expert (Task loop) is the master; this session is consulted to obtain the
  * next step's prompt. A model `attempt_completion` marks a STEP (workflow node)
@@ -10,10 +10,12 @@ import type { WorkflowEngine, WorkflowState, WorkflowStep } from "@roo-code/type
  * truly done only when `advance()`/`start()` reports `done` (the workflow
  * terminal). See docs/expert-system-design.md §7.
  *
- * Phase 1 supports soft steps (`nextPrompt`). Phase 2 adds the hard `delegate`
- * action: it is surfaced on the turn (`turn.delegate`) so the host can spawn a
- * sub-expert, then feed its summary back via `advance()`. The other hard actions
- * (`tool`/`skill`) still surface as a clear error until Phase 3 wires them in.
+ * - Phase 1: soft steps (`nextPrompt`).
+ * - Phase 2: hard `delegate` action — surfaced on `turn.delegate` so the host
+ *   can spawn a sub-expert, then feed its summary back via `advance()`.
+ * - Phase 3: hard `tool`/`skill` actions — surfaced on `turn.action` so the
+ *   host can mechanically execute them (no LLM turn) and feed the result back
+ *   via `advance()`. See docs/workflow-phase3-plan.md.
  */
 
 /** Dependencies injected so the orchestration is testable in isolation. */
@@ -24,6 +26,11 @@ export interface WorkflowSessionDeps {
 	persist: (workflowId: string, state: WorkflowState) => Promise<void>
 }
 
+/** A hard tool/skill directive the host executes mechanically (no LLM turn). */
+export type WorkflowHardAction =
+	| { type: "tool"; name: string; params?: Record<string, unknown> }
+	| { type: "skill"; name: string; args?: Record<string, unknown> }
+
 /** The outcome of a session step the Task loop acts on. */
 export interface WorkflowTurn {
 	/** Prompt to inject for the next LLM step (undefined when done). */
@@ -31,9 +38,16 @@ export interface WorkflowTurn {
 	/**
 	 * Hard delegate directive: the host must spawn the named sub-expert with this
 	 * goal, then feed the child's summary back into `advance()` to continue.
-	 * Exactly one of `prompt` / `delegate` is set on a non-done turn.
+	 * Exactly one of `prompt` / `delegate` / `action` is set on a non-done turn.
 	 */
 	delegate?: { expert: string; goal: string }
+	/**
+	 * Hard tool/skill directive (Phase 3): the host must mechanically execute
+	 * this tool/skill (no LLM turn), then feed the result text back into
+	 * `advance()` to continue. Exactly one of `prompt` / `delegate` / `action`
+	 * is set on a non-done turn.
+	 */
+	action?: WorkflowHardAction
 	/** True when the whole workflow has finished. */
 	done: boolean
 	/** Final result summary when done. */
@@ -93,11 +107,18 @@ export class WorkflowSession {
 			if (step.action.type === "delegate") {
 				return { delegate: { expert: step.action.expert, goal: step.action.goal }, done: false }
 			}
-			// tool/skill remain Phase 3 — fail clearly rather than silently stalling.
-			throw new Error(
-				`Workflow hard actions of type "${step.action.type}" are not supported yet (Phase 3). ` +
-					`Only soft (LLM) steps and delegate actions are wired in.`,
-			)
+			// Phase 3: surface a tool/skill hard action so the host can execute it
+			// mechanically (no LLM turn) and feed the result back via advance().
+			if (step.action.type === "tool") {
+				return {
+					action: { type: "tool", name: step.action.name, params: step.action.params },
+					done: false,
+				}
+			}
+			return {
+				action: { type: "skill", name: step.action.name, args: step.action.args },
+				done: false,
+			}
 		}
 		if (step.nextPrompt === undefined) {
 			throw new Error("Workflow step is not done but has no nextPrompt")

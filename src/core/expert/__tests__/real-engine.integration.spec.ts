@@ -141,4 +141,33 @@ describe.skipIf(!haveArtifact)("real AIWorkflow engine integration", () => {
 		// Every step persisted engine state (start + 4 advances).
 		expect(persisted.length).toBe(5)
 	})
+
+	// Phase 3: the real engine surfaces a hard `tool` action as turn.action
+	// (type:"tool"), and feeding the tool result back via advance() continues to
+	// the next node. Uses SAMPLE's `read` tool node (hard) → `cls` llm node.
+	it("WorkflowSession surfaces a real-engine tool action and advances past it", async () => {
+		const persisted: unknown[] = []
+		const deps: WorkflowSessionDeps = {
+			createEngine: async () => createDynamicImportProvider(ARTIFACT)(SAMPLE),
+			persist: async (_id, state) => {
+				persisted.push(state)
+			},
+		}
+
+		// start() hits the `read` tool node first (hard) → action, not prompt.
+		const { session, turn: t0 } = await WorkflowSession.start("triage-flow", { issueText: "crash on save" }, deps)
+		expect(t0.action).toBeDefined()
+		expect(t0.action?.type).toBe("tool")
+		expect(t0.action?.name).toBe("readIssue")
+		expect(t0.prompt).toBeUndefined()
+
+		// Feed the (mechanically-produced) tool result back → engine advances to
+		// the `cls` llm node, whose prompt references {{read.output}}.
+		const t1 = await session.advance("issue: crash on save")
+		expect(t1.prompt).toContain("bug or feature: issue: crash on save")
+		expect(t1.action).toBeUndefined()
+
+		// Every step persisted engine state (start + 1 advance).
+		expect(persisted.length).toBe(2)
+	})
 })
