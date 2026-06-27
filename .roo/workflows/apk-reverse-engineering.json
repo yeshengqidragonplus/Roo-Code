@@ -1,7 +1,7 @@
 {
 	"name": "APK 逆向工程标准流程",
-	"description": "基于 Hexa Away(Unity)、Jewel Coloring(Cocos2dx)、Meowdoku(Godot) 三个实战案例提炼的 APK 逆向工作流。先确认目标（3选项），再检查环境工具（读 .roo/reverse-tools.json），通过后引擎识别分流到 Unity-IL2CPP / Cocos2dx / Godot 三条分支。每步完成后更新 REVERSE_MAP.md 状态表支持断点续跑。",
-	"version": "2.0.0",
+	"description": "基于 Hexa Away(Unity)、Jewel Coloring(Cocos2dx)、Meowdoku(Godot) 三个实战案例提炼的 APK 逆向工作流。先确认目标（3选项），再检查环境工具（读 .roo/reverse-tools.json），通过后引擎识别分流到 Unity-IL2CPP / Cocos2dx / Godot 三条分支。Godot 分支额外检查引擎源码。完成后可选生成 Demo 原型。每步更新 REVERSE_MAP.md 状态表支持断点续跑。",
+	"version": "3.0.0",
 	"inputs": [
 		{
 			"name": "apkPath",
@@ -394,6 +394,65 @@
 			"data": {
 				"prompt": "验证与总结。基于提取结果：{{extract-data.output}}\n\n**请执行**：\n1. 验证提取数据的完整性（数量、格式、边界情况）\n2. 与逆向目标 {{inputs.goal}} 对比，确认是否达成\n3. 更新 REVERSE_MAP.md，记录最终状态和关键发现\n4. 编写问题记录表（遇到的问题、原因、解决方案）\n5. 生成最终报告\n\n**经验规则**：\n- 逆向地图是项目的 GPS，完成后必须更新最终状态\n- 问题记录表避免重复踩坑\n- 状态标记让进度一目了然\n\n**一句话总结原则**（来自三个案例）：\n> 先看数据，再猜加密；先抓包，再逆向；先静态，再动态；设时间盒，及时转向。\n\n完成后用 attempt_completion 报告：逆向目标达成情况、提取数据统计、关键经验总结、REVERSE_MAP.md 最终版本路径。"
 			}
+		},
+		{
+			"id": "godot-src-check",
+			"type": "llm",
+			"position": {
+				"x": 400,
+				"y": 600
+			},
+			"data": {
+				"prompt": "【Godot 分支】检查 Godot 引擎源码是否可用。\n\n**本节点目标**：Godot 逆向需要参考对应版本的 Godot 开源源码（gdscript_tokenizer.cpp、resource_format_binary.cpp 等）。检查环境中是否已配置 Godot 源码路径。\n\n**请执行**：\n1. 读取 .roo/reverse-tools.json，检查是否有 godotSourcePath 字段\n2. 如果有，验证路径是否存在（用 read_file 或 execute_command 检查）\n3. 如果没有或路径无效，向用户展示选项：\n   - 选项1：用户输入 Godot 源码路径（输入后保存到 .roo/reverse-tools.json 的 godotSourcePath 字段）\n   - 选项2：停止流程\n4. 如果用户选择选项1并输入路径，验证路径有效后保存\n\n**请输出 JSON 格式**（仅输出 JSON）：\n```json\n{ \"hasSource\": true, \"sourcePath\": \"C:/godot-source\" }\n```\n或如果用户选择停止：\n```json\n{ \"hasSource\": false, \"sourcePath\": null, \"stopped\": true }\n```\n\n完成后用 attempt_completion 输出上述 JSON。",
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"hasSource": {
+							"type": "boolean"
+						},
+						"sourcePath": {
+							"type": ["string", "null"]
+						},
+						"stopped": {
+							"type": "boolean"
+						}
+					},
+					"required": ["hasSource"]
+				}
+			}
+		},
+		{
+			"id": "godot-src-gate",
+			"type": "condition",
+			"position": {
+				"x": 400,
+				"y": 660
+			},
+			"data": {
+				"expression": "{{godot-src-check.output.hasSource}} === true"
+			}
+		},
+		{
+			"id": "godot-src-fail",
+			"type": "llm",
+			"position": {
+				"x": 650,
+				"y": 660
+			},
+			"data": {
+				"prompt": "用户选择停止流程（未提供 Godot 源码路径）。Godot 逆向强烈建议参考对应版本源码。用 attempt_completion 报告：流程已停止，请获取 Godot 源码后重新启动。"
+			}
+		},
+		{
+			"id": "demo-prompt",
+			"type": "llm",
+			"position": {
+				"x": 200,
+				"y": 1560
+			},
+			"data": {
+				"prompt": "逆向数据已全部解出。现在询问用户是否需要生成 Demo 原型。\n\n**本节点目标**：向用户确认是否生成可交互的游戏 Demo 原型。\n\n**请向用户展示选项**：\n\n**选项1**：生成 Demo 原型\n- 根据当前游戏特点，选用 Python(Pygame) 或 HTML/JS 生成可交互原型\n- 加载解密后的关卡数据，实现核心玩法逻辑\n- 适合：想验证逆向结果、复刻游戏\n\n**选项2**：不生成，流程结束\n- 逆向数据已全部提取，直接结束\n\n**如果用户选择选项1**：\n1. 根据游戏类型选择技术栈：\n   - 棋盘/网格类游戏 → HTML/JS（轻量、跨平台、无需安装）\n   - 复杂动画/物理类游戏 → Python + Pygame\n2. 基于逆向数据创建原型：\n   - 加载解密后的关卡数据\n   - 实现核心玩法逻辑（参考逆向还原的算法）\n   - 实现基本交互（点击/键盘）\n   - 实现胜负检测\n3. 在输出目录下创建 demo/ 子目录\n4. 多轮 Bug 修复，确保可运行\n5. **更新 REVERSE_MAP.md 状态表**\n\n**经验规则**：\n- HTML/JS 比 Pygame 更轻量，不需要额外安装依赖\n- 先实现核心机制（1个棋子1个方向），验证后再扩展\n- 用1-2个具体关卡手动推演验证\n- Demo 是验证逆向结果正确性的最佳方式\n\n**如果用户选择选项2**：\n用 attempt_completion 报告：逆向流程完成，用户选择不生成 Demo。"
+			}
 		}
 	],
 	"edges": [
@@ -535,6 +594,32 @@
 			"id": "e19",
 			"source": "extract-data",
 			"target": "verify"
+		},
+		{
+			"id": "e9a",
+			"source": "godot-src-check",
+			"target": "godot-src-gate"
+		},
+		{
+			"id": "e9b",
+			"source": "godot-src-gate",
+			"target": "godot-gdc-decode",
+			"data": {
+				"branch": "true"
+			}
+		},
+		{
+			"id": "e9c",
+			"source": "godot-src-gate",
+			"target": "godot-src-fail",
+			"data": {
+				"branch": "false"
+			}
+		},
+		{
+			"id": "e21",
+			"source": "verify",
+			"target": "demo-prompt"
 		}
 	]
 }

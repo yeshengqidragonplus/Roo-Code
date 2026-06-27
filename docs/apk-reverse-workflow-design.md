@@ -272,4 +272,58 @@ decrypt prompt snippet:
 
 ---
 
-> **文档版本**: v1.0 | **最后更新**: 2026-06-28
+## 8. 用户配置指南（需求 3 & 4）
+
+工作流 JSON 本身无法控制 QCode 宿主侧的审批行为。以下两项需求需要用户在 QCode 设置中配置：
+
+### 8.1 选项不倒计时自动开始（需求 3）
+
+工作流中多个节点需要用户选择（init 的 3 选项、godot-src-check 的选项、demo-prompt 的选项）。默认情况下 QCode 的 auto-approval 有倒计时，超时自动拒绝。
+
+**配置方法**：在 QCode 设置中关闭 auto-approval timeout，让审批像手动确认一样一直等待：
+
+- `qcode.autoApprovalEnabled` = `false`（关闭自动审批，所有操作都手动确认）
+- 或 `qcode.autoApprovalTimeoutMs` = `0`（设为 0 表示不超时，一直等待）
+
+这样工作流中每个需要用户选择的节点都会一直等待用户手动点击，不会因超时而自动拒绝。
+
+### 8.2 安全沙盒自动执行（需求 4）
+
+用户希望在工作流执行过程中，除了危险操作外都自动执行，不需要逐个审批。
+
+**配置方法**：在 QCode 设置中开启 auto-approval，但只放开安全操作：
+
+- `qcode.autoApprovalEnabled` = `true`
+- `qcode.alwaysAllowReadOnly` = `true`（read_file/list_files 等只读操作自动批准）
+- `qcode.alwaysAllowWrite` = `true`（write_to_file/apply_diff 等写操作自动批准）
+- `qcode.alwaysAllowExecute` = `true`（execute_command 自动批准）
+- `qcode.alwaysAllowReadOnlyOutsideWorkspace` = `false`（工作区外只读仍需确认）
+- `qcode.alwaysAllowWriteOutsideWorkspace` = `false`（工作区外写入仍需确认）
+- `qcode.allowedCommands` = `["apktool", "python", "strings", "where", "which"]`（只自动批准安全命令）
+- `qcode.deniedCommands` = `["rm", "del", "format", "shutdown"]`（危险命令永远拒绝）
+
+**安全边界**：
+
+- 工作流在 `outputDir`（默认 reverse-output）目录内操作，相当于安全沙盒
+- 工作区外的操作仍需手动确认
+- 危险命令（rm/del/format）永远拒绝
+- 有副作用的工具（write_to_file/execute_command）由 Phase 3c 的 checkpoint 机制保护——执行前自动存档，失败时自动回退
+
+### 8.3 专家配置配合
+
+`.roomodes` 中 `apk-reverse-engineer` 专家的 `toolPolicy` 已配置：
+
+```yaml
+toolPolicy:
+    allowedTools: [read_file, list_files, write_to_file, execute_command, search_files]
+    allowedCategories: [read, edit, command]
+```
+
+配合上述 auto-approval 设置，工作流硬节点的机械执行会：
+
+- 只读工具（read_file/list_files/search_files）→ invoker 自动批准
+- 有副作用工具（write_to_file/execute_command）→ 自批准（避免双重审批）+ checkpoint 存档
+
+---
+
+> **文档版本**: v2.0 | **最后更新**: 2026-06-28

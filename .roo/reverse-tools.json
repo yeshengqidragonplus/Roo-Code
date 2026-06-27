@@ -39,5 +39,10 @@
 		"path": null,
 		"required": false,
 		"description": "Android 设备交互（动态分析/抓包时需要）"
+	},
+	"godotSourcePath": {
+		"path": null,
+		"required": false,
+		"description": "Godot 引擎源码路径（Godot 分支需要，用于参考 gdscript_tokenizer.cpp 等）"
 	}
 }
