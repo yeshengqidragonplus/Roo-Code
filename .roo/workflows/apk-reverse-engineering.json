@@ -67,6 +67,22 @@
 			}
 		},
 		{
+			"id": "env-gate",
+			"type": "condition",
+			"position": { "x": 0, "y": -60 },
+			"data": {
+				"expression": "{{env-check.output.apktool.available}} === true && {{env-check.output.python.available}} === true"
+			}
+		},
+		{
+			"id": "env-fail",
+			"type": "llm",
+			"position": { "x": -250, "y": -60 },
+			"data": {
+				"prompt": "环境检查未通过，流程终止。环境检查结果：{{env-check.output}}\n\n**必需工具不可用**，无法继续逆向流程。请安装缺失的工具后重新启动。\n\n**必需工具**：\n- apktool（APK 反编译）\n- python（脚本执行）\n\n**请执行**：\n1. 列出所有不可用的必需工具\n2. 给出安装建议（官方下载链接或包管理器命令）\n3. 用 attempt_completion 报告：环境检查失败，列出缺失的必需工具和安装建议\n\n注意：这是流程终止节点，不要继续后续步骤。"
+			}
+		},
+		{
 			"id": "init",
 			"type": "llm",
 			"position": { "x": 0, "y": 0 },
@@ -228,7 +244,9 @@
 		}
 	],
 	"edges": [
-		{ "id": "e0", "source": "env-check", "target": "init" },
+		{ "id": "e0", "source": "env-check", "target": "env-gate" },
+		{ "id": "e0a", "source": "env-gate", "target": "init", "data": { "branch": "true" } },
+		{ "id": "e0b", "source": "env-gate", "target": "env-fail", "data": { "branch": "false" } },
 		{ "id": "e1", "source": "init", "target": "decompile" },
 		{ "id": "e2", "source": "decompile", "target": "identify-engine" },
 		{ "id": "e3", "source": "identify-engine", "target": "engine-check" },
