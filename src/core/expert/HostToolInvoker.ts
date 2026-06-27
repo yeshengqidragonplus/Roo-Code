@@ -31,9 +31,25 @@ import type { BaseTool, ToolCallbacks } from "../tools/BaseTool"
 
 /** A hard tool/skill action to execute mechanically (mirrors WorkflowHardAction). */
 export interface HardToolInvocation {
-	type: "tool"
+	type: "tool" | "skill"
 	name: string
 	params?: Record<string, unknown>
+	/** For skill actions: the skill arguments (skill tool uses {skill, args}). */
+	args?: Record<string, unknown>
+}
+
+/**
+ * Whether a tool has side effects (writes files / runs commands / runs a skill).
+ * Read-only tools (3a) are safe to retry and need no checkpoint; side-effecting
+ * tools (3c) get a shadow-git checkpoint before execution so a failure can roll
+ * the workspace back. See docs/workflow-phase3-plan.md §9 (3c).
+ */
+export function hasSideEffect(name: string, type: "tool" | "skill" = "tool"): boolean {
+	if (type === "skill") {
+		return true // skills may run arbitrary tools internally
+	}
+	const category = toolCategoryFor(name)
+	return category === "edit" || category === "command" || category === "skill"
 }
 
 /** Outcome of a mechanical invocation. */
@@ -89,6 +105,17 @@ export interface HostToolInvokerDeps {
 	say: (type: string, text: string) => Promise<void>
 	/** Ask the user for approval, respecting auto-approval settings (§4.3). */
 	askApproval: (type: "tool", partialMessage: string) => Promise<boolean>
+	/**
+	 * Save a shadow-git checkpoint BEFORE a side-effecting tool runs; returns the
+	 * commit hash (or undefined if checkpoints are unavailable). 3c only; read-only
+	 * tools (3a) skip this. See docs/workflow-phase3-plan.md §9 (3c).
+	 */
+	saveCheckpoint?: () => Promise<string | undefined>
+	/**
+	 * Restore the workspace files to a previously saved checkpoint hash (3c failure
+	 * rollback). Only rolls files back; does NOT rewind conversation history.
+	 */
+	restoreCheckpoint?: (commitHash: string) => Promise<void>
 }
 
 export class HostToolInvoker {
@@ -107,35 +134,51 @@ export class HostToolInvoker {
 		invocation: HardToolInvocation,
 		policy: ToolPolicy | undefined,
 	): Promise<InvocationResult> {
-		const { name, params = {} } = invocation
+		const { name, type, params = {}, args } = invocation
 
 		// 1. Permission check (§4.2). Default empty = nothing allowed.
-		this.assertAllowed(name, policy)
+		this.assertAllowed(name, type, policy)
 
 		const tool = this.deps.getTool(name)
 		if (!tool) {
-			throw new Error(
-				`[workflow] Tool "${name}" is not registered for mechanical invocation. ` +
-					`Phase 3a supports read-only built-in tools only.`,
-			)
+			throw new Error(`[workflow] Tool "${name}" is not registered for mechanical invocation.`)
 		}
 
-		// 2. Approval (§4.3): same askApproval as model-driven calls, labeled.
-		const approvalMessage = JSON.stringify({ tool: "workflowStep", name, params })
-		const approved = await this.deps.askApproval("tool", approvalMessage)
-		if (!approved) {
-			return { output: `Tool "${name}" was not approved.`, isError: true }
+		// 2. Approval (§4.3). Read-only tools (3a) don't self-approve, so the invoker
+		//    gates them here. Side-effecting tools and skills (3c) run their OWN
+		//    askApproval internally (e.g. write_to_file, execute_command, SkillTool),
+		//    so the invoker skips its gate to avoid a double prompt.
+		const sideEffect = hasSideEffect(name, type)
+		if (!sideEffect) {
+			const approvalMessage = JSON.stringify({ tool: "workflowStep", name, params })
+			const approved = await this.deps.askApproval("tool", approvalMessage)
+			if (!approved) {
+				return { output: `Tool "${name}" was not approved.`, isError: true }
+			}
 		}
 
 		// 3. Audit trail (§4.4).
-		await this.deps.say("tool", `[workflow] Mechanically executing tool: ${name} ${JSON.stringify(params)}`)
+		await this.deps.say(
+			"tool",
+			`[workflow] Mechanically executing ${type}: ${name} ${JSON.stringify(type === "skill" ? args : params)}`,
+		)
+
+		// 3c: snapshot the workspace before a side-effecting tool so a failure can
+		// roll files back. Read-only tools skip this (no state to undo).
+		let checkpointHash: string | undefined
+		if (sideEffect && this.deps.saveCheckpoint) {
+			checkpointHash = await this.deps.saveCheckpoint()
+		}
 
 		// 4. Synthesize a ToolUse block (no model tool_use id — out-of-band).
+		//    Skill actions map to the skill tool's {skill, args} param shape.
+		const blockParams: Record<string, unknown> =
+			type === "skill" ? { skill: name, args: args ? JSON.stringify(args) : undefined } : params
 		const block = {
 			type: "tool_use" as const,
 			name,
-			params: params as Record<string, string>,
-			nativeArgs: params,
+			params: blockParams as Record<string, string>,
+			nativeArgs: blockParams,
 			partial: false,
 		} as ToolUse
 
@@ -153,9 +196,15 @@ export class HostToolInvoker {
 			},
 		}
 
-		await tool.handle(task, block, callbacks)
+		try {
+			await tool.handle(task, block, callbacks)
+		} catch (err) {
+			await this.rollback(task, name, checkpointHash)
+			throw err
+		}
 
 		if (capturedError) {
+			await this.rollback(task, name, checkpointHash)
 			throw new Error(`[workflow] Tool "${name}" failed: ${capturedError.message}`)
 		}
 
@@ -166,8 +215,30 @@ export class HostToolInvoker {
 		return { output, isError }
 	}
 
+	/**
+	 * Roll the workspace back to a checkpoint after a side-effecting tool failed
+	 * (3c, §5.1 policy C). Best-effort: logs on restore failure but does not mask
+	 * the original tool error. Only restores files; conversation history is left
+	 * intact (the workflow loop stops + reports separately).
+	 */
+	private async rollback(task: Task, name: string, hash: string | undefined): Promise<void> {
+		if (!hash || !this.deps.restoreCheckpoint) {
+			return
+		}
+		try {
+			await this.deps.restoreCheckpoint(hash)
+			await this.deps.say(
+				"tool",
+				`[workflow] Rolled back workspace to checkpoint after "${name}" failed (commit ${hash.slice(0, 8)}).`,
+			)
+		} catch (err) {
+			// Don't mask the original failure; just log.
+			console.error(`[workflow] checkpoint restore failed for "${name}":`, err)
+		}
+	}
+
 	/** Enforce the toolPolicy allowlist (§4.2). Throws on denial. */
-	private assertAllowed(name: string, policy: ToolPolicy | undefined): void {
+	private assertAllowed(name: string, type: "tool" | "skill", policy: ToolPolicy | undefined): void {
 		const allowedTools = policy?.allowedTools
 		const allowedCategories = policy?.allowedCategories
 
@@ -183,7 +254,9 @@ export class HostToolInvoker {
 			return
 		}
 
-		const category = toolCategoryFor(name)
+		// A skill action's name is the skill name, not "skill"; map it to the
+		// "skill" category so allowedCategories:["skill"] authorizes any skill.
+		const category = type === "skill" ? "skill" : toolCategoryFor(name)
 		if (category && allowedCategories?.includes(category)) {
 			return
 		}
@@ -226,6 +299,44 @@ export function buildReadOnlyToolRegistry(tools: {
 	map.set("list_files", tools.listFilesTool)
 	map.set("codebase_search", tools.codebaseSearchTool)
 	map.set("search_files", tools.searchFilesTool)
+	return map
+}
+
+/**
+ * Build the full tool registry for Phase 3c: read-only tools (3a) PLUS
+ * side-effecting built-ins (write/edit/command) and the skill tool. Each
+ * side-effecting tool is checkpoint-protected by the invoker (save before,
+ * restore on failure). MCP tools (3b) are still excluded — they are reached
+ * via the MCP client, not this registry.
+ */
+export function buildFullToolRegistry(tools: {
+	readFileTool: AnyTool
+	listFilesTool: AnyTool
+	codebaseSearchTool: AnyTool
+	searchFilesTool: AnyTool
+	writeToFileTool: AnyTool
+	applyDiffTool: AnyTool
+	editTool: AnyTool
+	searchReplaceTool: AnyTool
+	editFileTool: AnyTool
+	applyPatchTool: AnyTool
+	executeCommandTool: AnyTool
+	skillTool: AnyTool
+}): Map<string, AnyTool> {
+	const map = buildReadOnlyToolRegistry({
+		readFileTool: tools.readFileTool,
+		listFilesTool: tools.listFilesTool,
+		codebaseSearchTool: tools.codebaseSearchTool,
+		searchFilesTool: tools.searchFilesTool,
+	})
+	map.set("write_to_file", tools.writeToFileTool)
+	map.set("apply_diff", tools.applyDiffTool)
+	map.set("edit", tools.editTool)
+	map.set("search_replace", tools.searchReplaceTool)
+	map.set("edit_file", tools.editFileTool)
+	map.set("apply_patch", tools.applyPatchTool)
+	map.set("execute_command", tools.executeCommandTool)
+	map.set("skill", tools.skillTool)
 	return map
 }
 

@@ -124,12 +124,19 @@ import {
 	type WorkflowSessionDeps,
 	type WorkflowTurn,
 } from "../expert/WorkflowSession"
-import { HostToolInvoker, buildReadOnlyToolRegistry, type HardToolInvocation } from "../expert/HostToolInvoker"
+import { HostToolInvoker, buildFullToolRegistry, type HardToolInvocation } from "../expert/HostToolInvoker"
 import { createDynamicImportProvider } from "../expert/WorkflowEngineProvider"
 import { readFileTool } from "../tools/ReadFileTool"
 import { listFilesTool } from "../tools/ListFilesTool"
 import { codebaseSearchTool } from "../tools/CodebaseSearchTool"
 import { searchFilesTool } from "../tools/SearchFilesTool"
+import { writeToFileTool } from "../tools/WriteToFileTool"
+import { applyDiffTool as applyDiffToolClass } from "../tools/ApplyDiffTool"
+import { editTool, searchAndReplaceTool as searchReplaceTool } from "../tools/EditTool"
+import { editFileTool } from "../tools/EditFileTool"
+import { applyPatchTool } from "../tools/ApplyPatchTool"
+import { executeCommandTool } from "../tools/ExecuteCommandTool"
+import { skillTool } from "../tools/SkillTool"
 import type { ToolPolicy } from "@roo-code/types"
 import { getEnvironmentDetails } from "../environment/getEnvironmentDetails"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
@@ -2619,11 +2626,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const modeConfig = getModeBySlug(this._taskMode || defaultModeSlug, state?.customModes)
 		const toolPolicy: ToolPolicy | undefined = modeConfig?.toolPolicy
 
-		const registry = buildReadOnlyToolRegistry({
+		const registry = buildFullToolRegistry({
 			readFileTool,
 			listFilesTool,
 			codebaseSearchTool,
 			searchFilesTool,
+			writeToFileTool,
+			applyDiffTool: applyDiffToolClass,
+			editTool,
+			searchReplaceTool,
+			editFileTool,
+			applyPatchTool,
+			executeCommandTool,
+			skillTool,
 		})
 		const invoker = new HostToolInvoker({
 			getTool: (name) => registry.get(name),
@@ -2634,16 +2649,25 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const { response } = await this.ask(type as any, partialMessage)
 				return response === "yesButtonClicked"
 			},
+			// 3c: shadow-git checkpoint around side-effecting tools (save before,
+			// restore on failure). Read-only tools skip this inside the invoker.
+			saveCheckpoint: async () => {
+				const result = await checkpointSave(this, true, true)
+				return result?.commit
+			},
+			restoreCheckpoint: async (commitHash) => {
+				const service = await getCheckpointService(this)
+				await service?.restoreCheckpoint(commitHash)
+			},
 		})
 
 		let turn: WorkflowTurn = firstTurn
 		// Guard against runaway hard-tool chains (e.g. a cyclic workflow).
 		for (let i = 0; i < 50 && turn.action; i++) {
-			const invocation: HardToolInvocation = {
-				type: "tool",
-				name: turn.action.name,
-				params: turn.action.type === "tool" ? turn.action.params : turn.action.args,
-			}
+			const invocation: HardToolInvocation =
+				turn.action.type === "skill"
+					? { type: "skill", name: turn.action.name, args: turn.action.args }
+					: { type: "tool", name: turn.action.name, params: turn.action.params }
 
 			let resultText: string
 			try {
