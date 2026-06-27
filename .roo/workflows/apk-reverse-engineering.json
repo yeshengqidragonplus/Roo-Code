@@ -92,15 +92,23 @@
 			"type": "llm",
 			"position": { "x": -200, "y": 600 },
 			"data": {
-				"prompt": "【Unity IL2CPP 分支】C# Stub 静态分析。基于上一步：{{unity-il2cpp-dump.output}}\n\n**这是最重要的阶段**。C# stub 虽方法体为空，但类关系和方法签名能回答 80% 的问题。\n\n**请执行**：\n1. 读取 dump.cs，梳理核心类关系。优先关注后缀：\n   - Service/Manager/Controller/Client（业务逻辑入口，⭐⭐⭐）\n   - DAO/DTO/VO/Model（数据层，⭐⭐）\n2. 追踪目标数据的加载路径：\n   - 目标 DTO → 被哪个 DAO 引用？→ DAO 数据从哪来？\n   - CacheFromJson() → 来自 JSON（CDN/本地）\n   - CacheFromDB() → 来自数据库\n3. 搜索 stringliteral.json 中的关键词：encrypt/url/key/master/api/cdn\n4. 识别加密类（搜索 AesEncryptor/XOR/ES2/SQLCipher）\n5. 确认数据来源：本地存储 / CDN / 服务器API\n\n**经验规则**：\n- 看到加密类 ≠ 所有数据都用该方式加密！先确认目标数据是否真经过该类\n- 从 DTO 类名反向搜索引用它的 Service，快速定位数据消费者\n\n**时间盒**：本阶段 2-4 小时，超时转 IDA 反编译。\n\n完成后用 attempt_completion 报告：核心类关系图、数据加载路径、数据来源判断、加密类识别结果。"
+				"prompt": "【Unity IL2CPP 分支】C# Stub 静态分析。基于上一步：{{unity-il2cpp-dump.output}}\n\n**这是最重要的阶段**。C# stub 虽方法体为空，但类关系和方法签名能回答 80% 的问题。\n\n**请执行**：\n1. 读取 dump.cs，梳理核心类关系。优先关注后缀：\n   - Service/Manager/Controller/Client（业务逻辑入口，⭐⭐⭐）\n   - DAO/DTO/VO/Model（数据层，⭐⭐）\n2. 追踪目标数据的加载路径：\n   - 目标 DTO → 被哪个 DAO 引用？→ DAO 数据从哪来？\n   - CacheFromJson() → 来自 JSON（CDN/本地）\n   - CacheFromDB() → 来自数据库\n3. 搜索 stringliteral.json 中的关键词：encrypt/url/key/master/api/cdn\n4. 识别加密类（搜索 AesEncryptor/XOR/ES2/SQLCipher）\n5. 确认数据来源：本地存储 / CDN / 服务器API\n6. 标记需要 IDA 反编译的关键函数（加密/解密/数据加载/核心算法）\n\n**经验规则**：\n- 看到加密类 ≠ 所有数据都用该方式加密！先确认目标数据是否真经过该类\n- 从 DTO 类名反向搜索引用它的 Service，快速定位数据消费者\n- C# stub 能回答 80% 的问题，剩下 20% 需要查看方法体实现的才上 IDA\n\n**时间盒**：本阶段 2-4 小时，超时转 IDA 反编译。\n\n完成后用 attempt_completion 报告：核心类关系图、数据加载路径、数据来源判断、加密类识别结果、需要 IDA 反编译的关键函数 RVA 列表。"
+			}
+		},
+		{
+			"id": "unity-ida-decompile",
+			"type": "llm",
+			"position": { "x": -200, "y": 700 },
+			"data": {
+				"prompt": "【Unity IL2CPP 分支】IDA Pro 反编译关键函数。基于 stub 分析标记的关键函数：{{unity-stub-analysis.output}}\n\nC# stub 能回答 80% 的问题，但以下场景必须上 IDA：\n- 需要查看方法体实现（加密算法细节、数据解析逻辑）\n- 需要验证静态分析结论\n- 需要找到硬编码密钥\n\n**请执行**：\n1. 用 IDA Pro 加载 libil2cpp.so，导入 script.json 恢复函数名（必须！）\n2. 对 stub 分析标记的关键函数进行反编译\n3. 如果方法数 > 100，使用 IDA MCP py_eval 批量反编译：\n   - 工具链：dump.cs → extract_rvas.py → hexa_rvas_complex.json → batch_decompile_gen.py → pending_<ns>.json → IDA py_eval 批量反编译 → .c 文件\n   - py_eval 方案绕过 MCP 响应大小限制，直接在 IDA 内部执行反编译并保存到磁盘\n   - 比逐方法 MCP decompile 快 10 倍以上\n4. IDA 反编译结果与 C# stub 交叉验证：\n   - 函数调用关系：IDA 反编译中的函数调用 vs C# stub 中的方法调用\n   - 字段偏移：IDA 中的 *(this + offset) vs C# stub 中的字段声明顺序\n   - 字符串引用：IDA 中的 stringliteral 引用 vs stringliteral.json\n5. 用 translate_ida.py 自动翻译 IDA 伪代码为 C# 风格（18 pass，处理 vN 变量、_OWORD 类型等）\n\n**IDA 反编译常见模式**：\n| IDA 伪代码 | C# 等价 |\n|-----------|---------|\n| *(this + 0x80) | this.someField（查 dump.cs 确定字段名）|\n| sub_XXXXX(a1, a2) | obj.Method(arg1, arg2) |\n| LODWORD(x)/HIDWORD(x) | (int)(x & 0xFFFFFFFF) / (int)(x >> 32) |\n| 异步状态机 MoveNext() | async/await 编译产物 |\n\n**经验规则**：\n- IDA 函数名恢复是必须的，没有 script.json 的 IDA 只能看到 sub_XXXXX\n- 方法数 > 100 时用 py_eval 批量反编译，不要逐方法 MCP decompile\n- translate_ida.py 能处理大部分模式，但复杂控制流（异步状态机、LINQ 链）仍需手动翻译\n- 不要过早深入 IDA！先确认数据来源，数据来自 CDN 时抓包比反编译更高效\n\n**时间盒**：单函数分析 30 分钟，超时换下一个函数。\n\n完成后用 attempt_completion 报告：反编译的函数数量、关键函数实现摘要、与 stub 交叉验证结果、发现的硬编码密钥/URL（如有）。"
 			}
 		},
 		{
 			"id": "unity-data-acquire",
 			"type": "llm",
-			"position": { "x": -200, "y": 720 },
+			"position": { "x": -200, "y": 820 },
 			"data": {
-				"prompt": "【Unity IL2CPP 分支】数据获取。基于静态分析：{{unity-stub-analysis.output}}\n\n根据数据来源选择路径：\n\n**路径A：数据在本地**\n- 检查 APK 内资源文件（AssetRipper 导出的 TextAsset）\n- 检查 data.unity3d 等 AssetBundle\n- 检查 ES2/Data.bytes 等加密存储\n\n**路径B：数据来自 CDN（推荐优先尝试）**\n- 从 C# stub 找到 CDN URL 构建逻辑\n- 用 mitmproxy 抓包获取实际 URL\n- 直接下载加密数据文件\n\n**路径C：数据来自服务器 API**\n- 抓包获取 API 请求格式\n- 分析认证/签名机制\n\n**经验规则**：\n- 抓包优先于逆向！目标数据来自网络时，先抓包拿原始数据\n- mitmproxy 比 Fiddler/Charles 更适合自动化\n- 本地资源通常只有种子数据，核心业务数据多来自远程\n\n完成后用 attempt_completion 报告：获取到的数据文件列表、数据来源路径、是否加密。"
+				"prompt": "【Unity IL2CPP 分支】数据获取。基于静态分析和 IDA 反编译：\n- Stub 分析：{{unity-stub-analysis.output}}\n- IDA 反编译：{{unity-ida-decompile.output}}\n\n根据数据来源选择路径：\n\n**路径A：数据在本地**\n- 检查 APK 内资源文件（AssetRipper 导出的 TextAsset）\n- 检查 data.unity3d 等 AssetBundle\n- 检查 ES2/Data.bytes 等加密存储\n\n**路径B：数据来自 CDN（推荐优先尝试）**\n- 从 C# stub 找到 CDN URL 构建逻辑\n- 用 mitmproxy 抓包获取实际 URL\n- 直接下载加密数据文件\n\n**路径C：数据来自服务器 API**\n- 抓包获取 API 请求格式\n- 分析认证/签名机制\n\n**经验规则**：\n- 抓包优先于逆向！目标数据来自网络时，先抓包拿原始数据\n- mitmproxy 比 Fiddler/Charles 更适合自动化\n- 本地资源通常只有种子数据，核心业务数据多来自远程\n- 不要过早深入 IDA 反编译而忽略简单路径——数据来自 CDN 时抓包就能直接获取\n\n完成后用 attempt_completion 报告：获取到的数据文件列表、数据来源路径、是否加密。"
 			}
 		},
 
@@ -184,7 +192,8 @@
 		{ "id": "e9", "source": "godot-check", "target": "unknown-engine", "data": { "branch": "false" } },
 
 		{ "id": "e10", "source": "unity-il2cpp-dump", "target": "unity-stub-analysis" },
-		{ "id": "e11", "source": "unity-stub-analysis", "target": "unity-data-acquire" },
+		{ "id": "e11", "source": "unity-stub-analysis", "target": "unity-ida-decompile" },
+		{ "id": "e11b", "source": "unity-ida-decompile", "target": "unity-data-acquire" },
 		{ "id": "e12", "source": "unity-data-acquire", "target": "decrypt" },
 
 		{ "id": "e13", "source": "cocos-ida-analysis", "target": "cocos-data-locate" },
