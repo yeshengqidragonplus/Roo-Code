@@ -1,0 +1,201 @@
+{
+	"name": "APK 逆向工程标准流程",
+	"description": "基于 Hexa Away(Unity)、Jewel Coloring(Cocos2dx)、Meowdoku(Godot) 三个实战案例提炼的 APK 逆向工作流。引擎识别后分流到 Unity-IL2CPP / Cocos2dx / Godot 三条分支，每条分支编码了对应引擎的逆向经验、检查清单和止损原则。覆盖信息收集、核心逻辑分析、数据定位、加密破解、增量验证全流程。",
+	"version": "1.0.0",
+	"inputs": [
+		{ "name": "apkPath", "type": "string", "required": true, "description": "APK 文件路径（或解包后的目录路径）" },
+		{
+			"name": "goal",
+			"type": "string",
+			"required": true,
+			"description": "逆向目标，如：提取关卡数据 / 还原核心玩法 / 提取美术资源"
+		},
+		{
+			"name": "outputDir",
+			"type": "string",
+			"required": false,
+			"default": "reverse-output",
+			"description": "逆向产出目录"
+		}
+	],
+	"nodes": [
+		{
+			"id": "init",
+			"type": "llm",
+			"position": { "x": 0, "y": 0 },
+			"data": {
+				"prompt": "你是 APK 逆向工程项目协调员。请确认以下信息并创建项目结构：\n\n**APK 路径**: {{inputs.apkPath}}\n**逆向目标**: {{inputs.goal}}\n**输出目录**: {{inputs.outputDir}}\n\n请执行以下初始化步骤：\n1. 确认 APK 文件存在（用 read_file 或 execute_command 检查）\n2. 在输出目录下创建标准逆向项目结构：\n   - REVERSE_MAP.md（逆向地图，项目导航核心）\n   - doc/（流程记录、关键发现、问题记录）\n   - tools/（分析脚本）\n   - decompiled/（反编译输出）\n3. 在 REVERSE_MAP.md 中写入项目信息表（APK路径、目标、日期）和空的逆向决策树\n\n**经验规则（来自实战）**：\n- 逆向地图是项目的 GPS，每次进展或失败都要更新\n- 主从引用结构：REVERSE_MAP.md 保持精简，详细内容放 doc/ 下从文档\n- 状态标记用 ✅完成 / 🔄进行中 / ❌失败\n\n完成后用 attempt_completion 报告：项目结构已创建、APK 已确认、REVERSE_MAP.md 初始版本已写入。"
+			}
+		},
+		{
+			"id": "decompile",
+			"type": "llm",
+			"position": { "x": 0, "y": 120 },
+			"data": {
+				"prompt": "对 APK 进行基础反编译和信息收集。基于上一步结果：{{init.output}}\n\n**请执行**：\n1. 用 execute_command 运行 `apktool d {{inputs.apkPath}} -o {{inputs.outputDir}}/decompiled/base -f` 反编译 APK\n2. 如果是 AAB 分发（多个 split APK），必须解包所有 split APK（base + split_asset_pack* + split_config.*）\n3. 读取 AndroidManifest.xml，提取：包名、主 Activity、权限列表\n4. 检查 lib/ 目录确认 APK 架构（arm64-v8a / armeabi-v7a / x86_64）\n5. 检查是否有加固/壳（class.dex 大小异常、搜索加固特征）\n6. 检查是否有反调试/反 Frida（搜索 frida/xposed/debug 关键字）\n\n**经验规则**：\n- AAB 分发的游戏，数据分布在多个 split APK 中，只解包 base 会遗漏大量数据\n- split_assetPackInstallTime.apk 通常包含游戏主要数据\n- 必须确认架构匹配，x86_64模拟器 + ARM64 APK = Houdini翻译 = Frida Native hook 不可用\n\n完成后用 attempt_completion 报告：反编译完成、包名、架构、是否有加固/反调试、split APK 数量。"
+			}
+		},
+		{
+			"id": "identify-engine",
+			"type": "llm",
+			"position": { "x": 0, "y": 240 },
+			"data": {
+				"prompt": "识别游戏引擎。基于反编译结果：{{decompile.output}}\n\n**引擎识别方法**（按优先级）：\n1. 检查 lib/ 目录下的 .so 文件名：\n   - libil2cpp.so + libunity.so → **Unity IL2CPP**\n   - libMyGame.so / libcocos2djs.so / libcocos2dlua.so → **Cocos2dx**\n   - libgodot_android.so / libgodot.so → **Godot Engine**\n2. 检查 AndroidManifest.xml 中的 Activity 类名：\n   - com.unity3d.player.UnityPlayerActivity → Unity\n   - org.cocos2dx.cpp.AppActivity → Cocos2dx\n   - org.godot.engine.GodotActivity → Godot\n3. 检查 assets/ 目录特征文件：\n   - assets/bin/Data/ + global-metadata.dat → Unity IL2CPP\n   - assets/bin/Data/mainData → Cocos2dx BigFile\n   - *.gdc 文件 → Godot GDScript 编译\n4. 用 strings 搜索引擎版本字符串\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"engine\": \"unity\" | \"cocos\" | \"godot\" | \"unknown\",\n  \"engineVersion\": \"版本号或未知\",\n  \"scriptBackend\": \"IL2CPP/Mono/JS/Lua/GDScript/原生C++\",\n  \"coreLib\": \"核心 .so 文件名\",\n  \"evidence\": \"识别依据简述\"\n}\n```\n\n完成后用 attempt_completion 输出上述 JSON。",
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"engine": { "type": "string", "enum": ["unity", "cocos", "godot", "unknown"] },
+						"engineVersion": { "type": "string" },
+						"scriptBackend": { "type": "string" },
+						"coreLib": { "type": "string" },
+						"evidence": { "type": "string" }
+					},
+					"required": ["engine"]
+				}
+			}
+		},
+		{
+			"id": "engine-check",
+			"type": "condition",
+			"position": { "x": 0, "y": 360 },
+			"data": {
+				"expression": "{{identify-engine.output.engine}} === \"unity\""
+			}
+		},
+		{
+			"id": "cocos-check",
+			"type": "condition",
+			"position": { "x": 200, "y": 360 },
+			"data": {
+				"expression": "{{identify-engine.output.engine}} === \"cocos\""
+			}
+		},
+		{
+			"id": "godot-check",
+			"type": "condition",
+			"position": { "x": 400, "y": 360 },
+			"data": {
+				"expression": "{{identify-engine.output.engine}} === \"godot\""
+			}
+		},
+
+		{
+			"id": "unity-il2cpp-dump",
+			"type": "llm",
+			"position": { "x": -200, "y": 480 },
+			"data": {
+				"prompt": "【Unity IL2CPP 分支】执行 Il2CppDumper 提取元数据。引擎信息：{{identify-engine.output}}\n\n**请执行**：\n1. 定位 libil2cpp.so（在 decompiled/base/lib/arm64-v8a/ 或对应架构目录）\n2. 定位 global-metadata.dat（通常在 assets/bin/Data/Managed/）\n3. 用 execute_command 运行 Il2CppDumper：\n   `Il2CppDumper libil2cpp.so global-metadata.dat {{inputs.outputDir}}/il2cpp_output/`\n4. 确认产出文件：dump.cs、stringliteral.json、script.json、DummyDll/\n5. 用 execute_command 运行 AssetRipper 导出 Unity 项目（C# stub + 资源）\n\n**经验规则**：\n- dump.cs 是 IL2CPP 项目的源码（虽方法体为空，但类名/方法签名/字段名/RVA完整）\n- stringliteral.json 是宝藏，包含所有硬编码字符串（CDN URL、密钥名、API路径）\n- script.json 是 IDA 函数名恢复脚本，必须导入 IDA\n- C# stub 优先策略：先读 stub 梳理架构，能回答 80% 的数据流问题\n\n完成后用 attempt_completion 报告：dump.cs 行数、stringliteral.json 关键字符串数量、script.json 是否生成。"
+			}
+		},
+		{
+			"id": "unity-stub-analysis",
+			"type": "llm",
+			"position": { "x": -200, "y": 600 },
+			"data": {
+				"prompt": "【Unity IL2CPP 分支】C# Stub 静态分析。基于上一步：{{unity-il2cpp-dump.output}}\n\n**这是最重要的阶段**。C# stub 虽方法体为空，但类关系和方法签名能回答 80% 的问题。\n\n**请执行**：\n1. 读取 dump.cs，梳理核心类关系。优先关注后缀：\n   - Service/Manager/Controller/Client（业务逻辑入口，⭐⭐⭐）\n   - DAO/DTO/VO/Model（数据层，⭐⭐）\n2. 追踪目标数据的加载路径：\n   - 目标 DTO → 被哪个 DAO 引用？→ DAO 数据从哪来？\n   - CacheFromJson() → 来自 JSON（CDN/本地）\n   - CacheFromDB() → 来自数据库\n3. 搜索 stringliteral.json 中的关键词：encrypt/url/key/master/api/cdn\n4. 识别加密类（搜索 AesEncryptor/XOR/ES2/SQLCipher）\n5. 确认数据来源：本地存储 / CDN / 服务器API\n\n**经验规则**：\n- 看到加密类 ≠ 所有数据都用该方式加密！先确认目标数据是否真经过该类\n- 从 DTO 类名反向搜索引用它的 Service，快速定位数据消费者\n\n**时间盒**：本阶段 2-4 小时，超时转 IDA 反编译。\n\n完成后用 attempt_completion 报告：核心类关系图、数据加载路径、数据来源判断、加密类识别结果。"
+			}
+		},
+		{
+			"id": "unity-data-acquire",
+			"type": "llm",
+			"position": { "x": -200, "y": 720 },
+			"data": {
+				"prompt": "【Unity IL2CPP 分支】数据获取。基于静态分析：{{unity-stub-analysis.output}}\n\n根据数据来源选择路径：\n\n**路径A：数据在本地**\n- 检查 APK 内资源文件（AssetRipper 导出的 TextAsset）\n- 检查 data.unity3d 等 AssetBundle\n- 检查 ES2/Data.bytes 等加密存储\n\n**路径B：数据来自 CDN（推荐优先尝试）**\n- 从 C# stub 找到 CDN URL 构建逻辑\n- 用 mitmproxy 抓包获取实际 URL\n- 直接下载加密数据文件\n\n**路径C：数据来自服务器 API**\n- 抓包获取 API 请求格式\n- 分析认证/签名机制\n\n**经验规则**：\n- 抓包优先于逆向！目标数据来自网络时，先抓包拿原始数据\n- mitmproxy 比 Fiddler/Charles 更适合自动化\n- 本地资源通常只有种子数据，核心业务数据多来自远程\n\n完成后用 attempt_completion 报告：获取到的数据文件列表、数据来源路径、是否加密。"
+			}
+		},
+
+		{
+			"id": "cocos-ida-analysis",
+			"type": "llm",
+			"position": { "x": 200, "y": 480 },
+			"data": {
+				"prompt": "【Cocos2dx 分支】IDA Pro 核心逻辑分析。引擎信息：{{identify-engine.output}}\n\nCocos2dx 没有 Il2CppDumper 这样的元数据工具，IDA 分析更依赖手动反编译。\n\n**请执行**：\n1. 确认核心库（libMyGame.so 或 libcocos2d*.so）\n2. 用 IDA Pro 加载核心库，反编译以下关键函数：\n   - GameDirector / GameController（游戏入口）\n   - BoardModel / LevelParser（数据模型和解析）\n   - FileHelper::readFile → FileUtilsAndroid::getContents（文件加载链）\n   - BigFile 相关函数（自定义文件系统）\n3. 理解文件加载链：FileHelper → FileUtils → BigFile\n4. 理解数据格式：从 parseLayers 等函数确认运行时格式\n5. 创建 IDA 类结构文档\n\n**经验规则**：\n- 逆向逻辑优先！先理解代码（文件加载链、数据格式），再搜索资源\n- 反编译结果与 apktool 解包文件交叉验证，避免误判\n- Cocos2dx 资源文件通常更开放（TMX/JSON/PNG），不像 Unity 那样序列化\n\n完成后用 attempt_completion 报告：核心函数反编译结果、文件加载链、数据格式判断。"
+			}
+		},
+		{
+			"id": "cocos-data-locate",
+			"type": "llm",
+			"position": { "x": 200, "y": 600 },
+			"data": {
+				"prompt": "【Cocos2dx 分支】数据定位与提取。基于 IDA 分析：{{cocos-ida-analysis.output}}\n\n**请执行**：\n1. 根据文件加载链定位数据包（mainData 等 BigFile）\n2. 分析 BigFile type 系统（不同 type 有不同处理方式）：\n   - type 't'：文本文件，RC4 解密后使用\n   - type 'b'：二进制文件，RC4 解密后作为资源\n   - type 'n'：普通文件，不经过解密，直接读取\n3. 分析加密方式（RC4/AES/XOR/自定义）\n4. 确认密钥来源（硬编码/运行时生成/包名派生）\n\n**经验规则**：\n- 分析文件分类系统！不同分类可能有不同处理方式\n- type 'n' 文件不需要解密，避免在不需解密的文件上浪费时间\n- 全面解包所有 split APK！数据可能分布在多个包中\n\n完成后用 attempt_completion 报告：数据包位置、BigFile type 分析、加密方式判断、密钥来源。"
+			}
+		},
+
+		{
+			"id": "godot-gdc-decode",
+			"type": "llm",
+			"position": { "x": 400, "y": 480 },
+			"data": {
+				"prompt": "【Godot 分支】GDScript .gdc 解码。引擎信息：{{identify-engine.output}}\n\nGodot Engine 的 GDScript 源码（即使编译为 .gdc）比原生库反编译容易得多！\n\n**请执行**：\n1. 提取所有 .gdc 文件（通常在 split_assetPackInstallTime.apk 中）\n2. 分析 GDSC 格式：\n   - 魔数：47 44 53 43（GDSC）\n   - 版本号：Godot 4.x = 101\n   - ZSTD 压缩\n   - 每个 uint32 字节的每个字节 XOR 0xb6\n   - Tokenizer Buffer：标识符表 + 常量表 + token 流\n3. 编写解码器，批量解码 .gdc 文件\n4. 验证 HEADER_DATA_FLAG_64：\n   - Godot 4.0-4.5：0x100\n   - Godot 4.6+：0x10000（版本差异！）\n\n**经验规则**：\n- GDScript 优先策略！先读 GDScript 源码，不需要 IDA Pro\n- 关键业务逻辑（加密、玩法、生成器）都在 GDScript 层\n- 阅读 Godot 开源源码是理解格式的最可靠方式\n- 遇到 Variant 解码错误，先检查 HEADER_DATA_FLAG_64\n\n完成后用 attempt_completion 报告：.gdc 文件数量、解码成功率、关键脚本列表。"
+			}
+		},
+		{
+			"id": "godot-find-key",
+			"type": "llm",
+			"position": { "x": 400, "y": 600 },
+			"data": {
+				"prompt": "【Godot 分支】从 GDScript 源码找加密密钥。基于解码结果：{{godot-gdc-decode.output}}\n\n**请执行**：\n1. 在解码后的 GDScript 源码中搜索加密/解密逻辑\n2. 搜索 const 字符串（密钥通常硬编码）\n3. 确认加密算法（XOR / AES / 自定义）\n4. 确认加密模式（编辑器模式不加密 vs 运行时模式加密）\n5. 编写解密工具，批量解密\n\n**经验规则**：\n- 代码分析优先于暴力破解！分析代码逻辑找密钥比任何暴力破解都高效\n- Godot 项目中，加密密钥通常是 GDScript 中的 const 字符串\n- 禁止暴力破解密码！不要尝试 XOR 密钥穷举、已知明文攻击穷举\n\n完成后用 attempt_completion 报告：密钥值、加密算法、解密成功率。"
+			}
+		},
+
+		{
+			"id": "unknown-engine",
+			"type": "llm",
+			"position": { "x": 600, "y": 480 },
+			"data": {
+				"prompt": "【未知引擎分支】无法识别引擎，执行通用逆向分析。引擎信息：{{identify-engine.output}}\n\n**请执行**：\n1. 列出 lib/ 目录所有 .so 文件\n2. 用 strings 搜索各 .so 中的特征字符串\n3. 检查 assets/ 目录所有文件类型\n4. 尝试识别是否为：Unreal Engine / 自研引擎 / Web 套壳\n5. 根据发现选择最接近的分析路径\n\n完成后用 attempt_completion 报告：发现的所有线索、最可能的引擎判断、建议的下一步。"
+			}
+		},
+
+		{
+			"id": "decrypt",
+			"type": "llm",
+			"position": { "x": 200, "y": 840 },
+			"data": {
+				"prompt": "加密数据破解。综合各分支的数据获取结果：\n- Unity: {{unity-data-acquire.output}}\n- Cocos: {{cocos-data-locate.output}}\n- Godot: {{godot-find-key.output}}\n- Unknown: {{unknown-engine.output}}\n\n**核心原则：先看数据，再猜加密；先简单，再复杂。**\n\n**标准流程**：\n1. **Hex dump 前 256 字节**（必须第一步！）\n2. 识别文件头：\n   - 7B22 = {\" → JSON 明文，可能没加密\n   - 504B0304 = PK → ZIP 压缩包\n   - 1F8B → GZIP\n   - 完全随机 → 真加密（AES/RSA）\n3. 尝试已知明文攻击（JSON 以 { 开头）\n4. 字节频率统计分析（判断加密强度）\n5. 编码检查：\n   - 含 CJK 字符时，检查是否码点级 XOR（非字节级）\n   - 加密后仍是有效 UTF-8 → 很可能码点级操作\n6. 全文件验证（不只是开头，检查末尾和非 ASCII 区域）\n\n**经验规则**：\n- 不要根据类名假设加密方式！看到 AesEncryptor ≠ 所有数据用 AES\n- Hex Dump First！拿到未知文件第一步永远是 hex dump\n- 如果简单方法都失败，再用 Unicorn Engine 模拟执行\n- RC4 是流加密，密钥流可预生成，一次 KSA + 多次 XOR 比逐文件快 10 倍\n\n**时间盒**：每个加密方向 30 分钟无突破则切换。\n\n完成后用 attempt_completion 报告：加密方式、密钥、解密结果验证。"
+			}
+		},
+		{
+			"id": "extract-data",
+			"type": "llm",
+			"position": { "x": 200, "y": 960 },
+			"data": {
+				"prompt": "数据提取与格式分析。基于解密结果：{{decrypt.output}}\n\n**请执行**：\n1. 解析解密后的数据（JSON/XML/自定义二进制）\n2. 与反编译代码交叉验证数据格式\n3. 提取关键配置文件（关卡/道具/配置表）\n4. 建立结构化数据存储（SQLite/JSON）\n5. 批量验证所有文件格式有效性\n\n**经验规则**：\n- 增量验证！每取得阶段性成果就立即验证\n- 数据管道原则：原始数据 → 结构化存储 → 查询接口 → 验证工具\n- 不要跳过结构化存储步骤\n- 检查边界情况（空文件、最小文件、最大文件）\n\n完成后用 attempt_completion 报告：提取的数据表数量、数据格式、验证结果。"
+			}
+		},
+		{
+			"id": "verify",
+			"type": "llm",
+			"position": { "x": 200, "y": 1080 },
+			"data": {
+				"prompt": "验证与总结。基于提取结果：{{extract-data.output}}\n\n**请执行**：\n1. 验证提取数据的完整性（数量、格式、边界情况）\n2. 与逆向目标 {{inputs.goal}} 对比，确认是否达成\n3. 更新 REVERSE_MAP.md，记录最终状态和关键发现\n4. 编写问题记录表（遇到的问题、原因、解决方案）\n5. 生成最终报告\n\n**经验规则**：\n- 逆向地图是项目的 GPS，完成后必须更新最终状态\n- 问题记录表避免重复踩坑\n- 状态标记让进度一目了然\n\n**一句话总结原则**（来自三个案例）：\n> 先看数据，再猜加密；先抓包，再逆向；先静态，再动态；设时间盒，及时转向。\n\n完成后用 attempt_completion 报告：逆向目标达成情况、提取数据统计、关键经验总结、REVERSE_MAP.md 最终版本路径。"
+			}
+		}
+	],
+	"edges": [
+		{ "id": "e1", "source": "init", "target": "decompile" },
+		{ "id": "e2", "source": "decompile", "target": "identify-engine" },
+		{ "id": "e3", "source": "identify-engine", "target": "engine-check" },
+		{ "id": "e4", "source": "engine-check", "target": "unity-il2cpp-dump", "data": { "branch": "true" } },
+		{ "id": "e5", "source": "engine-check", "target": "cocos-check", "data": { "branch": "false" } },
+		{ "id": "e6", "source": "cocos-check", "target": "cocos-ida-analysis", "data": { "branch": "true" } },
+		{ "id": "e7", "source": "cocos-check", "target": "godot-check", "data": { "branch": "false" } },
+		{ "id": "e8", "source": "godot-check", "target": "godot-gdc-decode", "data": { "branch": "true" } },
+		{ "id": "e9", "source": "godot-check", "target": "unknown-engine", "data": { "branch": "false" } },
+
+		{ "id": "e10", "source": "unity-il2cpp-dump", "target": "unity-stub-analysis" },
+		{ "id": "e11", "source": "unity-stub-analysis", "target": "unity-data-acquire" },
+		{ "id": "e12", "source": "unity-data-acquire", "target": "decrypt" },
+
+		{ "id": "e13", "source": "cocos-ida-analysis", "target": "cocos-data-locate" },
+		{ "id": "e14", "source": "cocos-data-locate", "target": "decrypt" },
+
+		{ "id": "e15", "source": "godot-gdc-decode", "target": "godot-find-key" },
+		{ "id": "e16", "source": "godot-find-key", "target": "decrypt" },
+
+		{ "id": "e17", "source": "unknown-engine", "target": "decrypt" },
+
+		{ "id": "e18", "source": "decrypt", "target": "extract-data" },
+		{ "id": "e19", "source": "extract-data", "target": "verify" }
+	]
+}
