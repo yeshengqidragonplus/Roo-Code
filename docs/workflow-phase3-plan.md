@@ -194,6 +194,6 @@ export const toolPolicySchema = z.object({
 ### 未实现（后续）
 
 - **3b MCP**：HostToolInvoker 目前只注册只读内置工具。MCP 工具需绕开 use_mcp_tool 模型入口、直调 MCP 客户端。爬虫等专用工具的价值兑现处。
-- **3c 技能 + 有副作用内置**：skill（走 SkillTool）、execute_command/write_to_file/edit 等。最需审批、最易踩边界，最后做。
+- **3c 技能 + 有副作用内置**：skill（走 SkillTool）、execute_command/write_to_file/edit 等。最需审批、最易踩边界，最后做。**关键：接入影子 git checkpoint**——`HostToolInvoker.invoke` 在执行有副作用的工具前调 `task.checkpointSave(true)` 存档点，失败时（§5.1）调 `checkpointRestore` 回退。模型驱动的有副作用工具已在 `presentAssistantMessage` 的 `checkpointSaveAndMark` 里这么做（[presentAssistantMessage.ts:678](../src/core/assistant-message/presentAssistantMessage.ts)），委派子任务（new_task）前也已存档（805 行）；3c 只需把同一机制接进 HostToolInvoker。3a 只读工具无需存档（无副作用，省开销）。
 - **§5.1 失败语义**：当前用策略 C（失败即停）。若工作流需自处理失败，再上策略 A（扩 advance 契约加失败信号，需与 AIWorkflow 协调）。
 - **手动 e2e**：装 vsix、配带 tool 硬节点的工作流 + 专家 toolPolicy、跑 read_file 验证。
