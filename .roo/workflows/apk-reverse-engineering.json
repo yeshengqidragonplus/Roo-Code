@@ -20,11 +20,58 @@
 	],
 	"nodes": [
 		{
+			"id": "env-check",
+			"type": "llm",
+			"position": { "x": 0, "y": -120 },
+			"data": {
+				"prompt": "环境检查：检测逆向工具链是否可用，记录每个工具的路径。\n\n**本节点目标**：在开始逆向之前，检查所有可能用到的逆向工具是否已安装且可用，记录它们的路径供后续节点使用。\n\n**产出**：JSON 格式的工具可用性报告（含每个工具的路径和状态）。\n\n**请用 execute_command 逐个检测以下工具**（Windows 用 `where`，Linux/Mac 用 `which`）：\n\n| 工具 | 检测命令 | 用途 |\n|------|----------|------|\n| apktool | `where apktool` 或 `apktool --version` | APK 反编译 |\n| Il2CppDumper | `where Il2CppDumper` 或检查常见路径 | Unity IL2CPP 元数据提取 |\n| AssetRipper | `where AssetRipper` 或检查常见路径 | Unity 资源导出 |\n| IDA Pro | `where ida` 或 `where ida64` 或检查常见路径 | ARM64 反编译 |\n| frida | `where frida` 或 `frida --version` | 运行时 hook |\n| mitmproxy | `where mitmproxy` 或 `mitmproxy --version` | HTTPS 抓包 |\n| python | `where python` 或 `python --version` | 脚本执行 |\n| adb | `where adb` 或 `adb version` | Android 设备交互 |\n\n**对于每个工具**：\n- 如果命令可用，记录其完整路径\n- 如果不可用，标记为 null 并注明是否为必需（根据逆向目标判断）\n- 对于 IDA Pro / Il2CppDumper / AssetRipper 等可能不在 PATH 中的工具，检查常见安装路径（如 C:\\Tools\\、~/Tools/ 等）\n\n**请输出 JSON 格式**（仅输出 JSON，不要其他文字）：\n```json\n{\n  \"apktool\": { \"path\": \"C:\\\\...\\\\apktool.bat\", \"available\": true },\n  \"il2cppdumper\": { \"path\": \"C:\\\\...\\\\Il2CppDumper.exe\", \"available\": true },\n  \"assetripper\": { \"path\": \"C:\\\\...\\\\AssetRipper.exe\", \"available\": false },\n  \"ida\": { \"path\": \"C:\\\\...\\\\ida64.exe\", \"available\": true },\n  \"frida\": { \"path\": null, \"available\": false },\n  \"mitmproxy\": { \"path\": \"C:\\\\...\\\\mitmproxy.exe\", \"available\": true },\n  \"python\": { \"path\": \"C:\\\\...\\\\python.exe\", \"available\": true },\n  \"adb\": { \"path\": \"C:\\\\...\\\\adb.exe\", \"available\": true },\n  \"warnings\": [\"frida 不可用：x86_64模拟器+ARM64 APK 时 Frida Native hook 不可用（Houdini），不影响静态分析\"]\n}\n```\n\n**经验规则**：\n- 工具不可用不一定要终止流程——静态分析不需要 frida/adb，只有动态分析才需要\n- IDA Pro 是商业软件，可能不在 PATH 中，需检查常见安装路径\n- 如果关键工具（apktool/python）不可用，应在 warnings 中明确标注为阻断性问题\n\n完成后用 attempt_completion 输出上述 JSON。",
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"apktool": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"il2cppdumper": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"assetripper": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"ida": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"frida": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"mitmproxy": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"python": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"adb": {
+							"type": "object",
+							"properties": { "path": { "type": ["string", "null"] }, "available": { "type": "boolean" } }
+						},
+						"warnings": { "type": "array", "items": { "type": "string" } }
+					},
+					"required": ["apktool", "python"]
+				}
+			}
+		},
+		{
 			"id": "init",
 			"type": "llm",
 			"position": { "x": 0, "y": 0 },
 			"data": {
-				"prompt": "你是 APK 逆向工程项目协调员。请确认以下信息并创建项目结构：\n\n**APK 路径**: {{inputs.apkPath}}\n**逆向目标**: {{inputs.goal}}\n**输出目录**: {{inputs.outputDir}}\n\n**本节点目标**：创建标准逆向项目结构，建立逆向地图（REVERSE_MAP.md）作为项目导航核心。\n\n**产出**：\n- REVERSE_MAP.md（项目信息表 + 逆向决策树 + 状态表）\n- doc/ 目录（流程记录、关键发现、问题记录）\n- tools/ 目录（分析脚本）\n- decompiled/ 目录（反编译输出）\n\n**请执行**：\n1. 确认 APK 文件存在（用 read_file 或 execute_command 检查）\n2. 在输出目录下创建上述标准逆向项目结构\n3. 在 REVERSE_MAP.md 中写入项目信息表（APK路径、目标、日期）和空的逆向决策树\n\n**经验规则（来自实战）**：\n- 逆向地图是项目的 GPS，每次进展或失败都要更新\n- 主从引用结构：REVERSE_MAP.md 保持精简，详细内容放 doc/ 下从文档\n- 状态标记用 ✅完成 / 🔄进行中 / ❌失败\n\n完成后用 attempt_completion 报告：项目结构已创建、APK 已确认、REVERSE_MAP.md 初始版本已写入。"
+				"prompt": "你是 APK 逆向工程项目协调员。请确认以下信息并创建项目结构：\n\n**APK 路径**: {{inputs.apkPath}}\n**逆向目标**: {{inputs.goal}}\n**输出目录**: {{inputs.outputDir}}\n\n**本节点目标**：创建标准逆向项目结构，建立逆向地图（REVERSE_MAP.md）作为项目导航核心，并将环境检查结果写入 REVERSE_MAP.md。\n\n**产出**：\n- REVERSE_MAP.md（项目信息表 + 逆向决策树 + 状态表 + 工具链状态表）\n- doc/ 目录（流程记录、关键发现、问题记录）\n- tools/ 目录（分析脚本）\n- decompiled/ 目录（反编译输出）\n\n**请执行**：\n1. 确认 APK 文件存在（用 read_file 或 execute_command 检查）\n2. 在输出目录下创建上述标准逆向项目结构\n3. 在 REVERSE_MAP.md 中写入：\n   - 项目信息表（APK路径、目标、日期）\n   - 工具链状态表：根据上一步环境检查（env-check 节点）的结果，列出每个工具的名称、路径、可用性。格式：\n     | 工具 | 路径 | 可用 | 用途 |\n     |------|------|------|------|\n     | apktool | ... | ✅/❌ | APK反编译 |\n     | ... | ... | ... | ... |\n   - 空的逆向决策树\n4. 如果环境检查有 warnings，记录到 doc/问题记录.md\n5. 将工具路径写入 tools/tool_paths.json，供后续节点脚本引用：\n   ```json\n   { \"apktool\": \"...\", \"python\": \"...\", \"ida\": \"...\", ... }\n   ```\n\n**经验规则（来自实战）**：\n- 逆向地图是项目的 GPS，每次进展或失败都要更新\n- 主从引用结构：REVERSE_MAP.md 保持精简，详细内容放 doc/ 下从文档\n- 状态标记用 ✅完成 / 🔄进行中 / ❌失败\n- 工具链状态表让后续节点知道哪些工具可用、路径在哪\n- tool_paths.json 让脚本可以读取工具路径，避免硬编码\n\n完成后用 attempt_completion 报告：项目结构已创建、APK 已确认、REVERSE_MAP.md 初始版本已写入（含工具链状态表）、tools/tool_paths.json 已生成。"
 			}
 		},
 		{
@@ -181,6 +228,7 @@
 		}
 	],
 	"edges": [
+		{ "id": "e0", "source": "env-check", "target": "init" },
 		{ "id": "e1", "source": "init", "target": "decompile" },
 		{ "id": "e2", "source": "decompile", "target": "identify-engine" },
 		{ "id": "e3", "source": "identify-engine", "target": "engine-check" },
