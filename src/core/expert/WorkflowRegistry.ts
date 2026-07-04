@@ -2,6 +2,7 @@ import * as fs from "fs/promises"
 import * as path from "path"
 
 import type { WorkflowSummary } from "@roo-code/types"
+import { safeWriteJson } from "../../utils/safeWriteJson"
 
 import { getGlobalRooDirectory } from "../../services/roo-config"
 
@@ -9,6 +10,23 @@ export type { WorkflowSummary }
 
 /** Workflow ids follow the same slug rule as skills/mode slugs. */
 const WORKFLOW_ID_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/**
+ * Fields that belong to the *architecture* layer (determine flow behavior).
+ * These stay in the architecture file and are NOT overwritten by the config
+ * file during merge. Everything else in node.data is considered *content* and
+ * can come from the config file.
+ */
+const ARCHITECTURE_NODE_DATA_FIELDS = new Set(["exec", "expression", "customData"])
+
+/**
+ * Determine if a node's data looks like a "legacy" single-file format (i.e. it
+ * already has content fields like `prompt`/`toolName` in the architecture file).
+ * If so, we skip merging the config file — the architecture file is complete.
+ */
+function isLegacyNode(data: Record<string, unknown>): boolean {
+	return "prompt" in data || "toolName" in data || "skillName" in data || "subtaskPrompt" in data
+}
 
 /**
  * Standard workflow directories, lowest precedence first. Project workflows
@@ -87,12 +105,101 @@ export class WorkflowRegistry {
 		return this.workflows.get(id)
 	}
 
-	/** Read + parse the full workflow graph JSON for `id` (to feed the engine). */
+	/** Read + parse the full workflow graph JSON for `id`, merging the optional
+	 * config file (`<id>.config.json`) if it exists. See
+	 * docs/workflow-dual-file-design.md for the merge rules. */
 	async load(id: string): Promise<unknown> {
 		const summary = this.workflows.get(id)
 		if (!summary) {
 			throw new Error(`Workflow not found: "${id}"`)
 		}
-		return JSON.parse(await fs.readFile(summary.path, "utf8"))
+
+		const graph = JSON.parse(await fs.readFile(summary.path, "utf8")) as Record<string, unknown>
+		const configPath = summary.path.replace(/\.json$/, ".config.json")
+
+		// Try to load the config file; if absent, the architecture file is
+		// either legacy (complete) or simply has no separate config.
+		let config: Record<string, Record<string, unknown>> = {}
+		try {
+			config = JSON.parse(await fs.readFile(configPath, "utf8"))
+		} catch {
+			return graph // no config file — return as-is (legacy or config-less)
+		}
+
+		// Merge config into each node's data
+		const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+		for (const node of nodes) {
+			const n = node as Record<string, unknown>
+			const nodeId = typeof n.id === "string" ? n.id : ""
+			const data = (n.data ?? {}) as Record<string, unknown>
+
+			// Legacy check: if the architecture file already has content fields,
+			// skip merging (backward compatibility with single-file workflows).
+			if (isLegacyNode(data)) continue
+
+			const nodeConfig = config[nodeId]
+			if (nodeConfig && typeof nodeConfig === "object") {
+				// Architecture fields take precedence (exec, expression, customData)
+				const merged: Record<string, unknown> = { ...nodeConfig }
+				for (const archKey of ARCHITECTURE_NODE_DATA_FIELDS) {
+					if (archKey in data) {
+						merged[archKey] = data[archKey]
+					}
+				}
+				n.data = merged
+			}
+		}
+
+		return graph
+	}
+
+	/**
+	 * Save a workflow as two files: architecture (`<id>.json`) + config
+	 * (`<id>.config.json`). Splits node.data into architecture fields (exec,
+	 * expression, customData) and content fields (everything else).
+	 */
+	async save(id: string, dir: string, graph: Record<string, unknown>): Promise<void> {
+		const archPath = path.join(dir, `${id}.json`)
+		const configPath = path.join(dir, `${id}.config.json`)
+
+		const config: Record<string, Record<string, unknown>> = {}
+		const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+		const archNodes: unknown[] = []
+
+		for (const node of nodes) {
+			const n = node as Record<string, unknown>
+			const nodeId = typeof n.id === "string" ? n.id : ""
+			const data = (n.data ?? {}) as Record<string, unknown>
+
+			// Split data into architecture fields and content fields
+			const archData: Record<string, unknown> = {}
+			const contentData: Record<string, unknown> = {}
+
+			for (const [key, value] of Object.entries(data)) {
+				if (ARCHITECTURE_NODE_DATA_FIELDS.has(key)) {
+					archData[key] = value
+				} else {
+					contentData[key] = value
+				}
+			}
+
+			// Architecture node: id, type, position, data (architecture fields only)
+			archNodes.push({
+				id: n.id,
+				type: n.type,
+				position: n.position,
+				data: archData,
+			})
+
+			// Config: only store if there are content fields
+			if (Object.keys(contentData).length > 0) {
+				config[nodeId] = contentData
+			}
+		}
+
+		const archGraph = { ...graph, nodes: archNodes }
+
+		await safeWriteJson(archPath, archGraph)
+		await safeWriteJson(configPath, config)
 	}
 }

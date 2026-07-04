@@ -150,6 +150,15 @@
 	--color-vscode-banner-foreground: var(--vscode-banner-foreground);
 }
 
+/* Ensure the root container fills the viewport so React Flow (which needs
+   a parent with explicit width and height) can render. */
+html,
+body,
+#root {
+	height: 100%;
+	margin: 0;
+}
+
 @layer base {
 	:root {
 		--background: var(--vscode-editor-background);
@@ -589,4 +598,21 @@ input[cmdk-input]:focus {
 	border-radius: 4px;
 	padding: 8px;
 	margin: -8px;
+}
+
+/* Workflow visualization — pulse animation for the currently-executing node */
+.workflow-node-pulse {
+	animation: workflow-node-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes workflow-node-pulse {
+	0%,
+	100% {
+		opacity: 0.5;
+		stroke-width: 2;
+	}
+	50% {
+		opacity: 0.9;
+		stroke-width: 3.5;
+	}
 }

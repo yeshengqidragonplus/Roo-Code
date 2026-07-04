@@ -22,7 +22,7 @@ import {
 } from "@src/utils/context-mentions"
 import { cn } from "@src/lib/utils"
 import { convertToMentionPath } from "@src/utils/path-mentions"
-import { StandardTooltip } from "@src/components/ui"
+import { Popover, PopoverContent, PopoverTrigger, StandardTooltip } from "@src/components/ui"
 
 import Thumbnails from "../common/Thumbnails"
 import { ModeSelector } from "./ModeSelector"
@@ -32,6 +32,8 @@ import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { IndexingStatusBadge } from "./IndexingStatusBadge"
 import { usePromptHistory } from "./hooks/usePromptHistory"
+import type { WorkflowVizGraph } from "@roo-code/types"
+import { WorkflowView } from "../workflow/WorkflowView"
 
 interface ChatTextAreaProps {
 	inputValue: string
@@ -97,7 +99,30 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			commands,
 			enterBehavior,
 			lockApiConfigAcrossModes,
+			workflowViz,
 		} = useExtensionState()
+
+		// Derive the workflowId of the currently selected mode (if it's a
+		// workflow expert). Used to show the "edit workflow" button.
+		const workflowModeId = useMemo(() => {
+			const m = customModes?.find((cm) => cm.slug === mode)
+			return m?.kind === "workflow" ? m.workflow?.workflowId : undefined
+		}, [customModes, mode])
+
+		// Workflow graph loaded for editing (from requestWorkflowGraph)
+		const [editGraph, setEditGraph] = useState<Record<string, unknown> | null>(null)
+
+		// Listen for workflowGraph messages (response to requestWorkflowGraph)
+		useEffect(() => {
+			const handler = (event: MessageEvent) => {
+				const message = event.data
+				if (message.type === "workflowGraph" && message.graph) {
+					setEditGraph(message.graph as Record<string, unknown>)
+				}
+			}
+			window.addEventListener("message", handler)
+			return () => window.removeEventListener("message", handler)
+		}, [])
 
 		// Find the ID and display text for the currently selected API configuration.
 		const { currentConfigId, displayName } = useMemo(() => {
@@ -1342,6 +1367,152 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							</StandardTooltip>
 						)}
 						{!isEditMode ? <IndexingStatusBadge /> : null}
+						{/* View running workflow (read-only) */}
+						{workflowViz && (
+							<Popover>
+								<PopoverTrigger asChild>
+									<StandardTooltip content="View workflow graph">
+										<button
+											aria-label="View workflow graph"
+											className={cn(
+												"relative inline-flex items-center justify-center",
+												"bg-transparent border-none p-1.5",
+												"rounded-md min-w-[28px] min-h-[28px]",
+												"text-vscode-foreground opacity-85",
+												"transition-all duration-150",
+												"hover:opacity-100 hover:bg-[rgba(255,255,255,0.03)]",
+												"focus:outline-none focus-visible:ring-1 focus-visible:ring-vscode-focusBorder",
+												"cursor-pointer",
+											)}>
+											<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+												<rect
+													x="1"
+													y="2"
+													width="5"
+													height="4"
+													rx="1"
+													fill="currentColor"
+													opacity="0.8"
+												/>
+												<rect
+													x="10"
+													y="2"
+													width="5"
+													height="4"
+													rx="1"
+													fill="currentColor"
+													opacity="0.5"
+												/>
+												<rect
+													x="5.5"
+													y="10"
+													width="5"
+													height="4"
+													rx="1"
+													fill="currentColor"
+													opacity="0.8"
+												/>
+												<path
+													d="M3.5 6 L3.5 8 L8 8 L8 10"
+													stroke="currentColor"
+													strokeWidth="1"
+													fill="none"
+													opacity="0.5"
+												/>
+												<path
+													d="M12.5 6 L12.5 8 L8 8"
+													stroke="currentColor"
+													strokeWidth="1"
+													fill="none"
+													opacity="0.5"
+												/>
+											</svg>
+										</button>
+									</StandardTooltip>
+								</PopoverTrigger>
+								<PopoverContent
+									side="top"
+									align="end"
+									className="w-[600px] h-[400px] p-0"
+									sideOffset={8}>
+									<WorkflowView workflowViz={workflowViz} />
+								</PopoverContent>
+							</Popover>
+						)}
+						{/* Edit workflow — opens full-screen editor tab */}
+						{!workflowViz && workflowModeId && (
+							<StandardTooltip content="Edit workflow">
+								<button
+									aria-label="Edit workflow"
+									className={cn(
+										"relative inline-flex items-center justify-center",
+										"bg-transparent border-none p-1.5",
+										"rounded-md min-w-[28px] min-h-[28px]",
+										"text-vscode-foreground opacity-85",
+										"transition-all duration-150",
+										"hover:opacity-100 hover:bg-[rgba(255,255,255,0.03)]",
+										"focus:outline-none focus-visible:ring-1 focus-visible:ring-vscode-focusBorder",
+										"cursor-pointer",
+									)}
+									onClick={() =>
+										vscode.postMessage({
+											type: "openWorkflowEditor",
+											workflowId: workflowModeId,
+										})
+									}>
+									<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+										<rect
+											x="1"
+											y="2"
+											width="5"
+											height="4"
+											rx="1"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.2"
+											opacity="0.8"
+										/>
+										<rect
+											x="10"
+											y="2"
+											width="5"
+											height="4"
+											rx="1"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.2"
+											opacity="0.5"
+										/>
+										<rect
+											x="5.5"
+											y="10"
+											width="5"
+											height="4"
+											rx="1"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="1.2"
+											opacity="0.8"
+										/>
+										<path
+											d="M3.5 6 L3.5 8 L8 8 L8 10"
+											stroke="currentColor"
+											strokeWidth="1"
+											fill="none"
+											opacity="0.5"
+										/>
+										<path
+											d="M12.5 6 L12.5 8 L8 8"
+											stroke="currentColor"
+											strokeWidth="1"
+											fill="none"
+											opacity="0.5"
+										/>
+										<path d="M12 1 L14 3 L9 8 L7 8 L7 6 Z" fill="currentColor" opacity="0.3" />
+									</svg>
+								</button>
+							</StandardTooltip>
+						)}
 					</div>
 				</div>
 			</div>

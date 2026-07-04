@@ -12,6 +12,7 @@ import ChatView, { ChatViewRef } from "./components/chat/ChatView"
 import HistoryView from "./components/history/HistoryView"
 import SettingsView, { SettingsViewRef } from "./components/settings/SettingsView"
 import WelcomeView from "./components/welcome/WelcomeViewProvider"
+import { WorkflowEditorView } from "./components/workflow/WorkflowEditorView"
 import { CheckpointRestoreDialog } from "./components/chat/CheckpointRestoreDialog"
 import { DeleteMessageDialog, EditMessageDialog } from "./components/chat/MessageModificationConfirmationDialog"
 import ErrorBoundary from "./components/ErrorBoundary"
@@ -19,7 +20,7 @@ import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonI
 import { TooltipProvider } from "./components/ui/tooltip"
 import { STANDARD_TOOLTIP_DELAY } from "./components/ui/standard-tooltip"
 
-type Tab = "settings" | "history" | "chat"
+type Tab = "settings" | "history" | "chat" | "workflowEditor"
 
 interface DeleteMessageDialogState {
 	isOpen: boolean
@@ -45,11 +46,19 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 	historyButtonClicked: "history",
 }
 
+// When this webview is hosted inside a standalone editor panel (created via
+// `vscode.window.createWebviewPanel` by ClineProvider.openWorkflowEditorPanel),
+// the injected boot variable `window.WORKFLOW_EDITOR_MODE` is set. In that case
+// we render ONLY the workflow editor — no chat/history/settings — and the back
+// button closes the panel instead of switching tabs.
+const WORKFLOW_EDITOR_MODE = (window as { WORKFLOW_EDITOR_MODE?: { workflowId: string } }).WORKFLOW_EDITOR_MODE
+
 const App = () => {
 	const { didHydrateState, showWelcome, shouldShowAnnouncement, renderContext } = useExtensionState()
 
 	const [showAnnouncement, setShowAnnouncement] = useState(false)
 	const [tab, setTab] = useState<Tab>("chat")
+	const [editorWorkflowId, setEditorWorkflowId] = useState<string | undefined>(undefined)
 
 	const [deleteMessageDialogState, setDeleteMessageDialogState] = useState<DeleteMessageDialogState>({
 		isOpen: false,
@@ -88,6 +97,10 @@ const App = () => {
 				// Handle switchTab action with tab parameter
 				if (message.action === "switchTab" && message.tab) {
 					const targetTab = message.tab as Tab
+					// For workflowEditor tab, extract the workflowId from values
+					if (targetTab === "workflowEditor" && message.values?.workflowId) {
+						setEditorWorkflowId(message.values.workflowId as string)
+					}
 					switchTab(targetTab)
 					// Extract targetSection from values if provided
 					const targetSection = message.values?.section as string | undefined
@@ -164,6 +177,20 @@ const App = () => {
 			}
 		}, [renderContext]),
 	)
+	// In standalone editor panel mode, we don't need the full extension
+	// state (no chat/history/settings). Skip the hydration gate and render
+	// the workflow editor directly.
+	if (WORKFLOW_EDITOR_MODE) {
+		return (
+			<div className="flex flex-col h-full w-full">
+				<WorkflowEditorView
+					workflowId={WORKFLOW_EDITOR_MODE.workflowId}
+					onDone={() => vscode.postMessage({ type: "closeWorkflowEditor" })}
+				/>
+			</div>
+		)
+	}
+
 	if (!didHydrateState) {
 		return null
 	}
@@ -177,6 +204,9 @@ const App = () => {
 			{tab === "history" && <HistoryView onDone={() => switchTab("chat")} />}
 			{tab === "settings" && (
 				<SettingsView ref={settingsRef} onDone={() => setTab("chat")} targetSection={currentSection} />
+			)}
+			{tab === "workflowEditor" && editorWorkflowId && (
+				<WorkflowEditorView workflowId={editorWorkflowId} onDone={() => setTab("chat")} />
 			)}
 			<ChatView
 				ref={chatViewRef}

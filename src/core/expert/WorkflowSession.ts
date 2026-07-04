@@ -70,6 +70,15 @@ export class WorkflowSession {
 		private readonly deps: WorkflowSessionDeps,
 	) {}
 
+	/**
+	 * The current engine state (for visualization / inspection). Read-only
+	 * access so the webview can render node statuses without breaking
+	 * encapsulation — callers must not mutate the returned value.
+	 */
+	get currentState(): WorkflowState {
+		return this.state
+	}
+
 	/** Begin a fresh workflow run; returns the session and the first turn. */
 	static async start(
 		workflowId: string,

@@ -63,6 +63,8 @@ import { CodeIndexManager } from "../../services/code-index/manager"
 import type { IndexProgressUpdate } from "../../services/code-index/interfaces/manager"
 import { SkillsManager } from "../../services/skills/SkillsManager"
 import { WorkflowRegistry, getWorkflowDirectories } from "../expert/WorkflowRegistry"
+import { projectWorkflowState } from "../expert/workflowVizProjector"
+import type { WorkflowVizPayload, WorkflowVizGraph } from "@roo-code/types"
 
 import { fileExistsAtPath } from "../../utils/fs"
 import { setTtsEnabled, setTtsSpeed } from "../../utils/tts"
@@ -133,6 +135,8 @@ export class ClineProvider
 	protected mcpHub?: McpHub // Change from private to protected
 	protected skillsManager?: SkillsManager
 	protected workflowRegistry?: WorkflowRegistry
+	/** Tracks open standalone workflow editor panels by workflow id (dedupes + cleanup). */
+	private workflowEditorPanels = new Map<string, vscode.WebviewPanel>()
 	private taskCreationCallback: (task: Task) => void
 	private taskEventListeners: WeakMap<Task, Array<() => void>> = new WeakMap()
 	private currentWorkspacePath: string | undefined
@@ -1247,6 +1251,117 @@ export class ClineProvider
 	}
 
 	/**
+	 * Opens a standalone workflow editor as a VS Code editor tab (WebviewPanel),
+	 * mirroring the behavior of opening a regular source file. The panel reuses the
+	 * same React build as the sidebar webview but injects `window.WORKFLOW_EDITOR_MODE`
+	 * so the frontend renders {@link WorkflowEditorView} exclusively.
+	 *
+	 * Panel webview messages for `requestWorkflowGraph` / `saveWorkflow` /
+	 * `closeWorkflowEditor` are handled locally so the editor panel is fully
+	 * self-contained and does not depend on the sidebar ClineProvider task state.
+	 *
+	 * @param workflowId The workflow id to load/edit in the panel.
+	 */
+	public async openWorkflowEditorPanel(workflowId: string): Promise<void> {
+		// Reuse an existing panel for the same workflow instead of stacking duplicates.
+		const existing = this.workflowEditorPanels.get(workflowId)
+		if (existing) {
+			existing.reveal(vscode.ViewColumn.Active)
+			return
+		}
+
+		const panel = vscode.window.createWebviewPanel(
+			"workflowEditor",
+			`Workflow Editor: ${workflowId}`,
+			vscode.ViewColumn.Active,
+			{
+				enableScripts: true,
+				retainContextWhenHidden: true,
+				localResourceRoots: [this.contextProxy.extensionUri],
+			},
+		)
+
+		this.workflowEditorPanels.set(workflowId, panel)
+
+		// Build the HTML and inject the editor-mode boot variable before </head>.
+		const isDev = this.contextProxy.extensionMode === vscode.ExtensionMode.Development
+		const baseHtml = isDev ? await this.getHMRHtmlContent(panel.webview) : await this.getHtmlContent(panel.webview)
+
+		// Extract the nonce from the base HTML's CSP so our injected boot
+		// script passes the Content Security Policy.
+		const nonceMatch = baseHtml.match(/nonce-([a-zA-Z0-9]+)/)
+		const nonce = nonceMatch ? nonceMatch[1] : ""
+		const bootScript = `<script${nonce ? ` nonce="${nonce}"` : ""}>window.WORKFLOW_EDITOR_MODE = ${JSON.stringify({ workflowId })};</script>`
+		panel.webview.html = baseHtml.replace("</head>", `${bootScript}\n</head>`)
+
+		// Local message handling for the editor panel. This is independent of the
+		// sidebar webviewMessageHandler so the editor works without an active task.
+		const messageDisposable = panel.webview.onDidReceiveMessage(async (message: WebviewMessage) => {
+			switch (message.type) {
+				case "requestWorkflowGraph": {
+					try {
+						// Re-create the registry with the current cwd in case the
+						// workspace changed since initialization.
+						const { WorkflowRegistry, getWorkflowDirectories } = await import("../expert/WorkflowRegistry")
+						const registry = new WorkflowRegistry(getWorkflowDirectories(this.cwd), (msg) => this.log(msg))
+						await registry.discover()
+						if (message.workflowId) {
+							const graph = (await registry.load(message.workflowId)) as Record<string, unknown>
+							await panel.webview.postMessage({
+								type: "workflowGraph",
+								workflowId: message.workflowId,
+								graph,
+							})
+						}
+					} catch (error) {
+						this.log(
+							`[WorkflowEditorPanel] Error loading graph: ${error instanceof Error ? error.message : String(error)}`,
+						)
+						await panel.webview.postMessage({
+							type: "workflowSaveError",
+							error: error instanceof Error ? error.message : String(error),
+						})
+					}
+					break
+				}
+				case "saveWorkflow": {
+					try {
+						const registry = this.getWorkflowRegistry()
+						if (registry && message.workflowId && message.graph) {
+							const dir = `${this.cwd}/.roo/workflows`
+							await registry.save(message.workflowId, dir, message.graph as Record<string, unknown>)
+							await registry.discover()
+							await panel.webview.postMessage({ type: "workflowSaved", workflowId: message.workflowId })
+							this.log(
+								`[WorkflowEditorPanel] Workflow "${message.workflowId}" saved (dual-file: architecture + config)`,
+							)
+						}
+					} catch (error) {
+						this.log(
+							`[WorkflowEditorPanel] Error saving workflow: ${error instanceof Error ? error.message : String(error)}`,
+						)
+						await panel.webview.postMessage({
+							type: "workflowSaveError",
+							error: error instanceof Error ? error.message : String(error),
+						})
+					}
+					break
+				}
+				case "closeWorkflowEditor": {
+					panel.dispose()
+					break
+				}
+			}
+		})
+
+		panel.onDidDispose(() => {
+			messageDisposable.dispose()
+			this.workflowEditorPanels.delete(workflowId)
+			this.log(`[WorkflowEditorPanel] Closed editor for "${workflowId}"`)
+		})
+	}
+
+	/**
 	 * Sets up an event listener to listen for messages passed from the webview context and
 	 * executes code based on the message that is received.
 	 *
@@ -2032,6 +2147,33 @@ export class ClineProvider
 			? await this.resolveImageRefsForWebview(windowClineMessages(fullMessages), currentTask.taskId)
 			: []
 
+		// Project the current workflow session (if any) for visualization.
+		let workflowViz: WorkflowVizPayload | undefined
+		if (currentTask?.workflowSession) {
+			const session = currentTask.workflowSession
+			const vizState = projectWorkflowState(session.currentState)
+			if (vizState) {
+				try {
+					const graphJson = await this.workflowRegistry?.load(session.workflowId)
+					if (graphJson && typeof graphJson === "object") {
+						const g = graphJson as Record<string, unknown>
+						workflowViz = {
+							workflowId: session.workflowId,
+							graph: {
+								name: typeof g.name === "string" ? g.name : session.workflowId,
+								description: typeof g.description === "string" ? g.description : "",
+								nodes: Array.isArray(g.nodes) ? (g.nodes as WorkflowVizGraph["nodes"]) : [],
+								edges: Array.isArray(g.edges) ? (g.edges as WorkflowVizGraph["edges"]) : [],
+							},
+							state: vizState,
+						}
+					}
+				} catch {
+					// Registry load may fail if the workflow file is gone; skip viz.
+				}
+			}
+		}
+
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,
@@ -2145,6 +2287,7 @@ export class ClineProvider
 				}
 			})(),
 			debug: vscode.workspace.getConfiguration(Package.name).get<boolean>("debug", false),
+			workflowViz,
 		}
 	}
 

@@ -64,6 +64,13 @@ export async function getTheme() {
 		// Strip comments from theme
 		let parsed = parseThemeString(currentTheme)
 
+		// Ensure tokenColors is an array (some themes omit it, causing
+		// convertTheme to crash with "Cannot read properties of undefined
+		// (reading 'map')")
+		if (!parsed.tokenColors) {
+			parsed.tokenColors = []
+		}
+
 		if (parsed.include) {
 			const includeThemeString = await fs.readFile(
 				path.join(getExtensionUri().fsPath, "integrations", "theme", "default-themes", parsed.include),

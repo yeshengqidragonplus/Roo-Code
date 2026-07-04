@@ -2615,6 +2615,48 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			}
 			break
 		}
+		case "requestWorkflowGraph": {
+			try {
+				const registry = provider.getWorkflowRegistry()
+				if (registry && message.workflowId) {
+					const graph = (await registry.load(message.workflowId)) as Record<string, unknown>
+					await provider.postMessageToWebview({
+						type: "workflowGraph",
+						workflowId: message.workflowId,
+						graph,
+					})
+				}
+			} catch (error) {
+				provider.log(`Error loading workflow graph: ${error instanceof Error ? error.message : String(error)}`)
+			}
+			break
+		}
+		case "saveWorkflow": {
+			try {
+				const registry = provider.getWorkflowRegistry()
+				if (registry && message.workflowId && message.graph) {
+					const cwd = provider.cwd
+					const dir = `${cwd}/.roo/workflows`
+					await registry.save(message.workflowId, dir, message.graph as Record<string, unknown>)
+					await registry.discover()
+					await provider.postMessageToWebview({ type: "workflowSaved", workflowId: message.workflowId })
+					provider.log(`Workflow "${message.workflowId}" saved (dual-file: architecture + config)`)
+				}
+			} catch (error) {
+				provider.log(`Error saving workflow: ${error instanceof Error ? error.message : String(error)}`)
+				await provider.postMessageToWebview({
+					type: "workflowSaveError",
+					error: error instanceof Error ? error.message : String(error),
+				})
+			}
+			break
+		}
+		case "openWorkflowEditor": {
+			if (message.workflowId) {
+				await provider.openWorkflowEditorPanel(message.workflowId)
+			}
+			break
+		}
 		case "createSkill": {
 			await handleCreateSkill(provider, message)
 			break

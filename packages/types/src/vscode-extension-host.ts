@@ -15,6 +15,7 @@ import type { ModelRecord, RouterModels } from "./model.js"
 import type { OpenAiCodexRateLimitInfo } from "./providers/openai-codex-rate-limits.js"
 import type { SkillMetadata } from "./skills.js"
 import type { WorkflowSummary } from "./workflow.js"
+import type { WorkflowVizPayload } from "./workflow-viz.js"
 import type { WorktreeIncludeStatus } from "./worktree.js"
 
 /**
@@ -94,8 +95,15 @@ export interface ExtensionMessage {
 		| "folderSelected"
 		| "skills"
 		| "workflows"
+		| "workflowSaved"
+		| "workflowSaveError"
+		| "workflowGraph"
 		| "fileContent"
 	text?: string
+	/** Workflow id for workflowGraph / workflowSaved messages. */
+	workflowId?: string
+	/** Workflow graph JSON for workflowGraph message. */
+	graph?: Record<string, unknown>
 	/** For fileContent: { path, content, error? } */
 	fileContent?: { path: string; content: string | null; error?: string }
 	payload?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -350,6 +358,9 @@ export type ExtensionState = Pick<
 	openAiCodexIsAuthenticated?: boolean
 	debug?: boolean
 
+	/** Workflow visualization payload; present when the current task is a workflow-driven expert. */
+	workflowViz?: WorkflowVizPayload
+
 	/**
 	 * Monotonically increasing sequence number for clineMessages state pushes.
 	 * When present, the frontend should only apply clineMessages from a state push
@@ -537,10 +548,16 @@ export interface WebviewMessage {
 		| "openSkillFile"
 		// Workflow messages
 		| "requestWorkflows"
+		| "saveWorkflow"
+		| "requestWorkflowGraph"
+		| "openWorkflowEditor"
+		| "closeWorkflowEditor"
 	text?: string
+	workflowId?: string
+	graph?: Record<string, unknown>
 	taskId?: string
 	editedMessageContent?: string
-	tab?: "settings" | "history" | "mcp" | "modes" | "chat"
+	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "workflowEditor"
 	disabled?: boolean
 	context?: string
 	dataUri?: string

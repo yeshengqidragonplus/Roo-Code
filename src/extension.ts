@@ -1,3 +1,14 @@
+// Suppress Node.js deprecation warnings from third-party dependencies (e.g.
+// `url.parse()` used by some libraries). These are harmless API migrations we
+// cannot fix without patching upstream packages, and the warnings clutter the
+// extension host console.
+process.removeAllListeners("warning")
+process.on("warning", (warning) => {
+	// Only suppress DeprecationWarning; let other warnings through.
+	if (warning?.name === "DeprecationWarning") return
+	console.warn(warning)
+})
+
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as fs from "fs"
