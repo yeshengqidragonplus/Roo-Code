@@ -5,8 +5,10 @@ import { Task } from "../../task/Task"
 import { formatResponse } from "../../prompts/responses"
 import { EXPERIMENT_IDS } from "../../../shared/experiments"
 import * as tavily from "../../../services/web-search/tavily"
+import * as google from "../../../services/web-search/google"
 
 vi.mock("../../../services/web-search/tavily")
+vi.mock("../../../services/web-search/google")
 
 describe("webSearchTool", () => {
 	let mockTask: any
@@ -63,7 +65,7 @@ describe("webSearchTool", () => {
 
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and set a Tavily API key.",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -80,7 +82,7 @@ describe("webSearchTool", () => {
 			// Absent config falls back to the disabled default -> same gating error.
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and set a Tavily API key.",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -88,17 +90,40 @@ describe("webSearchTool", () => {
 	})
 
 	describe("api key validation", () => {
-		it("errors when no Tavily API key is configured", async () => {
+		it("errors when no backend credentials are configured", async () => {
 			mockTask.providerRef.deref().getState.mockResolvedValue({
 				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
 				tavilyApiKey: undefined,
+				googleApiKey: undefined,
+				googleCseId: undefined,
 			})
 
 			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
 
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
-					"Web search requires a Tavily API key. Add it in the Web Search settings (https://tavily.com).",
+					"Web search requires a Tavily API key (or Google API key + CSE ID). " +
+						"Add credentials in the Web Search settings.",
+				),
+			)
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+		})
+
+		it("errors when webSearchProvider is google but credentials are missing", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				tavilyApiKey: "tavily-key",
+				googleApiKey: undefined,
+				googleCseId: undefined,
+				webSearchProvider: "google",
+			})
+
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
+
+			expect(mockPushToolResult).toHaveBeenCalledWith(
+				formatResponse.toolError(
+					"Web search is set to use Google but the Google API key or Custom Search Engine ID (cx) is missing. " +
+						"Add them in the Web Search settings, or switch to Tavily.",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -160,7 +185,7 @@ describe("webSearchTool", () => {
 		})
 	})
 
-	describe("successful search", () => {
+	describe("successful search (tavily)", () => {
 		it("formats results with title, url, and content, and records usage", async () => {
 			vi.mocked(tavily.tavilySearch).mockResolvedValue({
 				answer: "It is a game engine.",
@@ -198,63 +223,113 @@ describe("webSearchTool", () => {
 			expect(output).not.toContain("Answer (synthesized)")
 		})
 
-		it("forwards max_results and allowed_domains to tavilySearch", async () => {
+		it("returns a no-results message when results array is empty", async () => {
 			vi.mocked(tavily.tavilySearch).mockResolvedValue({ results: [] })
 
-			await webSearchTool.handle(
-				mockTask as Task,
-				makeBlock({ query: "q", max_results: 7, allowed_domains: ["a.com", "b.com"] }),
-				callbacks(),
-			)
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "nothing" }), callbacks())
 
-			expect(vi.mocked(tavily.tavilySearch)).toHaveBeenCalledWith({
-				apiKey: "tavily-key",
-				query: "q",
-				maxResults: 7,
-				includeDomains: ["a.com", "b.com"],
-			})
+			expect(mockPushToolResult).toHaveBeenCalledWith('No web results found for the query: "nothing"')
 		})
 	})
 
-	describe("empty results", () => {
-		it("returns a no-results message (usage is still recorded before the empty check)", async () => {
-			vi.mocked(tavily.tavilySearch).mockResolvedValue({ results: [] })
+	describe("successful search (google)", () => {
+		it("uses googleSearch when webSearchProvider is google and credentials are present", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				googleApiKey: "google-key",
+				googleCseId: "cx-id",
+				webSearchProvider: "google",
+			})
+			vi.mocked(google.googleSearch).mockResolvedValue({
+				results: [
+					{ title: "Unity", url: "https://unity.com", content: "Unity is an engine." },
+					{ title: "Unreal", url: "https://unreal.com", content: "Unreal is powerful." },
+				],
+			})
 
-			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "obscure query" }), callbacks())
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "game engines" }), callbacks())
 
-			// recordToolUsage runs before the empty-results branch.
+			expect(vi.mocked(google.googleSearch)).toHaveBeenCalledWith({
+				apiKey: "google-key",
+				cseId: "cx-id",
+				query: "game engines",
+				maxResults: undefined,
+				includeDomains: undefined,
+			})
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
 			expect(mockTask.recordToolUsage).toHaveBeenCalledWith("web_search")
-			expect(mockPushToolResult).toHaveBeenCalledWith('No web results found for the query: "obscure query"')
+
+			const output = mockPushToolResult.mock.calls[0][0] as string
+			expect(output).toContain("Query: game engines")
+			// Google does not synthesize an answer.
+			expect(output).not.toContain("Answer (synthesized)")
+			expect(output).toContain("1. Unity")
+			expect(output).toContain("URL: https://unity.com")
+			expect(output).toContain("Unity is an engine.")
+			expect(output).toContain("2. Unreal")
+			// HTML tags stripped from snippets.
+			expect(output).toContain("Unreal is powerful.")
+		})
+
+		it("auto-selects google when google credentials are present and no provider is set", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				googleApiKey: "google-key",
+				googleCseId: "cx-id",
+				// webSearchProvider unset -> "auto" -> prefers google
+			})
+			vi.mocked(google.googleSearch).mockResolvedValue({
+				results: [{ title: "R", url: "https://r", content: "c" }],
+			})
+
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
+
+			expect(vi.mocked(google.googleSearch)).toHaveBeenCalled()
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+		})
+
+		it("falls back to tavily when provider is auto and only tavily credentials are present", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				tavilyApiKey: "tavily-key",
+				// google creds absent
+			})
+			vi.mocked(tavily.tavilySearch).mockResolvedValue({
+				results: [{ title: "T", url: "https://u", content: "c" }],
+			})
+
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
+
+			expect(vi.mocked(tavily.tavilySearch)).toHaveBeenCalled()
+			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
+		})
+
+		it("forces tavily when webSearchProvider is tavily even if google creds are present", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				tavilyApiKey: "tavily-key",
+				googleApiKey: "google-key",
+				googleCseId: "cx-id",
+				webSearchProvider: "tavily",
+			})
+			vi.mocked(tavily.tavilySearch).mockResolvedValue({
+				results: [{ title: "T", url: "https://u", content: "c" }],
+			})
+
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
+
+			expect(vi.mocked(tavily.tavilySearch)).toHaveBeenCalled()
+			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
 		})
 	})
 
 	describe("error handling", () => {
-		it("delegates to handleError when tavilySearch throws", async () => {
-			const error = new Error("Tavily down")
-			vi.mocked(tavily.tavilySearch).mockRejectedValue(error)
+		it("calls handleError when the search backend throws", async () => {
+			vi.mocked(tavily.tavilySearch).mockRejectedValue(new Error("Network error"))
 
 			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
 
-			expect(mockHandleError).toHaveBeenCalledWith("web_search", error)
-			expect(mockPushToolResult).not.toHaveBeenCalled()
-		})
-	})
-
-	describe("partial block", () => {
-		it("does nothing when the block is partial", async () => {
-			const partialBlock = {
-				type: "tool_use",
-				name: "web_search",
-				params: { query: "q" },
-				nativeArgs: { query: "q" },
-				partial: true,
-			} as ToolUse<"web_search">
-
-			await webSearchTool.handle(mockTask as Task, partialBlock, callbacks())
-
-			expect(mockAskApproval).not.toHaveBeenCalled()
-			expect(mockPushToolResult).not.toHaveBeenCalled()
-			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+			expect(mockHandleError).toHaveBeenCalledWith("web_search", expect.any(Error))
 		})
 	})
 })

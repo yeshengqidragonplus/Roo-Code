@@ -1,6 +1,7 @@
 import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 import { tavilySearch } from "../../services/web-search/tavily"
+import { googleSearch } from "../../services/web-search/google"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import type { ToolUse, NativeToolArgs } from "../../shared/tools"
 
@@ -21,17 +22,48 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 		if (!experiments.isEnabled(state?.experiments ?? {}, EXPERIMENT_IDS.WEB_SEARCH)) {
 			pushToolResult(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and set a Tavily API key.",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
 				),
 			)
 			return
 		}
 
-		const apiKey = state?.tavilyApiKey
-		if (!apiKey) {
+		// --- Backend selection -------------------------------------------------
+		// webSearchProvider: "tavily" | "google" | "auto" (default "auto").
+		// "auto" picks the first backend with valid credentials.
+		const webSearchProvider = state?.webSearchProvider ?? "auto"
+		const tavilyKey = state?.tavilyApiKey
+		const googleKey = state?.googleApiKey
+		const googleCx = state?.googleCseId
+
+		const googleReady = !!(googleKey && googleCx)
+		const tavilyReady = !!tavilyKey
+
+		let useGoogle: boolean
+		if (webSearchProvider === "google") {
+			useGoogle = true
+		} else if (webSearchProvider === "tavily") {
+			useGoogle = false
+		} else {
+			// auto: prefer Google if configured, else Tavily, else error.
+			useGoogle = googleReady
+		}
+
+		// Validate credentials for the chosen / auto-resolved backend.
+		if (useGoogle && !googleReady) {
 			pushToolResult(
 				formatResponse.toolError(
-					"Web search requires a Tavily API key. Add it in the Web Search settings (https://tavily.com).",
+					"Web search is set to use Google but the Google API key or Custom Search Engine ID (cx) is missing. " +
+						"Add them in the Web Search settings, or switch to Tavily.",
+				),
+			)
+			return
+		}
+		if (!useGoogle && !tavilyReady) {
+			pushToolResult(
+				formatResponse.toolError(
+					"Web search requires a Tavily API key (or Google API key + CSE ID). " +
+						"Add credentials in the Web Search settings.",
 				),
 			)
 			return
@@ -56,12 +88,31 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 		task.consecutiveMistakeCount = 0
 
 		try {
-			const { answer, results } = await tavilySearch({
-				apiKey,
-				query,
-				maxResults,
-				includeDomains: allowedDomains,
-			})
+			// --- Execute the chosen backend ------------------------------------
+			let results: { title: string; url: string; content: string }[]
+			let answer: string | undefined
+
+			if (useGoogle) {
+				const googleResults = await googleSearch({
+					apiKey: googleKey!,
+					cseId: googleCx!,
+					query,
+					maxResults,
+					includeDomains: allowedDomains,
+				})
+				results = googleResults.results
+				// Google CSE does not synthesize an answer; leave it undefined.
+				answer = undefined
+			} else {
+				const tavilyResponse = await tavilySearch({
+					apiKey: tavilyKey!,
+					query,
+					maxResults,
+					includeDomains: allowedDomains,
+				})
+				results = tavilyResponse.results
+				answer = tavilyResponse.answer
+			}
 
 			task.recordToolUsage("web_search")
 

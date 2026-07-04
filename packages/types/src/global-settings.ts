@@ -92,9 +92,18 @@ export const globalSettingsSchema = z.object({
 	openRouterImageApiKey: z.string().optional(),
 	openRouterImageGenerationSelectedModel: z.string().optional(),
 
-	// Web search / fetch settings (Tavily-backed). Enablement is gated by the
-	// `webSearch` experiment; this just holds the secret key.
+	// Web search / fetch settings. Enablement is gated by the `webSearch`
+	// experiment; this holds the secret keys for the supported backends.
 	tavilyApiKey: z.string().optional(),
+	/** Google Custom Search API key (https://developers.google.com/custom-search/v1). */
+	googleApiKey: z.string().optional(),
+	/** Google Custom Search Engine ID (the "cx" parameter). */
+	googleCseId: z.string().optional(),
+	/**
+	 * Which search backend to use: "tavily", "google", or "auto" (pick the
+	 * first one with valid credentials). Default "auto".
+	 */
+	webSearchProvider: z.enum(["tavily", "google", "auto"]).optional(),
 
 	customCondensingPrompt: z.string().optional(),
 

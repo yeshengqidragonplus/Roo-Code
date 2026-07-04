@@ -352,6 +352,9 @@ export type ExtensionState = Pick<
 	hasOpenedModeSelector: boolean
 	openRouterImageApiKey?: string
 	tavilyApiKey?: string
+	googleApiKey?: string
+	googleCseId?: string
+	webSearchProvider?: "tavily" | "google" | "auto"
 	messageQueue?: QueuedMessage[]
 	lastShownAnnouncementId?: string
 	apiModelId?: string

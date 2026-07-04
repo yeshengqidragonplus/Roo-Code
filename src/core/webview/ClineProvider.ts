@@ -2157,6 +2157,9 @@ export class ClineProvider
 			openRouterImageApiKey,
 			openRouterImageGenerationSelectedModel,
 			tavilyApiKey,
+			googleApiKey,
+			googleCseId,
+			webSearchProvider,
 			lockApiConfigAcrossModes,
 		} = await this.getState()
 
@@ -2458,6 +2461,9 @@ export class ClineProvider
 			openRouterImageApiKey: stateValues.openRouterImageApiKey,
 			openRouterImageGenerationSelectedModel: stateValues.openRouterImageGenerationSelectedModel,
 			tavilyApiKey: stateValues.tavilyApiKey,
+			googleApiKey: stateValues.googleApiKey,
+			googleCseId: stateValues.googleCseId,
+			webSearchProvider: stateValues.webSearchProvider,
 		}
 	}
 
