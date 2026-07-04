@@ -131,6 +131,22 @@ export const expertModeFields = {
 	 * only be invoked by a squad-lead. See docs/expert-squad-design.md §3.2.
 	 */
 	hidden: z.boolean().optional(),
+	/**
+	 * Name of the API configuration (provider profile) this expert should use
+	 * when spawned as a sub-task. Lets cheap/repetitive sub-experts (e.g. a
+	 * local-knowledge-base searcher) run on a cheaper model than the parent.
+	 * If unset, the sub-task inherits the parent's current API config.
+	 * Resolved at delegation time by delegateParentAndOpenChild.
+	 */
+	apiConfigName: z.string().optional(),
+	/**
+	 * Hard cap on the number of tool uses an autonomous (type-B) sub-expert may
+	 * make before being forced to wind down. When the count is reached the host
+	 * injects a "budget exhausted - attempt_completion now" instruction so the
+	 * sub-expert summarizes what it has rather than looping forever. Undefined
+	 * means no hard limit (relies on terminationHint / MAX_REQUESTS_PER_TASK).
+	 */
+	maxToolUses: z.number().int().positive().optional(),
 } as const
 
 /**

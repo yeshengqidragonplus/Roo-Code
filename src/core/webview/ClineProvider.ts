@@ -3014,6 +3014,7 @@ export class ClineProvider
 				`[delegateParentAndOpenChild] Parent mismatch: expected ${parentTaskId}, current ${parent.taskId}`,
 			)
 		}
+
 		// 2) Flush pending tool results to API history BEFORE disposing the parent.
 		//    This is critical: when tools are called before new_task,
 		//    their tool_result blocks are in userMessageContent but not yet saved to API history.
@@ -3076,6 +3077,26 @@ export class ClineProvider
 			)
 		}
 
+		// 3b) If the child expert mode declares an apiConfigName, switch the
+		//     provider profile so the child runs on its own (e.g. cheaper) model.
+		//     The parent's profile is restored in step 9 (reopen) from its
+		//     historyItem; we also keep parentApiConfigName for an explicit
+		//     restore fallback.
+		try {
+			const state = await this.getState()
+			const childMode = getModeBySlug(mode, state.customModes)
+			const childApiConfigName = childMode?.apiConfigName
+			if (childApiConfigName) {
+				await this.setProviderProfile(childApiConfigName)
+			}
+		} catch (e) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to switch provider profile for child mode '${mode}': ${
+					(e as Error)?.message ?? String(e)
+				}`,
+			)
+		}
+
 		// 4) Create child as sole active (parent reference preserved for lineage)
 		// Pass initialStatus: "active" to ensure the child task's historyItem is created
 		// with status from the start, avoiding race conditions where the task might
@@ -3109,6 +3130,23 @@ export class ClineProvider
 			this.log(
 				`[delegateParentAndOpenChild] Failed to persist parent metadata for ${parentTaskId} -> ${child.taskId}: ${
 					(err as Error)?.message ?? String(err)
+				}`,
+			)
+		}
+
+		// 5b) Apply the child expert mode's maxToolUses hard cap (if declared)
+		//     so the autonomous sub-expert is forced to wind down after its
+		//     tool budget is exhausted. See expert.ts maxToolUses.
+		try {
+			const state = await this.getState()
+			const childMode = getModeBySlug(mode, state.customModes)
+			if (childMode?.maxToolUses) {
+				child.maxToolUsesLimit = childMode.maxToolUses
+			}
+		} catch (e) {
+			this.log(
+				`[delegateParentAndOpenChild] Failed to read maxToolUses for child mode '${mode}': ${
+					(e as Error)?.message ?? String(e)
 				}`,
 			)
 		}
@@ -3313,10 +3351,27 @@ export class ClineProvider
 				// non-fatal
 			}
 
+			// 8b) Restore the parent's provider profile in case the child switched it
+			//     (expert.apiConfigName). The parent task's apiConfigName is already
+			//     restored from its historyItem during createTaskWithHistoryItem; but
+			//     the live provider profile may still be the child's, so switch it back
+			//     so the parent resumes on its own model.
+			if (historyItem.apiConfigName) {
+				try {
+					await this.setProviderProfile(historyItem.apiConfigName)
+				} catch (e) {
+					this.log(
+						`[reopenParentFromDelegation] Failed to restore parent provider profile '${historyItem.apiConfigName}': ${
+							(e as Error)?.message ?? String(e)
+						}`,
+					)
+				}
+			}
+	
 			// Auto-resume parent without ask("resume_task")
 			await parentInstance.resumeAfterDelegation()
 		}
-
+	
 		// 9) Emit TaskDelegationResumed (provider-level)
 		try {
 			this.emit(RooCodeEventName.TaskDelegationResumed, parentTaskId, childTaskId)

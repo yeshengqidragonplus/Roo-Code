@@ -305,6 +305,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	/** Set for a type-A (workflow) expert; drives per-step prompts. See docs/expert-system-design.md §7. */
 	workflowSession?: WorkflowSession
 
+	/**
+	 * Hard cap on tool uses for an autonomous (type-B) sub-expert. When the
+	 * count reaches this limit the host injects a "budget exhausted" instruction
+	 * so the sub-expert summarizes what it has via attempt_completion instead of
+	 * looping forever. Set from the expert mode's `maxToolUses` field at
+	 * delegation time; undefined means no hard limit.
+	 */
+	maxToolUsesLimit?: number
+	/** Running count of tool uses in the current task (for maxToolUsesLimit). */
+	toolUseCount: number = 0
+
 	// API
 	apiConfiguration: ProviderSettings
 	api: ApiHandler
@@ -3865,6 +3876,22 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					} else {
 						// Reset counter when tools are used successfully
 						this.consecutiveNoToolUseCount = 0
+
+						// Count tool uses toward the autonomous sub-expert hard cap
+						// (expert mode's maxToolUses). When the budget is exhausted,
+						// inject a final instruction so the sub-expert summarizes what
+						// it has via attempt_completion instead of looping forever.
+						this.toolUseCount++
+						if (this.maxToolUsesLimit && this.toolUseCount >= this.maxToolUsesLimit) {
+							await this.say(
+								"tool",
+								`[expert] Tool-use budget exhausted (${this.toolUseCount}/${this.maxToolUsesLimit}). Forcing completion.`,
+							)
+							this.userMessageContent.push({
+								type: "text",
+								text: "You have reached your tool-use budget for this subtask. Stop calling tools now. Immediately call attempt_completion with a concise summary of everything you have found or accomplished so far. Do not attempt further tool calls.",
+							})
+						}
 					}
 
 					// Push to stack if there's content OR if we're paused waiting for a subtask.
