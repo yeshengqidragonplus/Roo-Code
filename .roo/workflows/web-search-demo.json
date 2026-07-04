@@ -1,0 +1,43 @@
+{
+	"name": "Web Search Demo",
+	"description": "A 2-node demo workflow: an LLM node extracts the search goal from the user's question, then an expert node delegates to the web-researcher-search autonomous sub-expert which searches the web and returns a cited summary.",
+	"version": "1.0.0",
+	"inputs": [{ "name": "task", "type": "string", "required": true }],
+	"nodes": [
+		{
+			"id": "extract-goal",
+			"type": "llm",
+			"position": { "x": 240, "y": 0 },
+			"data": {
+				"prompt": "The user asked the following question:\n\n{{inputs.task}}\n\nAnalyze this question and determine the best web search strategy. Output a concise search goal that a web researcher can use. The goal should be specific enough to find relevant information. Do not search yourself — just describe what should be searched and any specific keywords or topics to focus on.",
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"searchGoal": {
+							"type": "string",
+							"description": "A clear, specific search goal describing what information to find on the web"
+						},
+						"keywords": {
+							"type": "array",
+							"items": { "type": "string" },
+							"description": "Suggested search keywords to try"
+						}
+					},
+					"required": ["searchGoal"]
+				}
+			}
+		},
+		{
+			"id": "web-search",
+			"type": "expert",
+			"position": { "x": 240, "y": 140 },
+			"data": {
+				"expertId": "web-researcher-search",
+				"subtaskPrompt": "Search the web for the following goal and return a cited summary:\n\n{{extract-goal.output.searchGoal}}\n\nSuggested keywords: {{extract-goal.output.keywords}}"
+			}
+		}
+	],
+	"edges": [
+		{ "id": "e1", "source": "extract-goal", "target": "web-search" }
+	]
+}
