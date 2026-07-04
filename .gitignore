@@ -56,3 +56,4 @@ plans/
 
 roo-cli-*.tar.gz*
 .codegraph
+.roo
