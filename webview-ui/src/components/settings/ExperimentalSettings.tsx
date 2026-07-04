@@ -29,6 +29,12 @@ type ExperimentalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setImageGenerationSelectedModel?: (model: string) => void
 	tavilyApiKey?: string
 	setTavilyApiKey?: (apiKey: string) => void
+	googleApiKey?: string
+	setGoogleApiKey?: (apiKey: string) => void
+	googleCseId?: string
+	setGoogleCseId?: (cseId: string) => void
+	webSearchProvider?: "tavily" | "google" | "auto"
+	setWebSearchProvider?: (provider: "tavily" | "google" | "auto") => void
 }
 
 export const ExperimentalSettings = ({
@@ -44,6 +50,12 @@ export const ExperimentalSettings = ({
 	setImageGenerationSelectedModel,
 	tavilyApiKey,
 	setTavilyApiKey,
+	googleApiKey,
+	setGoogleApiKey,
+	googleCseId,
+	setGoogleCseId,
+	webSearchProvider,
+	setWebSearchProvider,
 	className,
 	...props
 }: ExperimentalSettingsProps) => {
@@ -88,7 +100,7 @@ export const ExperimentalSettings = ({
 								</SearchableSetting>
 							)
 						}
-						if (config[0] === "WEB_SEARCH" && setTavilyApiKey) {
+						if (config[0] === "WEB_SEARCH" && setTavilyApiKey && setGoogleApiKey && setGoogleCseId && setWebSearchProvider) {
 							return (
 								<SearchableSetting
 									key={config[0]}
@@ -100,6 +112,12 @@ export const ExperimentalSettings = ({
 										onChange={(enabled) => setExperimentEnabled(EXPERIMENT_IDS.WEB_SEARCH, enabled)}
 										tavilyApiKey={tavilyApiKey}
 										setTavilyApiKey={setTavilyApiKey}
+										googleApiKey={googleApiKey}
+										setGoogleApiKey={setGoogleApiKey}
+										googleCseId={googleCseId}
+										setGoogleCseId={setGoogleCseId}
+										webSearchProvider={webSearchProvider}
+										setWebSearchProvider={setWebSearchProvider}
 									/>
 								</SearchableSetting>
 							)

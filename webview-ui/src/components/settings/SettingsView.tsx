@@ -200,6 +200,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		openRouterImageApiKey,
 		openRouterImageGenerationSelectedModel,
 		tavilyApiKey,
+		googleApiKey,
+		googleCseId,
+		webSearchProvider,
 		reasoningBlockCollapsed,
 		enterBehavior,
 		includeCurrentTime,
@@ -343,6 +346,36 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		})
 	}, [])
 
+	const setGoogleApiKey = useCallback((apiKey: string) => {
+		setCachedState((prevState) => {
+			if (prevState.googleApiKey !== apiKey) {
+				setChangeDetected(true)
+			}
+
+			return { ...prevState, googleApiKey: apiKey }
+		})
+	}, [])
+
+	const setGoogleCseId = useCallback((cseId: string) => {
+		setCachedState((prevState) => {
+			if (prevState.googleCseId !== cseId) {
+				setChangeDetected(true)
+			}
+
+			return { ...prevState, googleCseId: cseId }
+		})
+	}, [])
+
+	const setWebSearchProvider = useCallback((provider: "tavily" | "google" | "auto") => {
+		setCachedState((prevState) => {
+			if (prevState.webSearchProvider !== provider) {
+				setChangeDetected(true)
+			}
+
+			return { ...prevState, webSearchProvider: provider }
+		})
+	}, [])
+
 	const setCustomSupportPromptsField = useCallback((prompts: Record<string, string | undefined>) => {
 		setCachedState((prevState) => {
 			const previousStr = JSON.stringify(prevState.customSupportPrompts)
@@ -425,6 +458,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					openRouterImageApiKey,
 					openRouterImageGenerationSelectedModel,
 					tavilyApiKey,
+					googleApiKey,
+					googleCseId,
+					webSearchProvider,
 					experiments,
 					customSupportPrompts,
 				},
@@ -920,6 +956,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								setImageGenerationSelectedModel={setImageGenerationSelectedModel}
 								tavilyApiKey={tavilyApiKey as string | undefined}
 								setTavilyApiKey={setTavilyApiKey}
+								googleApiKey={googleApiKey as string | undefined}
+								setGoogleApiKey={setGoogleApiKey}
+								googleCseId={googleCseId as string | undefined}
+								setGoogleCseId={setGoogleCseId}
+								webSearchProvider={webSearchProvider as "tavily" | "google" | "auto" | undefined}
+								setWebSearchProvider={setWebSearchProvider}
 							/>
 						)}
 
