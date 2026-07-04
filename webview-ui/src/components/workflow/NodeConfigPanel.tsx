@@ -49,6 +49,14 @@ const NODE_CONFIG_FIELDS: Record<string, { key: string; label: string; type: "te
 	parallel: [],
 }
 
+/** Provider options for expert nodes that delegate to web-search sub-experts. */
+const WEB_SEARCH_PROVIDER_OPTIONS = [
+	{ value: "", label: "Use global setting" },
+	{ value: "auto", label: "Auto (prefer Google)" },
+	{ value: "tavily", label: "Tavily" },
+	{ value: "google", label: "Google Custom Search" },
+]
+
 function FieldEditor({
 	field,
 	value,
@@ -182,16 +190,39 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ node, onChange
 				)}
 
 				{/* exec field (architecture, but editable here for convenience) */}
-				<div>
-					<label className="text-[10px] text-vscode-descriptionForeground block mb-1">Execution Mode</label>
-					<select
-						className="w-full text-[11px] px-2 py-1 rounded bg-vscode-input-background text-vscode-inputForeground border border-vscode-input-border focus:outline-none"
-						value={(node.data.exec as string) ?? (node.type === "llm" ? "soft" : "hard")}
-						onChange={(e) => onChange(node.id, "exec", e.target.value)}>
-						<option value="soft">Soft (LLM turn)</option>
-						<option value="hard">Hard (no LLM turn)</option>
-					</select>
-				</div>
+					<div>
+						<label className="text-[10px] text-vscode-descriptionForeground block mb-1">Execution Mode</label>
+						<select
+							className="w-full text-[11px] px-2 py-1 rounded bg-vscode-input-background text-vscode-inputForeground border border-vscode-input-border focus:outline-none"
+							value={(node.data.exec as string) ?? (node.type === "llm" ? "soft" : "hard")}
+							onChange={(e) => onChange(node.id, "exec", e.target.value)}>
+							<option value="soft">Soft (LLM turn)</option>
+							<option value="hard">Hard (no LLM turn)</option>
+						</select>
+					</div>
+	
+					{/* Web search provider override (expert nodes only) */}
+					{node.type === "expert" && (
+						<div>
+							<label className="text-[10px] text-vscode-descriptionForeground block mb-1">
+								Web Search Provider
+							</label>
+							<select
+								className="w-full text-[11px] px-2 py-1 rounded bg-vscode-input-background text-vscode-inputForeground border border-vscode-input-border focus:outline-none"
+								value={(node.data.webSearchProvider as string) ?? ""}
+								onChange={(e) => onChange(node.id, "webSearchProvider", e.target.value || undefined)}>
+								{WEB_SEARCH_PROVIDER_OPTIONS.map((opt) => (
+									<option key={opt.value} value={opt.value}>
+										{opt.label}
+									</option>
+								))}
+							</select>
+							<p className="text-[9px] text-vscode-descriptionForeground mt-0.5">
+								Override the global web search provider for this node's sub-expert.
+								Leave as "Use global setting" to use the Settings configuration.
+							</p>
+						</div>
+					)}
 			</div>
 
 			{/* Footer */}
