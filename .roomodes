@@ -214,6 +214,7 @@ customModes:
     description: Web research specialist that searches and returns a cited summary.
     groups:
       - read
+      - web
     kind: autonomous
     terminationHint: |-
       - The research goal has been answered with information from the web, or a
@@ -234,6 +235,7 @@ customModes:
     description: Workflow-driven web search demo (extract goal → delegate search).
     groups:
       - read
+      - web
     kind: workflow
     workflow:
       workflowId: web-search-demo
@@ -279,6 +281,7 @@ customModes:
     description: Web search specialist that searches, evaluates results, refines queries, and returns a cited summary.
     groups:
       - read
+      - web
     kind: autonomous
     maxToolUses: 10
     terminationHint: |-
