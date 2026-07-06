@@ -1,5 +1,11 @@
 {
 	"greeting": "Welcome to QCode!",
+	"sandboxMode": {
+		"on": "Sandbox: On",
+		"off": "Sandbox: Off",
+		"tooltipOn": "Sandbox autonomy ON — auto-approves reads/writes inside the project; still asks for anything outside the project, protected files, and unknown commands. Click to turn off.",
+		"tooltipOff": "Sandbox autonomy OFF — approvals asked as usual. Turn on for long-running tasks to stop step-by-step prompts (changes inside the project are git-recoverable). Click to turn on."
+	},
 	"task": {
 		"title": "Task",
 		"expand": "Expand task",
