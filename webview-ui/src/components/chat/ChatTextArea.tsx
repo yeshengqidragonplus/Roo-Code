@@ -32,7 +32,6 @@ import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { IndexingStatusBadge } from "./IndexingStatusBadge"
 import { usePromptHistory } from "./hooks/usePromptHistory"
-import type { WorkflowVizGraph } from "@roo-code/types"
 import { WorkflowView } from "../workflow/WorkflowView"
 
 interface ChatTextAreaProps {
@@ -108,21 +107,6 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			const m = customModes?.find((cm) => cm.slug === mode)
 			return m?.kind === "workflow" ? m.workflow?.workflowId : undefined
 		}, [customModes, mode])
-
-		// Workflow graph loaded for editing (from requestWorkflowGraph)
-		const [editGraph, setEditGraph] = useState<Record<string, unknown> | null>(null)
-
-		// Listen for workflowGraph messages (response to requestWorkflowGraph)
-		useEffect(() => {
-			const handler = (event: MessageEvent) => {
-				const message = event.data
-				if (message.type === "workflowGraph" && message.graph) {
-					setEditGraph(message.graph as Record<string, unknown>)
-				}
-			}
-			window.addEventListener("message", handler)
-			return () => window.removeEventListener("message", handler)
-		}, [])
 
 		// Find the ID and display text for the currently selected API configuration.
 		const { currentConfigId, displayName } = useMemo(() => {

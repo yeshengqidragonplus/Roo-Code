@@ -10,7 +10,6 @@
 import React from "react"
 import type { WorkflowVizGraph } from "@roo-code/types"
 import { vscode } from "@/utils/vscode"
-import { useAppTranslation } from "@/i18n/TranslationContext"
 import { WorkflowView } from "./WorkflowView"
 
 export interface WorkflowEditorViewProps {
@@ -21,7 +20,6 @@ export interface WorkflowEditorViewProps {
 }
 
 export const WorkflowEditorView: React.FC<WorkflowEditorViewProps> = ({ workflowId, onDone }) => {
-	const { t } = useAppTranslation()
 	const [graph, setGraph] = React.useState<WorkflowVizGraph | null>(null)
 	const [error, setError] = React.useState<string | null>(null)
 
@@ -60,13 +58,18 @@ export const WorkflowEditorView: React.FC<WorkflowEditorViewProps> = ({ workflow
 	return (
 		<div className="h-full w-full overflow-hidden">
 			{error && (
-				<div className="flex items-center justify-center h-full">
+				<div className="flex flex-col items-center justify-center gap-3 h-full">
 					<div className="text-sm text-red-400">{error}</div>
+					<button
+						className="text-[11px] px-3 py-1 rounded bg-vscode-button-background text-vscode-button-foreground hover:bg-vscode-button-hoverBackground"
+						onClick={onDone}>
+						Close
+					</button>
 				</div>
 			)}
 			{!error && !graph && (
 				<div className="flex items-center justify-center h-full text-xs text-vscode-descriptionForeground">
-					Loading workflow "{workflowId}"...
+					Loading workflow &quot;{workflowId}&quot;...
 				</div>
 			)}
 			{!error && graph && (

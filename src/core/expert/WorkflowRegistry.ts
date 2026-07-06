@@ -73,6 +73,8 @@ export class WorkflowRegistry {
 
 		for (const entry of entries) {
 			if (!entry.endsWith(".json")) continue
+			// Config companions of dual-file workflows are not workflows themselves.
+			if (entry.endsWith(".config.json")) continue
 			const id = entry.slice(0, -".json".length)
 			if (!WORKFLOW_ID_REGEX.test(id)) {
 				this.warn(`Skipping workflow with invalid id "${id}" (must be a lowercase-hyphen slug)`)
@@ -139,8 +141,10 @@ export class WorkflowRegistry {
 
 			const nodeConfig = config[nodeId]
 			if (nodeConfig && typeof nodeConfig === "object") {
-				// Architecture fields take precedence (exec, expression, customData)
-				const merged: Record<string, unknown> = { ...nodeConfig }
+				// Merge rule (docs/workflow-dual-file-design.md §2.3): start from the
+				// architecture file's data so non-architecture fields survive, layer
+				// the config on top, then re-apply architecture fields (they win).
+				const merged: Record<string, unknown> = { ...data, ...nodeConfig }
 				for (const archKey of ARCHITECTURE_NODE_DATA_FIELDS) {
 					if (archKey in data) {
 						merged[archKey] = data[archKey]

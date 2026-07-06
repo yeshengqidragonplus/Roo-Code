@@ -30,6 +30,10 @@ export interface WorkflowVizEdge {
 export interface WorkflowVizGraph {
 	name: string
 	description: string
+	/** Engine-format passthrough (preserved verbatim across save round-trips). */
+	version?: string
+	/** Workflow input declarations (engine format, passthrough). */
+	inputs?: unknown[]
 	nodes: WorkflowVizNode[]
 	edges: WorkflowVizEdge[]
 }

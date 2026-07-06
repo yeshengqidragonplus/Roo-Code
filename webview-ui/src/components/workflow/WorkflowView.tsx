@@ -19,7 +19,9 @@ import {
 	MarkerType,
 	addEdge,
 	type Node,
+	type NodeChange,
 	type Edge,
+	type EdgeChange,
 	type NodeTypes,
 	type Connection,
 	type OnNodesChange,
@@ -31,6 +33,7 @@ import {
 import "@xyflow/react/dist/style.css"
 import type { WorkflowVizPayload, WorkflowVizNode, WorkflowNodeStatus } from "@roo-code/types"
 import { WorkflowNodeView, type WorkflowNodeData } from "./WorkflowNodeView"
+import { buildSaveGraph } from "./buildSaveGraph"
 import { NodeConfigPanel } from "./NodeConfigPanel"
 import { NODE_TYPE_COLORS, STATUS_COLORS, NODE_TYPE_LABELS, NODE_TYPE_ICONS } from "./constants"
 import { vscode } from "@/utils/vscode"
@@ -90,12 +93,12 @@ export const WorkflowView: React.FC<WorkflowViewProps> = ({ workflowViz, editMod
 		}
 	}, [editMode, graph])
 
-	const onNodesChange: OnNodesChange = React.useCallback((changes) => {
+	const onNodesChange: OnNodesChange = React.useCallback((changes: NodeChange[]) => {
 		setEditNodes((nds) => applyNodeChanges(changes, nds) as Node<WorkflowNodeData>[])
 		setGraphChanged(true)
 	}, [])
 
-	const onEdgesChange: OnEdgesChange = React.useCallback((changes) => {
+	const onEdgesChange: OnEdgesChange = React.useCallback((changes: EdgeChange[]) => {
 		setEditEdges((eds) => applyEdgeChanges(changes, eds))
 		setGraphChanged(true)
 	}, [])
@@ -125,21 +128,9 @@ export const WorkflowView: React.FC<WorkflowViewProps> = ({ workflowViz, editMod
 	}, [])
 
 	const handleSave = React.useCallback(() => {
-		const graphData: Record<string, unknown> = {
-			name: graph.name,
-			description: graph.description,
-			version: "1.0.0",
-			nodes: editNodes.map((n) => {
-				const data = n.data as WorkflowNodeData
-				return { id: n.id, type: data.node.type, position: n.position, data: data.node.data }
-			}),
-			edges: editEdges.map((e) => ({
-				id: e.id,
-				source: e.source,
-				target: e.target,
-				...(e.label ? { data: { branch: e.label } } : {}),
-			})),
-		}
+		// Spread the loaded graph so fields the editor doesn't model
+		// (inputs, version, ...) survive the round-trip; see buildSaveGraph.
+		const graphData = buildSaveGraph(graph as unknown as Record<string, unknown>, editNodes, editEdges)
 		vscode.postMessage({ type: "saveWorkflow", workflowId: workflowViz.workflowId, graph: graphData })
 		setGraphChanged(false)
 	}, [editNodes, editEdges, graph, workflowViz.workflowId])
@@ -306,14 +297,14 @@ export const WorkflowView: React.FC<WorkflowViewProps> = ({ workflowViz, editMod
 						onNodesChange={editMode ? onNodesChange : undefined}
 						onEdgesChange={editMode ? onEdgesChange : undefined}
 						onConnect={editMode ? onConnect : undefined}
-						onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+						onNodeClick={(_: React.MouseEvent, node: Node) => setSelectedNodeId(node.id)}
 						proOptions={{ hideAttribution: true }}
 						className="bg-vscode-editor-background">
 						<Background variant={BackgroundVariant.Dots} gap={16} size={1} className="!opacity-20" />
 						<Controls showInteractive={false} className="!bg-vscode-editor-background" />
 						<MiniMap
 							className="!bg-vscode-editor-background"
-							nodeColor={(n) => {
+							nodeColor={(n: Node) => {
 								const d = n.data as unknown as WorkflowNodeData
 								return STATUS_COLORS[d?.status ?? "pending"] ?? STATUS_COLORS.pending
 							}}
