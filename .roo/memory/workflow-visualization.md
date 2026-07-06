@@ -53,3 +53,11 @@ ChatTextArea 工具栏有两个按钮：
 
 - **查看按钮**（实心图标）：`workflowViz` 存在时显示（工作流运行中）
 - **编辑按钮**（空心图标+铅笔）：当前模式是 workflow 专家且未运行时显示（`workflowModeId` 存在且 `!workflowViz`）
+
+## 已知问题（修复前勿依赖）
+
+详见 `docs/workflow-viz-editor.md` §5/§6。最重要的三条：
+
+1. 编辑器保存会**丢失顶层 `inputs` 并把 `version` 重置为 1.0.0**（WorkflowView.handleSave 只回传 name/description/nodes/edges）
+2. `WorkflowRegistry.load()` 合并时会丢弃架构文件 data 中非 `exec/expression/customData` 的字段（与设计稿规则不一致）
+3. 编辑器归属与 `workflow-editor-ownership.md` 矛盾（该 memory 说编辑器归 AIWorkflow 仓）——归属待决策，两份文档暂不一致

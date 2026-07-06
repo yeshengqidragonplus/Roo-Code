@@ -1,8 +1,10 @@
 # 工作流双文件架构设计
 
-> 状态：设计稿
+> 状态：已实现（MVP，commit `c5950da43`）——实现记录与已知偏差见 `workflow-viz-editor.md`
 > 日期：2026-07-04
-> 关联：`expert-system-design.md`、`workflow-engine-handoff.md`、`workflow-visualization.md`
+> 关联：`expert-system-design.md`、`workflow-engine-handoff.md`、`workflow-visualization.md`、`workflow-viz-editor.md`
+>
+> ⚠️ 实现偏差提醒：`WorkflowRegistry.load()` 的合并实现与 §2.3 的规则不完全一致（架构文件 data 中非架构字段在有 config 时会被丢弃），且编辑器保存链路会丢失顶层 `inputs`/重置 `version`。详见 `workflow-viz-editor.md` §5、§6。
 
 ## 1. 目标
 
