@@ -26,6 +26,7 @@ export type AutoApprovalState =
 // Some of these actions have additional settings associated with them.
 export type AutoApprovalStateOptions =
 	| "autoApprovalEnabled"
+	| "autoApprovalMode" // Session-level posture: "manual" (default) | "sandbox".
 	| "alwaysAllowReadOnlyOutsideWorkspace" // For `alwaysAllowReadOnly`.
 	| "alwaysAllowWriteOutsideWorkspace" // For `alwaysAllowWrite`.
 	| "alwaysAllowWriteProtected"
@@ -57,6 +58,14 @@ export async function checkAutoApproval({
 }): Promise<CheckAutoApprovalResult> {
 	if (isNonBlockingAsk(ask)) {
 		return { decision: "approve" }
+	}
+
+	// Session-level "sandbox autonomy" posture. This is an ADDITIVE pre-layer:
+	// when the mode is anything other than "sandbox" (including undefined), we
+	// fall straight through to the legacy per-category logic below, so existing
+	// behavior is byte-for-byte unchanged. See docs/approval-mechanism-design.md.
+	if (state?.autoApprovalMode === "sandbox") {
+		return checkSandboxApproval({ state, ask, text, isProtected })
 	}
 
 	if (!state || !state.autoApprovalEnabled) {
@@ -176,6 +185,114 @@ export async function checkAutoApproval({
 				(!isProtected || state.alwaysAllowWriteProtected === true)
 				? { decision: "approve" }
 				: { decision: "ask" }
+		}
+	}
+
+	return { decision: "ask" }
+}
+
+/**
+ * Sandbox-autonomy decision rules (session mode "sandbox" / L1).
+ *
+ * The guiding principle: approval is friction only when an action is
+ * irreversible or escapes the project. Inside the workspace, git checkpoints
+ * are the safety net, so read/write auto-approve. Anything that leaves the
+ * workspace, or a command not on the trust list, still asks. Follow-up
+ * questions always wait for a human — there is no countdown in this mode.
+ *
+ * NOTE (deferred, see design doc): file *deletion* is not given blanket
+ * auto-approval here — deletes flow through the command trust list until the
+ * recycle-staging safety net lands. Irreplaceable git-ignored files
+ * (keystores, .env) should be added to `.rooprotected`; `isProtected` forces
+ * an ask even inside the workspace.
+ */
+function checkSandboxApproval({
+	state,
+	ask,
+	text,
+	isProtected,
+}: {
+	state: Pick<ExtensionState, AutoApprovalState | AutoApprovalStateOptions>
+	ask: ClineAsk
+	text?: string
+	isProtected?: boolean
+}): CheckAutoApprovalResult {
+	// Follow-up questions: a human is present in this mode — always wait, never
+	// auto-select. (The legacy countdown lives only in "manual" mode.)
+	if (ask === "followup") {
+		return { decision: "ask" }
+	}
+
+	// Commands: trust list approves, deny list denies, anything new asks.
+	// Sandbox mode is itself the enablement, so this does not require
+	// `alwaysAllowExecute`.
+	if (ask === "command") {
+		if (!text) {
+			return { decision: "ask" }
+		}
+		const decision = getCommandDecision(text, state.allowedCommands || [], state.deniedCommands || [])
+		if (decision === "auto_approve") {
+			return { decision: "approve" }
+		} else if (decision === "auto_deny") {
+			return { decision: "deny" }
+		}
+		return { decision: "ask" }
+	}
+
+	// MCP tools can reach outside the sandbox, so they still require an explicit
+	// per-tool always-allow mark; otherwise ask.
+	if (ask === "use_mcp_server") {
+		if (!text) {
+			return { decision: "ask" }
+		}
+		try {
+			const mcpServerUse = JSON.parse(text) as McpServerUse
+			if (mcpServerUse.type === "use_mcp_tool") {
+				return isMcpToolAlwaysAllowed(mcpServerUse, state.mcpServers)
+					? { decision: "approve" }
+					: { decision: "ask" }
+			}
+		} catch {
+			return { decision: "ask" }
+		}
+		return { decision: "ask" }
+	}
+
+	if (ask === "tool") {
+		let tool: ClineSayTool | undefined
+		try {
+			tool = JSON.parse(text || "{}")
+		} catch {
+			return { decision: "ask" }
+		}
+		if (!tool) {
+			return { decision: "ask" }
+		}
+
+		// Zero-cost, no-side-effect tools: always fine.
+		if (tool.tool === "updateTodoList" || tool.tool === "skill") {
+			return { decision: "approve" }
+		}
+
+		// Mode switches and subtasks are low-risk orchestration in sandbox mode.
+		if (tool.tool === "switchMode" || ["newTask", "finishTask"].includes(tool.tool)) {
+			return { decision: "approve" }
+		}
+
+		const isOutsideWorkspace = !!tool.isOutsideWorkspace
+
+		// Reading inside the workspace is free; outside always asks.
+		if (isReadOnlyToolAction(tool)) {
+			return isOutsideWorkspace ? { decision: "ask" } : { decision: "approve" }
+		}
+
+		// Writing inside the workspace is git-recoverable; outside always asks,
+		// and protected (red-line) files always ask.
+		if (isWriteToolAction(tool)) {
+			if (isOutsideWorkspace || isProtected) {
+				return { decision: "ask" }
+			}
+			return { decision: "approve" }
 		}
 	}
 

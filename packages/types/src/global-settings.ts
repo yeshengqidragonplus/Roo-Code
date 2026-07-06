@@ -99,6 +99,15 @@ export const globalSettingsSchema = z.object({
 	customCondensingPrompt: z.string().optional(),
 
 	autoApprovalEnabled: z.boolean().optional(),
+	/**
+	 * Session-level approval posture (QCode "sandbox autonomy").
+	 * - "manual" / undefined: legacy behavior — decisions come purely from the
+	 *   per-category `alwaysAllow*` toggles below. Nothing changes.
+	 * - "sandbox": inside-workspace read/write auto-approve, outside-workspace
+	 *   always asks, commands follow the trust list, follow-ups always wait
+	 *   (no countdown). See docs/approval-mechanism-design.md.
+	 */
+	autoApprovalMode: z.enum(["manual", "sandbox"]).optional(),
 	alwaysAllowReadOnly: z.boolean().optional(),
 	alwaysAllowReadOnlyOutsideWorkspace: z.boolean().optional(),
 	alwaysAllowWrite: z.boolean().optional(),
