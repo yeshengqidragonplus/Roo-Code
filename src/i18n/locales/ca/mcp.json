@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Ha fallat la desconnexió de {{count}} servidor(s) MCP. Comprova la sortida per més detalls.",
 		"toolNotFound": "L'eina '{{toolName}}' no existeix al servidor '{{serverName}}'. Eines disponibles: {{availableTools}}",
 		"serverNotFound": "El servidor MCP '{{serverName}}' no està configurat. Servidors disponibles: {{availableServers}}",
-		"toolDisabled": "L'eina '{{toolName}}' del servidor '{{serverName}}' està desactivada. Eines activades disponibles: {{availableTools}}"
+		"toolDisabled": "L'eina '{{toolName}}' del servidor '{{serverName}}' està desactivada. Eines activades disponibles: {{availableTools}}",
+		"serverNotVisibleToMode": "El servidor MCP '{{serverName}}' no és visible per al mode '{{mode}}'. Per utilitzar les seves eines, inicieu una subtasca (new_task) en un mode amb accés."
 	},
 	"info": {
 		"server_restarting": "Reiniciant el servidor MCP {{serverName}}...",

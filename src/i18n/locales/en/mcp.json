@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Failed to disconnect {{count}} MCP server(s). Check the output for details.",
 		"toolNotFound": "Tool '{{toolName}}' does not exist on server '{{serverName}}'. Available tools: {{availableTools}}",
 		"serverNotFound": "MCP server '{{serverName}}' is not configured. Available servers: {{availableServers}}",
-		"toolDisabled": "Tool '{{toolName}}' on server '{{serverName}}' is disabled. Available enabled tools: {{availableTools}}"
+		"toolDisabled": "Tool '{{toolName}}' on server '{{serverName}}' is disabled. Available enabled tools: {{availableTools}}",
+		"serverNotVisibleToMode": "MCP server '{{serverName}}' is not visible to mode '{{mode}}'. To use its tools, delegate to a subtask (new_task) in a mode that has access."
 	},
 	"info": {
 		"server_restarting": "Restarting {{serverName}} MCP server...",

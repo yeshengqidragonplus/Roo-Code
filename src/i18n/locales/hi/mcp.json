@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "{{count}} MCP सर्वर डिस्कनेक्ट करने में विफल। विवरण के लिए आउटपुट देखें।",
 		"toolNotFound": "टूल '{{toolName}}' सर्वर '{{serverName}}' पर मौजूद नहीं है। उपलब्ध टूल: {{availableTools}}",
 		"serverNotFound": "MCP सर्वर '{{serverName}}' कॉन्फ़िगर नहीं है। उपलब्ध सर्वर: {{availableServers}}",
-		"toolDisabled": "सर्वर '{{serverName}}' पर टूल '{{toolName}}' अक्षम है। उपलब्ध सक्षम टूल: {{availableTools}}"
+		"toolDisabled": "सर्वर '{{serverName}}' पर टूल '{{toolName}}' अक्षम है। उपलब्ध सक्षम टूल: {{availableTools}}",
+		"serverNotVisibleToMode": "MCP सर्वर '{{serverName}}' मोड '{{mode}}' के लिए दृश्यमान नहीं है। इसके टूल उपयोग करने के लिए, पहुँच वाले मोड में new_task से उप-कार्य शुरू करें।"
 	},
 	"info": {
 		"server_restarting": "{{serverName}} MCP सर्वर पुनः प्रारंभ हो रहा है...",

@@ -7,6 +7,7 @@ import type { ToolUse } from "../../shared/tools"
 import { toolNamesMatch } from "../../utils/mcp-name"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
+import { ensureServerVisibleToMode } from "./mcpVisibilityGuard"
 
 interface UseMcpToolParams {
 	server_name: string
@@ -41,6 +42,12 @@ export class UseMcpToolTool extends BaseTool<"use_mcp_tool"> {
 			// Validate that the tool exists on the server
 			const toolValidation = await this.validateToolExists(task, serverName, toolName, pushToolResult)
 			if (!toolValidation.isValid) {
+				return
+			}
+
+			// Enforce per-server mode visibility (defense in depth)
+			const isVisible = await ensureServerVisibleToMode(task, "use_mcp_tool", serverName, pushToolResult)
+			if (!isVisible) {
 				return
 			}
 

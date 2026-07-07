@@ -5,6 +5,8 @@ import { TOOL_GROUPS, ALWAYS_AVAILABLE_TOOLS, TOOL_ALIASES } from "../../../shar
 import { defaultModeSlug } from "../../../shared/modes"
 import type { CodeIndexManager } from "../../../services/code-index/manager"
 import type { McpHub } from "../../../services/mcp/McpHub"
+import { isServerVisibleToMode } from "../../../services/mcp/mode-visibility"
+import { MCP_TOOL_PREFIX, MCP_TOOL_SEPARATOR, sanitizeMcpName } from "../../../utils/mcp-name"
 import { isToolAllowedForMode } from "../../../core/tools/validateToolUse"
 
 /**
@@ -428,10 +430,16 @@ export function getAvailableToolsInGroup(
 /**
  * Filters MCP tools based on whether use_mcp_tool is allowed in the current mode.
  *
+ * When an mcpHub is provided, tools of servers whose `modes` whitelist excludes
+ * the current mode are additionally removed. Matching is done on the
+ * `mcp--{server}--` name prefix: buildMcpToolName only ever truncates the tool
+ * segment (64-char cap), so the prefix is always intact even for truncated names.
+ *
  * @param mcpTools - Array of MCP tools
  * @param mode - Current mode slug
  * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
+ * @param mcpHub - Optional hub used to resolve per-server mode visibility
  * @returns Filtered array of MCP tools if use_mcp_tool is allowed, empty array otherwise
  */
 export function filterMcpToolsForMode(
@@ -439,6 +447,7 @@ export function filterMcpToolsForMode(
 	mode: string | undefined,
 	customModes: ModeConfig[] | undefined,
 	experiments: Record<string, boolean> | undefined,
+	mcpHub?: McpHub,
 ): OpenAI.Chat.ChatCompletionTool[] {
 	const modeSlug = mode ?? defaultModeSlug
 
@@ -452,5 +461,25 @@ export function filterMcpToolsForMode(
 		experiments ?? {},
 	)
 
-	return isMcpAllowed ? mcpTools : []
+	if (!isMcpAllowed) {
+		return []
+	}
+
+	if (!mcpHub) {
+		return mcpTools
+	}
+
+	const hiddenPrefixes = mcpHub
+		.getServers()
+		.filter((server) => !isServerVisibleToMode(server, modeSlug))
+		.map((server) => `${MCP_TOOL_PREFIX}${MCP_TOOL_SEPARATOR}${sanitizeMcpName(server.name)}${MCP_TOOL_SEPARATOR}`)
+
+	if (hiddenPrefixes.length === 0) {
+		return mcpTools
+	}
+
+	return mcpTools.filter((tool) => {
+		const name = (tool as OpenAI.Chat.ChatCompletionFunctionTool).function?.name ?? ""
+		return !hiddenPrefixes.some((prefix) => name.startsWith(prefix))
+	})
 }

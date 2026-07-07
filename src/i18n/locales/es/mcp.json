@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Error al desconectar {{count}} servidor(es) MCP. Revisa la salida para más detalles.",
 		"toolNotFound": "La herramienta '{{toolName}}' no existe en el servidor '{{serverName}}'. Herramientas disponibles: {{availableTools}}",
 		"serverNotFound": "El servidor MCP '{{serverName}}' no está configurado. Servidores disponibles: {{availableServers}}",
-		"toolDisabled": "La herramienta '{{toolName}}' del servidor '{{serverName}}' está desactivada. Herramientas activadas disponibles: {{availableTools}}"
+		"toolDisabled": "La herramienta '{{toolName}}' del servidor '{{serverName}}' está desactivada. Herramientas activadas disponibles: {{availableTools}}",
+		"serverNotVisibleToMode": "El servidor MCP '{{serverName}}' no es visible para el modo '{{mode}}'. Para usar sus herramientas, inicia una subtarea (new_task) en un modo con acceso."
 	},
 	"info": {
 		"server_restarting": "Reiniciando el servidor MCP {{serverName}}...",

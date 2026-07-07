@@ -2,7 +2,8 @@
 
 import type OpenAI from "openai"
 
-import { filterNativeToolsForMode } from "../filter-tools-for-mode"
+import type { McpHub } from "../../../../services/mcp/McpHub"
+import { filterMcpToolsForMode, filterNativeToolsForMode } from "../filter-tools-for-mode"
 
 function makeTool(name: string): OpenAI.Chat.ChatCompletionTool {
 	return {
@@ -87,5 +88,122 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).not.toContain("search_and_replace")
 		expect(resultNames).not.toContain("edit")
+	})
+})
+
+describe("filterMcpToolsForMode - per-server mode visibility", () => {
+	function makeMcpHub(servers: Array<{ name: string; modes?: string[] }>): McpHub {
+		return {
+			getServers: () =>
+				servers.map((server) => ({
+					name: server.name,
+					config: JSON.stringify(
+						server.modes
+							? { type: "stdio", command: "test", modes: server.modes }
+							: { type: "stdio", command: "test" },
+					),
+					status: "connected",
+				})),
+		} as unknown as McpHub
+	}
+
+	const mcpTools = [
+		makeTool("mcp--unity-pro--outline"),
+		makeTool("mcp--unity-pro--resolve"),
+		makeTool("mcp--docs-server--search"),
+	]
+
+	describe("zero-impact when no server restricts modes", () => {
+		it("returns the exact same tools when no mcpHub is provided", () => {
+			const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined)
+			expect(result).toBe(mcpTools)
+		})
+
+		it("returns the exact same tools when no server has a modes whitelist", () => {
+			const mcpHub = makeMcpHub([{ name: "unity-pro" }, { name: "docs-server" }])
+			const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined, mcpHub)
+			expect(result).toBe(mcpTools)
+		})
+
+		it("still returns empty array when the mode has no mcp group", () => {
+			const mcpHub = makeMcpHub([{ name: "unity-pro" }])
+			const customModes = [
+				{
+					slug: "no-mcp-mode",
+					name: "No MCP",
+					roleDefinition: "test",
+					groups: ["read"],
+				},
+			] as any
+			const result = filterMcpToolsForMode(mcpTools, "no-mcp-mode", customModes, undefined, mcpHub)
+			expect(result).toEqual([])
+		})
+	})
+
+	describe("filtering by server modes whitelist", () => {
+		it("hides a restricted server's tools from modes not in its whitelist", () => {
+			const mcpHub = makeMcpHub([{ name: "unity-pro", modes: ["unity-context"] }, { name: "docs-server" }])
+			const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined, mcpHub)
+			const names = result.map((t) => (t as any).function.name)
+			expect(names).toEqual(["mcp--docs-server--search"])
+		})
+
+		it("shows a restricted server's tools to a mode in its whitelist", () => {
+			const mcpHub = makeMcpHub([{ name: "unity-pro", modes: ["unity-context"] }, { name: "docs-server" }])
+			const customModes = [
+				{
+					slug: "unity-context",
+					name: "Unity Context",
+					roleDefinition: "test",
+					groups: ["read", "mcp"],
+				},
+			] as any
+			const result = filterMcpToolsForMode(mcpTools, "unity-context", customModes, undefined, mcpHub)
+			const names = result.map((t) => (t as any).function.name)
+			expect(names).toEqual(["mcp--unity-pro--outline", "mcp--unity-pro--resolve", "mcp--docs-server--search"])
+		})
+
+		it("filters multiple restricted servers independently", () => {
+			const mcpHub = makeMcpHub([
+				{ name: "unity-pro", modes: ["unity-context"] },
+				{ name: "docs-server", modes: ["ask"] },
+			])
+			const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined, mcpHub)
+			expect(result).toEqual([])
+		})
+
+		it("matches truncated tool names by server prefix", () => {
+			// buildMcpToolName caps at 64 chars; only the tool segment is ever cut,
+			// so the mcp--{server}-- prefix stays intact.
+			const longToolName = ("mcp--unity-pro--" + "a".repeat(80)).slice(0, 64)
+			const mcpHub = makeMcpHub([{ name: "unity-pro", modes: ["unity-context"] }])
+			const result = filterMcpToolsForMode([makeTool(longToolName)], "code", undefined, undefined, mcpHub)
+			expect(result).toEqual([])
+		})
+
+		it("matches servers whose names require sanitization", () => {
+			// "my unity server" sanitizes to "my_unity_server" in tool names
+			const mcpHub = makeMcpHub([{ name: "my unity server", modes: ["unity-context"] }])
+			const tools = [makeTool("mcp--my_unity_server--outline"), makeTool("mcp--docs-server--search")]
+			const result = filterMcpToolsForMode(tools, "code", undefined, undefined, mcpHub)
+			const names = result.map((t) => (t as any).function.name)
+			expect(names).toEqual(["mcp--docs-server--search"])
+		})
+
+		it("does not hide tools of a different server sharing a name prefix", () => {
+			const mcpHub = makeMcpHub([{ name: "unity", modes: ["unity-context"] }, { name: "unity-pro" }])
+			const tools = [makeTool("mcp--unity--outline"), makeTool("mcp--unity-pro--outline")]
+			const result = filterMcpToolsForMode(tools, "code", undefined, undefined, mcpHub)
+			const names = result.map((t) => (t as any).function.name)
+			expect(names).toEqual(["mcp--unity-pro--outline"])
+		})
+
+		it("treats malformed server config JSON as unrestricted", () => {
+			const mcpHub = {
+				getServers: () => [{ name: "unity-pro", config: "not json", status: "connected" }],
+			} as unknown as McpHub
+			const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined, mcpHub)
+			expect(result).toBe(mcpTools)
+		})
 	})
 })

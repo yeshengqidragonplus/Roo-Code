@@ -1535,6 +1535,55 @@ describe("McpHub", () => {
 			})
 		})
 
+		describe("modes configuration", () => {
+			it("should accept a non-empty modes array and preserve it", () => {
+				const config = {
+					type: "stdio",
+					command: "test",
+					modes: ["unity-context", "code"],
+				}
+				const parsed = ServerConfigSchema.parse(config)
+				expect(parsed.modes).toEqual(["unity-context", "code"])
+			})
+
+			it("should accept modes on url-based server configs", () => {
+				const config = {
+					type: "sse",
+					url: "https://example.com/sse",
+					modes: ["unity-context"],
+				}
+				const parsed = ServerConfigSchema.parse(config)
+				expect(parsed.modes).toEqual(["unity-context"])
+			})
+
+			it("should reject an empty modes array", () => {
+				const config = {
+					type: "stdio",
+					command: "test",
+					modes: [],
+				}
+				expect(() => ServerConfigSchema.parse(config)).toThrow()
+			})
+
+			it("should reject non-string entries in modes", () => {
+				const config = {
+					type: "stdio",
+					command: "test",
+					modes: [42],
+				}
+				expect(() => ServerConfigSchema.parse(config)).toThrow()
+			})
+
+			it("should leave modes undefined when not specified", () => {
+				const config = {
+					type: "stdio",
+					command: "test",
+				}
+				const parsed = ServerConfigSchema.parse(config)
+				expect(parsed.modes).toBeUndefined()
+			})
+		})
+
 		describe("updateServerTimeout", () => {
 			it("should update server timeout in settings file", async () => {
 				const mockConfig = {

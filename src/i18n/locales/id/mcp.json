@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Gagal memutus koneksi {{count}} server MCP. Periksa output untuk detailnya.",
 		"toolNotFound": "Tool '{{toolName}}' tidak ada di server '{{serverName}}'. Tool yang tersedia: {{availableTools}}",
 		"serverNotFound": "Server MCP '{{serverName}}' tidak dikonfigurasi. Server yang tersedia: {{availableServers}}",
-		"toolDisabled": "Tool '{{toolName}}' di server '{{serverName}}' dinonaktifkan. Tool aktif yang tersedia: {{availableTools}}"
+		"toolDisabled": "Tool '{{toolName}}' di server '{{serverName}}' dinonaktifkan. Tool aktif yang tersedia: {{availableTools}}",
+		"serverNotVisibleToMode": "Server MCP '{{serverName}}' tidak terlihat untuk mode '{{mode}}'. Untuk menggunakan alatnya, mulai subtugas (new_task) di mode yang memiliki akses."
 	},
 	"info": {
 		"server_restarting": "Merestart server MCP {{serverName}}...",

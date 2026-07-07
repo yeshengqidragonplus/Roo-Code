@@ -96,6 +96,17 @@ Otherwise, if you have not completed the task and do not need additional informa
 			available_servers: availableServers.length > 0 ? availableServers : [],
 		}),
 
+	mcpServerNotVisibleToMode: (serverName: string, mode: string) =>
+		JSON.stringify({
+			status: "error",
+			type: "server_not_visible_to_mode",
+			message: "This MCP server's tools are not visible to the current mode",
+			server: serverName,
+			mode,
+			suggestion:
+				"If you need this server's capabilities, use the new_task tool to start a subtask in a mode that has access to it",
+		}),
+
 	toolResult: (
 		text: string,
 		images?: string[],

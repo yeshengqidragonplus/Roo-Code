@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "{{count}}個のMCPサーバーの切断に失敗しました。詳細は出力を確認してください。",
 		"toolNotFound": "ツール '{{toolName}}' はサーバー '{{serverName}}' に存在しません。利用可能なツール: {{availableTools}}",
 		"serverNotFound": "MCPサーバー '{{serverName}}' は設定されていません。利用可能なサーバー: {{availableServers}}",
-		"toolDisabled": "サーバー '{{serverName}}' のツール '{{toolName}}' は無効です。利用可能な有効なツール: {{availableTools}}"
+		"toolDisabled": "サーバー '{{serverName}}' のツール '{{toolName}}' は無効です。利用可能な有効なツール: {{availableTools}}",
+		"serverNotVisibleToMode": "MCP サーバー '{{serverName}}' は現在のモード '{{mode}}' からは利用できません。そのツールを使うには、new_task でアクセス権のあるモードのサブタスクを開始してください。"
 	},
 	"info": {
 		"server_restarting": "MCPサーバー{{serverName}}を再起動中...",

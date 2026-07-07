@@ -70,6 +70,16 @@ const BaseConfigSchema = z.object({
 	alwaysAllow: z.array(z.string()).default([]),
 	watchPaths: z.array(z.string()).optional(), // paths to watch for changes and restart server
 	disabledTools: z.array(z.string()).default([]),
+	// Mode-level visibility: when set, this server's tools are only visible to the
+	// listed mode slugs. Unset = visible to every mode with the "mcp" group.
+	// An empty array is rejected — to hide the server everywhere, use `disabled`.
+	modes: z
+		.array(z.string())
+		.min(
+			1,
+			"modes must list at least one mode slug; omit the field to allow all modes, or use 'disabled' to hide the server entirely",
+		)
+		.optional(),
 })
 
 // Custom error messages for better user feedback

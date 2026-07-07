@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Không thể ngắt kết nối {{count}} máy chủ MCP. Kiểm tra đầu ra để biết chi tiết.",
 		"toolNotFound": "Công cụ '{{toolName}}' không tồn tại trên máy chủ '{{serverName}}'. Công cụ có sẵn: {{availableTools}}",
 		"serverNotFound": "Máy chủ MCP '{{serverName}}' chưa được cấu hình. Máy chủ có sẵn: {{availableServers}}",
-		"toolDisabled": "Công cụ '{{toolName}}' trên máy chủ '{{serverName}}' đã bị vô hiệu hóa. Công cụ đã kích hoạt có sẵn: {{availableTools}}"
+		"toolDisabled": "Công cụ '{{toolName}}' trên máy chủ '{{serverName}}' đã bị vô hiệu hóa. Công cụ đã kích hoạt có sẵn: {{availableTools}}",
+		"serverNotVisibleToMode": "Máy chủ MCP '{{serverName}}' không hiển thị với chế độ '{{mode}}'. Để dùng các công cụ của nó, hãy bắt đầu một nhiệm vụ con (new_task) ở chế độ có quyền truy cập."
 	},
 	"info": {
 		"server_restarting": "Đang khởi động lại máy chủ MCP {{serverName}}...",

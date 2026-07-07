@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Échec de la déconnexion de {{count}} serveur(s) MCP. Vérifiez la sortie pour plus de détails.",
 		"toolNotFound": "L'outil '{{toolName}}' n'existe pas sur le serveur '{{serverName}}'. Outils disponibles : {{availableTools}}",
 		"serverNotFound": "Le serveur MCP '{{serverName}}' n'est pas configuré. Serveurs disponibles : {{availableServers}}",
-		"toolDisabled": "L'outil '{{toolName}}' sur le serveur '{{serverName}}' est désactivé. Outils activés disponibles : {{availableTools}}"
+		"toolDisabled": "L'outil '{{toolName}}' sur le serveur '{{serverName}}' est désactivé. Outils activés disponibles : {{availableTools}}",
+		"serverNotVisibleToMode": "Le serveur MCP '{{serverName}}' n'est pas visible pour le mode '{{mode}}'. Pour utiliser ses outils, lancez une sous-tâche (new_task) dans un mode y ayant accès."
 	},
 	"info": {
 		"server_restarting": "Redémarrage du serveur MCP {{serverName}}...",

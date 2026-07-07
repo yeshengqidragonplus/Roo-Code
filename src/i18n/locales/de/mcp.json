@@ -11,7 +11,8 @@
 		"disconnect_servers_partial": "Fehler beim Trennen von {{count}} MCP-Server(n). Überprüfe die Ausgabe für Details.",
 		"toolNotFound": "Tool '{{toolName}}' existiert nicht auf Server '{{serverName}}'. Verfügbare Tools: {{availableTools}}",
 		"serverNotFound": "MCP-Server '{{serverName}}' ist nicht konfiguriert. Verfügbare Server: {{availableServers}}",
-		"toolDisabled": "Tool '{{toolName}}' auf Server '{{serverName}}' ist deaktiviert. Verfügbare aktivierte Tools: {{availableTools}}"
+		"toolDisabled": "Tool '{{toolName}}' auf Server '{{serverName}}' ist deaktiviert. Verfügbare aktivierte Tools: {{availableTools}}",
+		"serverNotVisibleToMode": "Der MCP-Server '{{serverName}}' ist für den Modus '{{mode}}' nicht sichtbar. Um seine Werkzeuge zu nutzen, starte über new_task eine Unteraufgabe in einem Modus mit Zugriff."
 	},
 	"info": {
 		"server_restarting": "MCP-Server {{serverName}} wird neu gestartet...",

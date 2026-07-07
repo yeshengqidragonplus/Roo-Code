@@ -5,6 +5,7 @@ import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
+import { ensureServerVisibleToMode } from "./mcpVisibilityGuard"
 
 interface AccessMcpResourceParams {
 	server_name: string
@@ -34,6 +35,12 @@ export class AccessMcpResourceTool extends BaseTool<"access_mcp_resource"> {
 			}
 
 			task.consecutiveMistakeCount = 0
+
+			// Enforce per-server mode visibility (defense in depth)
+			const isVisible = await ensureServerVisibleToMode(task, "access_mcp_resource", server_name, pushToolResult)
+			if (!isVisible) {
+				return
+			}
 
 			const completeMessage = JSON.stringify({
 				type: "access_mcp_resource",
