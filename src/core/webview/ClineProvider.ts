@@ -1411,7 +1411,29 @@ export class ClineProvider
 
 		this.emit(RooCodeEventName.ModeChanged, newMode)
 
-		// If workspace lock is on, keep the current API config — don't load mode-specific config
+		// If the target mode declares an `apiProfile`, activate it forcefully.
+		// This takes precedence over both `lockApiConfigAcrossModes` and the
+		// mode->Profile mapping, so squad-member sub-agents always get their
+		// declared model regardless of global settings. See
+		// docs/expert-squad-design.md §3.1.
+		const customModes = await this.customModesManager.getCustomModes()
+		const targetModeConfig = getModeBySlug(newMode, customModes)
+		if (targetModeConfig?.apiProfile) {
+			const listApiConfig = await this.providerSettingsManager.listConfig()
+			const profileExists = listApiConfig.some((c) => c.name === targetModeConfig.apiProfile)
+			if (profileExists) {
+				await this.activateProviderProfile({ name: targetModeConfig.apiProfile })
+			} else {
+				this.log(
+					`[handleModeSwitch] apiProfile "${targetModeConfig.apiProfile}" for mode "${newMode}" not found. ` +
+						`Falling back to current configuration.`,
+				)
+			}
+			await this.postStateToWebview()
+			return
+		}
+
+		// If workspace lock is on, keep the current API config - don't load mode-specific config
 		const lockApiConfigAcrossModes = this.context.workspaceState.get("lockApiConfigAcrossModes", false)
 		if (lockApiConfigAcrossModes) {
 			await this.postStateToWebview()
@@ -2970,8 +2992,9 @@ export class ClineProvider
 		message: string
 		initialTodos: TodoItem[]
 		mode: string
+		images?: string[]
 	}): Promise<Task> {
-		const { parentTaskId, message, initialTodos, mode } = params
+		const { parentTaskId, message, initialTodos, mode, images } = params
 
 		// Metadata-driven delegation is always enabled
 
@@ -3058,7 +3081,7 @@ export class ClineProvider
 		// Without this, the child's fire-and-forget startTask() races with step 5,
 		// and the last writer to globalState overwrites the other's changes—
 		// causing the parent's delegation fields to be lost.
-		const child = await this.createTask(message, undefined, parent as any, {
+		const child = await this.createTask(message, images, parent as any, {
 			initialTodos,
 			initialStatus: "active",
 			startTask: false,

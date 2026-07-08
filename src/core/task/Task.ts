@@ -2378,7 +2378,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// Subtasks
 	// Spawn / Wait / Complete
 
-	public async startSubtask(message: string, initialTodos: TodoItem[], mode: string) {
+	public async startSubtask(message: string, initialTodos: TodoItem[], mode: string, images?: string[]) {
 		const provider = this.providerRef.deref()
 
 		if (!provider) {
@@ -2390,6 +2390,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			message,
 			initialTodos,
 			mode,
+			images,
 		})
 		return child
 	}
