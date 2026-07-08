@@ -119,3 +119,168 @@ describe("validateExpertConfig", () => {
 		).toEqual({ ok: true })
 	})
 })
+
+describe("apiProfile field", () => {
+	it("is exposed as an optional field in expertModeFields", () => {
+		expect(expertModeFields).toHaveProperty("apiProfile")
+	})
+
+	it("a mode config with apiProfile validates", () => {
+		const config = {
+			slug: "image-analyzer",
+			name: "Image Analyzer",
+			roleDefinition: "You are an image analysis expert.",
+			groups: ["read", "mcp"],
+			apiProfile: "claude-vision",
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.apiProfile).toBe("claude-vision")
+	})
+
+	it("a mode config without apiProfile still validates (undefined)", () => {
+		const config = {
+			slug: "plain",
+			name: "Plain",
+			roleDefinition: "You are helpful.",
+			groups: ["read"],
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.apiProfile).toBeUndefined()
+	})
+})
+
+describe("hidden field", () => {
+	it("is exposed as an optional field in expertModeFields", () => {
+		expect(expertModeFields).toHaveProperty("hidden")
+	})
+
+	it("a mode config with hidden=true validates", () => {
+		const config = {
+			slug: "image-analyzer",
+			name: "Image Analyzer",
+			roleDefinition: "You are an image analysis expert.",
+			groups: ["read", "mcp"],
+			hidden: true,
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.hidden).toBe(true)
+	})
+
+	it("a mode config without hidden still validates (undefined)", () => {
+		const config = {
+			slug: "plain",
+			name: "Plain",
+			roleDefinition: "You are helpful.",
+			groups: ["read"],
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.hidden).toBeUndefined()
+	})
+
+	it("a mode config with hidden=false validates", () => {
+		const config = {
+			slug: "squad-lead",
+			name: "Squad Lead",
+			roleDefinition: "You are a squad lead.",
+			groups: ["read", "mcp"],
+			hidden: false,
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.hidden).toBe(false)
+	})
+})
+
+describe("maxRetries in delegationPolicy", () => {
+	it("defaults to 3 when not specified", () => {
+		const parsed = modeConfigSchema.parse({
+			slug: "squad-lead",
+			name: "Squad Lead",
+			roleDefinition: "You are a squad lead.",
+			groups: ["read", "mcp"],
+			delegation: { canDelegate: true },
+		})
+		expect(parsed.delegation?.maxRetries).toBe(3)
+	})
+
+	it("accepts a custom value", () => {
+		const parsed = modeConfigSchema.parse({
+			slug: "squad-lead",
+			name: "Squad Lead",
+			roleDefinition: "You are a squad lead.",
+			groups: ["read", "mcp"],
+			delegation: { canDelegate: true, maxRetries: 5 },
+		})
+		expect(parsed.delegation?.maxRetries).toBe(5)
+	})
+
+	it("rejects zero or negative", () => {
+		expect(() =>
+			modeConfigSchema.parse({
+				slug: "bad",
+				name: "Bad",
+				roleDefinition: "x",
+				groups: ["read"],
+				delegation: { maxRetries: 0 },
+			}),
+		).toThrow()
+		expect(() =>
+			modeConfigSchema.parse({
+				slug: "bad",
+				name: "Bad",
+				roleDefinition: "x",
+				groups: ["read"],
+				delegation: { maxRetries: -1 },
+			}),
+		).toThrow()
+	})
+
+	it("rejects non-integer", () => {
+		expect(() =>
+			modeConfigSchema.parse({
+				slug: "bad",
+				name: "Bad",
+				roleDefinition: "x",
+				groups: ["read"],
+				delegation: { maxRetries: 2.5 },
+			}),
+		).toThrow()
+	})
+})
+
+describe("squad-lead mode config (full example)", () => {
+	it("validates a complete squad-lead configuration", () => {
+		const config = {
+			slug: "squad-lead",
+			name: "🧭 Squad Lead",
+			roleDefinition: "You are a task squad organizer.",
+			groups: ["read", "mcp"],
+			apiProfile: "glm-text",
+			delegation: {
+				canDelegate: true,
+				maxDepth: 3,
+				maxRetries: 5,
+			},
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.apiProfile).toBe("glm-text")
+		expect(parsed.delegation?.maxRetries).toBe(5)
+		expect(parsed.hidden).toBeUndefined()
+	})
+})
+
+describe("squad-member mode config (full example)", () => {
+	it("validates a complete squad-member configuration", () => {
+		const config = {
+			slug: "image-analyzer",
+			name: "🌐 Image Analyzer",
+			roleDefinition: "You are an image analysis expert.",
+			groups: ["read", "mcp"],
+			apiProfile: "claude-vision",
+			hidden: true,
+		}
+		const parsed = modeConfigSchema.parse(config)
+		expect(parsed.apiProfile).toBe("claude-vision")
+		expect(parsed.hidden).toBe(true)
+		expect(parsed.delegation).toBeUndefined()
+	})
+})

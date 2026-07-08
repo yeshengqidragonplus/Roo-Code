@@ -62,6 +62,12 @@ export const delegationPolicySchema = z.object({
 	/** Max delegation recursion depth (guards runaway sub-expert chains). */
 	maxDepth: z.number().int().positive().default(3),
 	/**
+	 * Max retries when a sub-expert returns unsatisfactory results. The lead
+	 * expert may re-dispatch with more context up to this limit, then stops
+	 * and reports to the user. See docs/expert-squad-design.md §3.3.
+	 */
+	maxRetries: z.number().int().positive().default(3),
+	/**
 	 * How sub-expert results return to the parent. Locked to `summary` to
 	 * prevent parent context blow-up (only the completion summary crosses back).
 	 */
@@ -110,6 +116,21 @@ export const expertModeFields = {
 	 * completion checks.
 	 */
 	terminationHint: z.string().optional(),
+	/**
+	 * API Profile name to activate when this mode is entered (e.g. via
+	 * delegation). Takes precedence over the mode->Profile mapping and is
+	 * NOT affected by `lockApiConfigAcrossModes`. If the named profile no
+	 * longer exists, falls back to the current configuration with a warning.
+	 * See docs/expert-squad-design.md §3.1.
+	 */
+	apiProfile: z.string().optional(),
+	/**
+	 * When true, this mode is hidden from the mode selector UI and the
+	 * `switch_mode` tool's available-modes list. It can still be targeted by
+	 * `new_task` (delegation). Used for squad-member sub-agents that should
+	 * only be invoked by a squad-lead. See docs/expert-squad-design.md §3.2.
+	 */
+	hidden: z.boolean().optional(),
 } as const
 
 /**
