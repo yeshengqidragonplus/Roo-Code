@@ -43,28 +43,44 @@
 
 ### 3.1 类型选择器（新增，置顶）
 
-在 Name 之前增加类型选择，四种类型互斥：
+在 Name 之前增加**两级类型选择器**：3 个大类，群组模式下有 2 个子类。
 
 ```
-┌─────────────────────────────────────────────────┐
-│  创建模式                                    [X] │
-│                                                   │
-│  模式类型                                         │
-│  ┌─────┐ ┌─────┐ ┌──────────┐ ┌──────────┐     │
-│  │ 普通 │ │ 流程 │ │ 群组组织者 │ │ 群组成员 │     │
-│  └─────┘ └─────┘ └──────────┘ └──────────┘     │
-│  （描述文字根据选中类型变化）                       │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  创建模式                                          [X] │
+│                                                        │
+│  模式类型                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐ │
+│  │ 普通模式  │  │ 流程模式  │  │ 群组模式        ▼   │ │
+│  └──────────┘  └──────────┘  └──────────────────────┘ │
+│                                    ┌───────────────┐  │
+│                                    │ ○ 组织者      │  │
+│                                    │ ○ 成员        │  │
+│                                    └───────────────┘  │
+│  （描述文字根据选中类型变化）                          │
+└──────────────────────────────────────────────────────┘
 ```
 
-类型描述：
+**交互逻辑**：
 
-| 类型       | 描述                                                  |
-| ---------- | ----------------------------------------------------- |
-| 普通       | 独立工作模式，不派单也不被派单。如 code、ask、debug。 |
-| 流程       | 绑定工作流图，按预定义流程执行。                      |
-| 群组组织者 | 任务编队带头人，分解任务并调度子代理。在选择器可见。  |
-| 群组成员   | 专业子代理，被组织者派单调用。不在选择器显示。        |
+- 3 个大类互斥单选（普通 / 流程 / 群组）
+- 选中"群组"后展开 2 个子类单选（组织者 / 成员），默认选中"组织者"
+- 选中其他大类时子类收起
+
+大类描述：
+
+| 大类 | 描述                                                   |
+| ---- | ------------------------------------------------------ |
+| 普通 | 独立工作模式，不派单也不被派单。如 code、ask、debug。  |
+| 流程 | 绑定工作流图，按预定义流程执行。                       |
+| 群组 | 任务编队协作模式。组织者调度子代理，成员执行专业任务。 |
+
+群组子类描述：
+
+| 子类   | 描述                                             |
+| ------ | ------------------------------------------------ |
+| 组织者 | 编队带头人，分解任务并调度子代理。在选择器可见。 |
+| 成员   | 专业子代理，被组织者派单调用。不在选择器显示。   |
 
 ### 3.2 公共字段（四种类型共用）
 
@@ -161,9 +177,17 @@ function updateRoleDefinitionWithSquad(
 ## 5. 新增 State
 
 ```tsx
-type CreateModeType = "normal" | "workflow" | "squad-lead" | "squad-member"
+// 两级类型：大类 + 群组子类
+type CreateModeCategory = "normal" | "workflow" | "squad"
+type SquadSubType = "lead" | "member"
 
-const [createModeType, setCreateModeType] = useState<CreateModeType>("normal")
+const [createModeCategory, setCreateModeCategory] = useState<CreateModeCategory>("normal")
+const [squadSubType, setSquadSubType] = useState<SquadSubType>("lead")
+
+// 便捷派生（用于 handleCreateMode 和条件渲染）
+const createModeType =
+	createModeCategory === "squad" ? (squadSubType === "lead" ? "squad-lead" : "squad-member") : createModeCategory // "normal" | "workflow"
+
 const [newModeApiProfile, setNewModeApiProfile] = useState<string>("")
 const [newModeHidden, setNewModeHidden] = useState<boolean>(false)
 const [newModeMaxDepth, setNewModeMaxDepth] = useState<number>(3)
@@ -226,8 +250,13 @@ const handleCreateMode = useCallback(() => {
 ## 7. 条件渲染结构
 
 ```tsx
-{/* 类型选择器 -- 始终显示 */}
-<TypeSelector value={createModeType} onChange={setCreateModeType} />
+{/* 两级类型选择器 -- 始终显示 */}
+{/* 第一级：3 个大类单选 */}
+<TypeCategorySelector value={createModeCategory} onChange={setCreateModeCategory} />
+{/* 第二级：群组模式下展开 2 个子类单选，默认选中 "lead" */}
+{createModeCategory === "squad" && (
+    <SquadSubTypeSelector value={squadSubType} onChange={setSquadSubType} />
+)}
 
 {/* 公共字段 -- 始终显示 */}
 <NameField />
@@ -325,14 +354,19 @@ const handleCreateMode = useCallback(() => {
 ### 8.4 类型切换时的默认值
 
 ```tsx
-const handleTypeChange = useCallback((type: CreateModeType) => {
-	setCreateModeType(type)
-	// 群组成员默认 hidden
-	if (type === "squad-member") {
-		setNewModeHidden(true)
-	} else if (type === "squad-lead") {
+const handleCategoryChange = useCallback((category: CreateModeCategory) => {
+	setCreateModeCategory(category)
+	// 选群组时，子类默认 "lead"
+	if (category === "squad") {
+		setSquadSubType("lead")
 		setNewModeHidden(false)
 	}
+}, [])
+
+const handleSquadSubTypeChange = useCallback((subType: SquadSubType) => {
+	setSquadSubType(subType)
+	// 成员默认 hidden，组织者默认不 hidden
+	setNewModeHidden(subType === "member")
 }, [])
 ```
 
@@ -345,11 +379,16 @@ const handleTypeChange = useCallback((type: CreateModeType) => {
 编辑时需**反向推断类型**：
 
 ```tsx
-function inferCreateModeType(mode: ModeConfig): CreateModeType {
+function inferCreateModeCategory(mode: ModeConfig): CreateModeCategory {
 	if (mode.kind === "workflow") return "workflow"
-	if (mode.hidden === true) return "squad-member"
-	if (mode.delegation?.canDelegate === true) return "squad-lead"
+	if (mode.hidden === true || mode.delegation?.canDelegate === true) return "squad"
 	return "normal"
+}
+
+function inferSquadSubType(mode: ModeConfig): SquadSubType {
+	if (mode.hidden === true) return "member"
+	if (mode.delegation?.canDelegate === true) return "lead"
+	return "lead" // 默认
 }
 ```
 
