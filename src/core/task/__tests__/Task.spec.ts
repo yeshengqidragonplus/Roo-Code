@@ -609,15 +609,13 @@ describe("Cline", () => {
 					expect(imagesCalls[0][1][0].content[1]).toHaveProperty("type", "image")
 				}
 
-				// Verify model without image support converts image blocks to text
+				// Verify model without image support converts image blocks to a pic_xxxx identifier
 				expect(noImagesCalls.length).toBeGreaterThan(0)
 				if (noImagesCalls[0]?.[1]?.[0]?.content) {
 					expect(noImagesCalls[0][1][0].content).toHaveLength(2)
 					expect(noImagesCalls[0][1][0].content[0]).toEqual({ type: "text", text: "Here is an image" })
-					expect(noImagesCalls[0][1][0].content[1]).toEqual({
-						type: "text",
-						text: "[Referenced image in conversation]",
-					})
+					expect(noImagesCalls[0][1][0].content[1].type).toBe("text")
+					expect(noImagesCalls[0][1][0].content[1].text).toMatch(/^\[图片: pic_[a-f0-9]{6}\]$/)
 				}
 			})
 

@@ -1,5 +1,7 @@
 // npx vitest core/tools/__tests__/newTaskTool.spec.ts
 
+import { createHash } from "crypto"
+
 import type { AskApproval, HandleError, NativeToolArgs, ToolUse } from "../../../shared/tools"
 
 // Mock vscode module
@@ -673,5 +675,154 @@ describe("newTaskTool delegation flow", () => {
 
 		// Assert: tool result reflects delegation
 		expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("Delegated to child task child-1"))
+	})
+})
+
+describe("newTaskTool pic_xxxx image extraction", () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+		mockAskApproval.mockResolvedValue(true) // Default to approved
+		vi.mocked(getModeBySlug).mockReturnValue({
+			slug: "code",
+			name: "Code Mode",
+			roleDefinition: "Test role definition",
+			groups: ["command", "read", "edit"],
+		})
+		const mockGet = vi.fn().mockReturnValue(false)
+		vi.mocked(vscode.workspace.getConfiguration).mockReturnValue({ get: mockGet } as any)
+	})
+
+	const DATA_URL = "data:image/png;base64,iVBORw0KGgo="
+	const PIC_ID = createHash("sha256").update(DATA_URL).digest("hex").slice(0, 6)
+
+	// Builds a local cline carrying an apiConversationHistory with the given image data blocks.
+	const buildClineWithImages = (
+		imageDataBlocks: { type: "image"; source: { type: "base64"; media_type: string; data: string } }[],
+	) => {
+		const providerSpy = {
+			getState: vi.fn().mockResolvedValue({ mode: "ask", experiments: {} }),
+			delegateParentAndOpenChild: vi.fn().mockResolvedValue({ taskId: "child-1" }),
+			handleModeSwitch: vi.fn(),
+		} as any
+		return {
+			ask: vi.fn(),
+			sayAndCreateMissingParamError: mockSayAndCreateMissingParamError,
+			emit: vi.fn(),
+			recordToolError: mockRecordToolError,
+			consecutiveMistakeCount: 0,
+			isPaused: false,
+			pausedModeSlug: "ask",
+			taskId: "mock-parent-task-id",
+			enableCheckpoints: false,
+			checkpointSave: mockCheckpointSave,
+			startSubtask: vi.fn(),
+			apiConversationHistory: [{ role: "user", content: imageDataBlocks }],
+			providerRef: {
+				deref: vi.fn(() => providerSpy),
+			},
+		} as any
+	}
+
+	it("extractImagesFromMessage returns [] when message has no pic_xxxx", async () => {
+		const { extractImagesFromMessage } = await import("../NewTaskTool")
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		expect(extractImagesFromMessage("Please analyze the screenshot", task)).toEqual([])
+	})
+
+	it("extractImagesFromMessage resolves matching image dataUrl when message references pic_xxxx", async () => {
+		const { extractImagesFromMessage } = await import("../NewTaskTool")
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		const result = extractImagesFromMessage(`Please analyze pic_${PIC_ID}`, task)
+		expect(result).toEqual([DATA_URL])
+	})
+
+	it("extractImagesFromMessage returns [] when referenced pic_xxxx is not in history", async () => {
+		const { extractImagesFromMessage } = await import("../NewTaskTool")
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		// A picId that won't match the image above.
+		expect(extractImagesFromMessage("Please analyze pic_000000", task)).toEqual([])
+	})
+
+	it("extractImagesFromMessage collects all images for multiple pic_xxxx references", async () => {
+		const { extractImagesFromMessage } = await import("../NewTaskTool")
+		const dataUrlA = "data:image/png;base64,YWFhYQ=="
+		const dataUrlB = "data:image/jpeg;base64,YmJiYg=="
+		const picA = createHash("sha256").update(dataUrlA).digest("hex").slice(0, 6)
+		const picB = createHash("sha256").update(dataUrlB).digest("hex").slice(0, 6)
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "YWFhYQ==" } },
+			{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "YmJiYg==" } },
+		])
+		const result = extractImagesFromMessage(`Analyze pic_${picA} and pic_${picB}`, task)
+		expect(result).toEqual(expect.arrayContaining([dataUrlA, dataUrlB]))
+		expect(result).toHaveLength(2)
+	})
+
+	it("extractImagesFromMessage de-duplicates repeated pic_xxxx references", async () => {
+		const { extractImagesFromMessage } = await import("../NewTaskTool")
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		const result = extractImagesFromMessage(`Analyze pic_${PIC_ID} again pic_${PIC_ID}`, task)
+		expect(result).toEqual([DATA_URL])
+	})
+
+	it("delegation passes images to delegateParentAndOpenChild when message references pic_xxxx", async () => {
+		const dataUrl = DATA_URL
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		const providerSpy = task.providerRef.deref()
+
+		const block: ToolUse<"new_task"> = {
+			type: "tool_use",
+			name: "new_task",
+			params: { mode: "code", message: `Please analyze pic_${PIC_ID}` },
+			partial: false,
+		}
+
+		await newTaskTool.handle(task, withNativeArgs(block), {
+			askApproval: mockAskApproval,
+			handleError: mockHandleError,
+			pushToolResult: mockPushToolResult,
+		})
+
+		expect(providerSpy.delegateParentAndOpenChild).toHaveBeenCalledWith({
+			parentTaskId: "mock-parent-task-id",
+			message: `Please analyze pic_${PIC_ID}`,
+			initialTodos: [],
+			mode: "code",
+			images: [dataUrl],
+		})
+	})
+
+	it("delegation omits images when message has no pic_xxxx (isolation guarantee)", async () => {
+		const task = buildClineWithImages([
+			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
+		])
+		const providerSpy = task.providerRef.deref()
+
+		const block: ToolUse<"new_task"> = {
+			type: "tool_use",
+			name: "new_task",
+			params: { mode: "code", message: "Do something without images" },
+			partial: false,
+		}
+
+		await newTaskTool.handle(task, withNativeArgs(block), {
+			askApproval: mockAskApproval,
+			handleError: mockHandleError,
+			pushToolResult: mockPushToolResult,
+		})
+
+		const callArgs = providerSpy.delegateParentAndOpenChild.mock.calls[0][0]
+		expect(callArgs.images).toBeUndefined()
+		expect(callArgs.parentTaskId).toBe("mock-parent-task-id")
 	})
 })

@@ -10,11 +10,42 @@ import { parseMarkdownChecklist } from "./UpdateTodoListTool"
 import { Package } from "../../shared/package"
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 import type { ToolUse } from "../../shared/tools"
+import { PIC_REGEX, findImageByPicId } from "../../api/transform/image-cleaning"
 
 interface NewTaskParams {
 	mode: string
 	message: string
 	todos?: string
+}
+
+/**
+ * Resolve pic_xxxx identifiers referenced in `message` against the parent task's
+ * apiConversationHistory, returning the corresponding image dataUrls.
+ *
+ * - Matching is best-effort: identifiers whose image is no longer in context
+ *   (e.g. removed by condensation) are silently skipped so the model can react.
+ * - Duplicate identifiers are de-duplicated so each unique image is sent once.
+ * - When `message` contains no pic_xxxx identifiers the result is an empty
+ *   array, leaving delegation behavior unchanged.
+ */
+export function extractImagesFromMessage(message: string, task: Task): string[] {
+	const picIds = Array.from(message.matchAll(PIC_REGEX)).map((m) => m[1])
+	if (picIds.length === 0) {
+		return []
+	}
+	const images: string[] = []
+	const seen = new Set<string>()
+	for (const picId of picIds) {
+		if (seen.has(picId)) {
+			continue
+		}
+		seen.add(picId)
+		const dataUrl = findImageByPicId(task.apiConversationHistory, picId)
+		if (dataUrl) {
+			images.push(dataUrl)
+		}
+	}
+	return images
 }
 
 export class NewTaskTool extends BaseTool<"new_task"> {
@@ -109,12 +140,18 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 				return
 			}
 
+			// Resolve any pic_xxxx identifiers in the message to image dataUrls from the
+			// parent task's conversation history so they can be forwarded to the child.
+			const images = extractImagesFromMessage(unescapedMessage, task)
+
 			// Delegate parent and open child as sole active task
 			const child = await (provider as any).delegateParentAndOpenChild({
 				parentTaskId: task.taskId,
 				message: unescapedMessage,
 				initialTodos: todoItems,
 				mode,
+				// Only pass images when non-empty so the default (empty array) path is unchanged.
+				...(images.length > 0 ? { images } : {}),
 			})
 
 			// Reflect delegation in tool result (no pause/unpause, no wait)
