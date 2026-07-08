@@ -5,8 +5,7 @@ import { TOOL_GROUPS, ALWAYS_AVAILABLE_TOOLS, TOOL_ALIASES } from "../../../shar
 import { defaultModeSlug } from "../../../shared/modes"
 import type { CodeIndexManager } from "../../../services/code-index/manager"
 import type { McpHub } from "../../../services/mcp/McpHub"
-import { isServerVisibleToMode } from "../../../services/mcp/mode-visibility"
-import { MCP_TOOL_PREFIX, MCP_TOOL_SEPARATOR, sanitizeMcpName } from "../../../utils/mcp-name"
+import { sanitizeMcpName } from "../../../utils/mcp-name"
 import { isToolAllowedForMode } from "../../../core/tools/validateToolUse"
 
 /**
@@ -428,19 +427,76 @@ export function getAvailableToolsInGroup(
 }
 
 /**
- * Filters MCP tools based on whether use_mcp_tool is allowed in the current mode.
+ * Parses the `modes` field from a server's JSON-string config.
  *
- * When an mcpHub is provided, tools of servers whose `modes` whitelist excludes
- * the current mode are additionally removed. Matching is done on the
- * `mcp--{server}--` name prefix: buildMcpToolName only ever truncates the tool
- * segment (64-char cap), so the prefix is always intact even for truncated names.
+ * The McpServer.config field stores the validated server configuration as a
+ * JSON string. When the server config declares a `modes` array (see
+ * BaseConfigSchema), this function extracts it; otherwise it returns
+ * undefined (meaning "visible to all modes").
+ *
+ * @param configJson - The JSON-string config from McpServer.config
+ * @returns Array of mode slugs if `modes` is set and non-empty, undefined otherwise
+ */
+function parseServerModes(configJson: string | undefined): string[] | undefined {
+	if (!configJson) {
+		return undefined
+	}
+	try {
+		const parsed = JSON.parse(configJson) as { modes?: unknown }
+		const modes = parsed?.modes
+		if (Array.isArray(modes) && modes.length > 0 && modes.every((m) => typeof m === "string")) {
+			return modes
+		}
+		return undefined
+	} catch {
+		return undefined
+	}
+}
+
+/**
+ * Determines whether an MCP server's tools are visible to the given mode.
+ *
+ * A server is visible to a mode when:
+ * - It has no `modes` field configured (unset = visible to all modes), or
+ * - The `modes` array includes the given mode slug.
+ *
+ * This is the single source of truth for server-side mode visibility (scheme A).
+ * Used by both the injection-side filter (filterMcpToolsForMode) and the
+ * execution-side guard (presentAssistantMessage mcp_tool_use case).
+ *
+ * @param serverName - The server's name (original, not sanitized)
+ * @param configJson - The server's config JSON string (McpServer.config)
+ * @param modeSlug - The current mode slug
+ * @returns true if the server is visible to the mode
+ */
+export function isServerVisibleToMode(serverName: string, configJson: string | undefined, modeSlug: string): boolean {
+	const modes = parseServerModes(configJson)
+	if (!modes || modes.length === 0) {
+		return true // unset = visible to all modes
+	}
+	return modes.includes(modeSlug)
+}
+
+/**
+ * Filters MCP tools based on whether use_mcp_tool is allowed in the current mode,
+ * and whether each server has restricted its visibility to specific modes via the
+ * server-side `modes` config field (scheme A).
+ *
+ * Behavior:
+ * 1. If the mode has no `mcp` group (use_mcp_tool not allowed), returns empty.
+ * 2. If `mcpHub` is provided, for each connected server whose `modes` field
+ *    does NOT include the current mode, removes that server's tools by prefix
+ *    matching on `mcp--{sanitizeMcpName(server.name)}--`. Prefix matching is
+ *    safe because buildMcpToolName's 64-char truncation only affects the tool
+ *    segment, never the server prefix.
+ * 3. Servers without a `modes` field are unaffected (zero-impact).
  *
  * @param mcpTools - Array of MCP tools
  * @param mode - Current mode slug
  * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
- * @param mcpHub - Optional hub used to resolve per-server mode visibility
- * @returns Filtered array of MCP tools if use_mcp_tool is allowed, empty array otherwise
+ * @param mcpHub - MCP hub for reading server configs (optional; when absent, no mode-visibility filtering is applied)
+ * @returns Filtered array of MCP tools
  */
 export function filterMcpToolsForMode(
 	mcpTools: OpenAI.Chat.ChatCompletionTool[],
@@ -465,21 +521,31 @@ export function filterMcpToolsForMode(
 		return []
 	}
 
+	// No mcpHub => no server-side mode filtering (preserves prior behavior exactly)
 	if (!mcpHub) {
 		return mcpTools
 	}
 
-	const hiddenPrefixes = mcpHub
-		.getServers()
-		.filter((server) => !isServerVisibleToMode(server, modeSlug))
-		.map((server) => `${MCP_TOOL_PREFIX}${MCP_TOOL_SEPARATOR}${sanitizeMcpName(server.name)}${MCP_TOOL_SEPARATOR}`)
+	// Collect the set of hidden server name prefixes for the current mode.
+	// A server is hidden when it declares a `modes` array that does not include
+	// the current mode slug.
+	const hiddenPrefixes: string[] = []
+	const servers = mcpHub.getServers()
+	for (const server of servers) {
+		if (!isServerVisibleToMode(server.name, server.config, modeSlug)) {
+			hiddenPrefixes.push(`mcp--${sanitizeMcpName(server.name)}--`)
+		}
+	}
 
 	if (hiddenPrefixes.length === 0) {
 		return mcpTools
 	}
 
+	// Remove tools whose name starts with any hidden server prefix.
+	// buildMcpToolName truncates at 64 chars but only the tool segment is
+	// affected; the `mcp--server--` prefix is always intact.
 	return mcpTools.filter((tool) => {
-		const name = (tool as OpenAI.Chat.ChatCompletionFunctionTool).function?.name ?? ""
+		const name = ("function" in tool && tool.function?.name) || ""
 		return !hiddenPrefixes.some((prefix) => name.startsWith(prefix))
 	})
 }

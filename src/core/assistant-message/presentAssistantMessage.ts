@@ -42,6 +42,7 @@ import { codebaseSearchTool } from "../tools/CodebaseSearchTool"
 
 import { formatResponse } from "../prompts/responses"
 import { sanitizeToolUseId } from "../../utils/tool-id"
+import { isServerVisibleToMode } from "../prompts/tools/filter-tools-for-mode"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -249,6 +250,18 @@ export async function presentAssistantMessage(cline: Task) {
 				if (originalName) {
 					resolvedServerName = originalName
 				}
+			}
+
+			// Execution-side guard: if the server's `modes` field excludes the
+			// current mode (scheme A), the tool was not injected but the model may
+			// still emit it from conversation history. Refuse to execute and guide
+			// the model toward opening a sub-task in the appropriate mode.
+			const serverConfig = mcpHub?.getServers().find((s) => s.name === resolvedServerName)?.config
+			const currentMode = (await cline.providerRef.deref()?.getState())?.mode ?? defaultModeSlug
+			if (mcpHub && !mcpBlock.partial && !isServerVisibleToMode(resolvedServerName, serverConfig, currentMode)) {
+				const visibleMessage = `服务器 ${resolvedServerName} 的工具对当前模式不可见；如需其能力，请用 new_task 开启对应模式的子任务`
+				pushToolResult(formatResponse.toolError(visibleMessage))
+				break
 			}
 
 			// Execute the MCP tool using the same handler as use_mcp_tool
