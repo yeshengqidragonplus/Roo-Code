@@ -35,6 +35,25 @@ vi.mock("../../prompts/responses", () => ({
 	},
 }))
 
+// Mock image-store: refToDataUrl returns a predictable dataUrl per ref
+vi.mock("../../../integrations/misc/image-store", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../../../integrations/misc/image-store")>()
+	return {
+		...actual,
+		isImageRef: actual.isImageRef,
+		refToDataUrl: vi.fn(async (_taskDir: string, ref: string) => {
+			// Return a deterministic data URL based on the ref's sha prefix
+			const sha = ref.slice("roo-image-ref:".length).split(".")[0]
+			return `data:image/png;base64,MOCK-${sha}`
+		}),
+	}
+})
+
+// Mock getTaskDirectoryPath
+vi.mock("../../../utils/storage", () => ({
+	getTaskDirectoryPath: vi.fn(async () => "/mock/task/dir"),
+}))
+
 vi.mock("../updateTodoListTool", () => ({
 	parseMarkdownChecklist: vi.fn((md: string) => {
 		// Simple mock implementation
@@ -693,12 +712,13 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 	})
 
 	const DATA_URL = "data:image/png;base64,iVBORw0KGgo="
-	const PIC_ID = createHash("sha256").update(DATA_URL).digest("hex").slice(0, 6)
+	const SHA_FULL = createHash("sha256").update(DATA_URL).digest("hex")
+	const PIC_ID = SHA_FULL.slice(0, 6)
+	const IMAGE_REF = `roo-image-ref:${SHA_FULL}.png`
 
-	// Builds a local cline carrying an apiConversationHistory with the given image data blocks.
-	const buildClineWithImages = (
-		imageDataBlocks: { type: "image"; source: { type: "base64"; media_type: string; data: string } }[],
-	) => {
+	// Builds a local cline carrying clineMessages with image refs (roo-image-ref: format).
+	// This mirrors the real state after Task.say stores images via the image-store (2-C).
+	const buildClineWithImageRefs = (imageRefs: string[]) => {
 		const providerSpy = {
 			getState: vi.fn().mockResolvedValue({ mode: "ask", experiments: {} }),
 			delegateParentAndOpenChild: vi.fn().mockResolvedValue({ taskId: "child-1" }),
@@ -716,7 +736,8 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 			enableCheckpoints: false,
 			checkpointSave: mockCheckpointSave,
 			startSubtask: vi.fn(),
-			apiConversationHistory: [{ role: "user", content: imageDataBlocks }],
+			clineMessages: [{ type: "say", say: "user_feedback", text: "", images: imageRefs, ts: Date.now() }],
+			globalStoragePath: "/mock/global/storage",
 			providerRef: {
 				deref: vi.fn(() => providerSpy),
 			},
@@ -725,59 +746,50 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 
 	it("extractImagesFromMessage returns [] when message has no pic_xxxx", async () => {
 		const { extractImagesFromMessage } = await import("../NewTaskTool")
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
-		expect(extractImagesFromMessage("Please analyze the screenshot", task)).toEqual([])
+		const task = buildClineWithImageRefs([IMAGE_REF])
+		expect(await extractImagesFromMessage("Please analyze the screenshot", task)).toEqual([])
 	})
 
 	it("extractImagesFromMessage resolves matching image dataUrl when message references pic_xxxx", async () => {
 		const { extractImagesFromMessage } = await import("../NewTaskTool")
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
-		const result = extractImagesFromMessage(`Please analyze pic_${PIC_ID}`, task)
-		expect(result).toEqual([DATA_URL])
+		const task = buildClineWithImageRefs([IMAGE_REF])
+		const result = await extractImagesFromMessage(`Please analyze pic_${PIC_ID}`, task)
+		// Mock refToDataUrl returns data:image/png;base64,MOCK-<sha>
+		expect(result).toEqual([`data:image/png;base64,MOCK-${SHA_FULL}`])
 	})
 
 	it("extractImagesFromMessage returns [] when referenced pic_xxxx is not in history", async () => {
 		const { extractImagesFromMessage } = await import("../NewTaskTool")
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
-		// A picId that won't match the image above.
-		expect(extractImagesFromMessage("Please analyze pic_000000", task)).toEqual([])
+		const task = buildClineWithImageRefs([IMAGE_REF])
+		// A picId that won't match the ref's sha prefix.
+		expect(await extractImagesFromMessage("Please analyze pic_000000", task)).toEqual([])
 	})
 
 	it("extractImagesFromMessage collects all images for multiple pic_xxxx references", async () => {
 		const { extractImagesFromMessage } = await import("../NewTaskTool")
-		const dataUrlA = "data:image/png;base64,YWFhYQ=="
-		const dataUrlB = "data:image/jpeg;base64,YmJiYg=="
-		const picA = createHash("sha256").update(dataUrlA).digest("hex").slice(0, 6)
-		const picB = createHash("sha256").update(dataUrlB).digest("hex").slice(0, 6)
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "YWFhYQ==" } },
-			{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "YmJiYg==" } },
-		])
-		const result = extractImagesFromMessage(`Analyze pic_${picA} and pic_${picB}`, task)
-		expect(result).toEqual(expect.arrayContaining([dataUrlA, dataUrlB]))
+		const shaA = createHash("sha256").update("data:image/png;base64,YWFhYQ==").digest("hex")
+		const shaB = createHash("sha256").update("data:image/jpeg;base64,YmJiYg==").digest("hex")
+		const refA = `roo-image-ref:${shaA}.png`
+		const refB = `roo-image-ref:${shaB}.jpg`
+		const picA = shaA.slice(0, 6)
+		const picB = shaB.slice(0, 6)
+		const task = buildClineWithImageRefs([refA, refB])
+		const result = await extractImagesFromMessage(`Analyze pic_${picA} and pic_${picB}`, task)
 		expect(result).toHaveLength(2)
+		expect(result).toEqual(
+			expect.arrayContaining([`data:image/png;base64,MOCK-${shaA}`, `data:image/png;base64,MOCK-${shaB}`]),
+		)
 	})
 
 	it("extractImagesFromMessage de-duplicates repeated pic_xxxx references", async () => {
 		const { extractImagesFromMessage } = await import("../NewTaskTool")
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
-		const result = extractImagesFromMessage(`Analyze pic_${PIC_ID} again pic_${PIC_ID}`, task)
-		expect(result).toEqual([DATA_URL])
+		const task = buildClineWithImageRefs([IMAGE_REF])
+		const result = await extractImagesFromMessage(`Analyze pic_${PIC_ID} again pic_${PIC_ID}`, task)
+		expect(result).toEqual([`data:image/png;base64,MOCK-${SHA_FULL}`])
 	})
 
 	it("delegation passes images to delegateParentAndOpenChild when message references pic_xxxx", async () => {
-		const dataUrl = DATA_URL
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
+		const task = buildClineWithImageRefs([IMAGE_REF])
 		const providerSpy = task.providerRef.deref()
 
 		const block: ToolUse<"new_task"> = {
@@ -798,14 +810,12 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 			message: `Please analyze pic_${PIC_ID}`,
 			initialTodos: [],
 			mode: "code",
-			images: [dataUrl],
+			images: [`data:image/png;base64,MOCK-${SHA_FULL}`],
 		})
 	})
 
 	it("delegation omits images when message has no pic_xxxx (isolation guarantee)", async () => {
-		const task = buildClineWithImages([
-			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" } },
-		])
+		const task = buildClineWithImageRefs([IMAGE_REF])
 		const providerSpy = task.providerRef.deref()
 
 		const block: ToolUse<"new_task"> = {
