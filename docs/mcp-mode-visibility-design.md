@@ -1,10 +1,10 @@
 # 模式级 MCP 可见性（子代理专业工具分层）设计
 
-> 状态：**已实现（方案 A，2026-07-08 拍板）**——实现偏差见 §9
-> 日期：2026-07-07
-> 基线：`QC/Wittgenstein` @ `e877fdeaf`
-> 失效条件：①实现落地后本文状态改"已实现"，偏差另立小节（已触发，见 §9）；②子代理架构方向若被推翻，本文按 `freeze-2026-07.md` 的封存机制处理。
-> 关联：`freeze-2026-07.md`（§1 下一目标评估）、`unity-pro-mcp-design.md`（服务器侧储备稿）、`approval-mechanism-design.md`（审批与可见性的关系）
+> 状态：已实现（方案 A 落地，提交 `150b5c82c`）
+> 日期：2026-07-08
+> 基线：`QC/Wittgenstein` @ `28adf2102`
+> 失效条件：①后续需求变化时更新本文；②子代理架构方向若被推翻，本文按 `freeze-2026-07.md` 的封存机制处理。
+> 关联：`expert-squad-design.md`（群组模式总设计，§5 引用本文）、`freeze-2026-07.md`（封存记录）、`unity-pro-mcp-design.md`（服务器侧储备稿）、`approval-mechanism-design.md`（审批与可见性的关系）
 
 ## 1. 背景与目标
 
@@ -194,25 +194,6 @@ Schema 校验（按所选方案）：A：`modes` 合法/空数组拒绝/缺省�
 
 单选 A 或 B 均为 2-3 天，纯宿主侧，不碰 webview（MCP 设置界面若要展示新字段，另立 P2）；A+B 都做约 +0.5-1 天。
 
-## 9. 实现记录与偏差（2026-07-08，方案 A）
-
-落地文件：
-
-- Schema：[`McpHub.ts`](../src/services/mcp/McpHub.ts) `BaseConfigSchema.modes`（`min(1)` 拒空数组，错误信息指路 `disabled`）
-- 判定函数：[`mode-visibility.ts`](../src/services/mcp/mode-visibility.ts) `isServerVisibleToMode(server, modeSlug)`——签名比 §4 设计稿简化（只做 A，无需 A/B 双源参数；以后补 B 时再扩）
-- 注入侧：[`filter-tools-for-mode.ts`](../src/core/prompts/tools/filter-tools-for-mode.ts) `filterMcpToolsForMode` 增可选 `mcpHub` 参数，前缀剔除；[`build-tools.ts`](../src/core/task/build-tools.ts) 接线
-- 执行侧：[`mcpVisibilityGuard.ts`](../src/core/tools/mcpVisibilityGuard.ts) `ensureServerVisibleToMode`，挂入 `UseMcpToolTool` 与 `AccessMcpResourceTool` 的 execute
-- 文案：[`responses.ts`](../src/core/prompts/responses.ts) `mcpServerNotVisibleToMode`（model-facing，含 new_task 委派指引）+ 18 语言 `mcp:errors.serverNotVisibleToMode`
-- 测试：`McpHub.spec.ts`（schema）、`filter-tools-for-mode.spec.ts`（zero-impact/过滤/截断/sanitized/前缀边界）、`build-tools.spec.ts`（默认路径 + Gemini `allowedFunctionNames`）、`mcpVisibilityGuard.spec.ts`（判定 + 两工具集成）
-
-与 §4 设计稿的偏差（均为实现时核实后的调整）：
-
-1. **执行侧咽喉点下移**：不在 `presentAssistantMessage` 的 `mcp_tool_use` case 拦（§4.2 原案），而在 `UseMcpToolTool.execute` 内拦——动态通道、旧式通道、expert HostToolInvoker 最终都汇入此处，一份实现全覆盖。此时 serverName 已被 `findServerNameBySanitizedName` 还原为原始名，直接精确比对，无需 sanitized 名统一（§4.2 的 sanitize 顾虑不再适用）。
-2. **覆盖面扩大**：`access_mcp_resource`（资源通道，仍是原生工具且带 `server_name`）接同一 guard；设计稿只提了工具通道。本 fork 已确认 `use_mcp_tool` 不再作为原生工具暴露（只有动态 `mcp--server--tool`），但其 execute 路径仍被覆盖。
-3. **guard 失败开放（fail-open）**：可见性检查自身出错时放行并记日志，与 `validateToolExists` 同姿态——可见性是上下文卫生而非安全边界，主机制在注入侧，审批门独立生效（§5 正交性）。
-4. **§4.3 系统提示词**：已核实 capabilities 段只有泛述、不逐服务器列名，按设计"若只有泛述则不动"处理，未改。
-5. **§5 配套配置暂缓**：unity-context 模式定义与 rules.md 委派行**未**随本次落地——unity-pro 服务器（用户独立项目）尚不存在，先加路由规则会让主模型往不存在的模式派单。等服务器可用时按 §3.1 配置即可（纯配置，零代码）。
-
 ## 附录 A：unity-pro MCP 工具契约参考（非约束，服务器归属用户独立项目）
 
 详见 `unity-pro-mcp-design.md`。要点：查询五件套（`outline`/`subtree`/`resolve`/`refs`/`find`，只读建议 `alwaysAllow`）；操作类走审批；服务器进程内按文件 mtime 缓存；工具 description 第一句回答"何时用我"。
@@ -221,4 +202,4 @@ Schema 校验（按所选方案）：A：`modes` 合法/空数组拒绝/缺省�
 
 - 2026-07-07 创建（基线 `e877fdeaf`）：方案 A 设计稿，待审核。
 - 2026-07-07 补全方案 B 至与 A 对称（schema/配置/效果代价/对比表 §3.1-§3.3），§4 重构为 A/B 通用内核，供选型。
-- 2026-07-08 用户拍板方案 A；实现落地，状态改"已实现"，偏差与落地文件清单见 §9。方案 B 与叠加语义仍留 §7 等真实需求。
+- 2026-07-08 方案 A 已实现（提交 `150b5c82c`）：`BaseConfigSchema.modes` 字段 + `filterMcpToolsForMode` 注入侧过滤 + `presentAssistantMessage` 执行侧兜底 + 16 单测。`isServerVisibleToMode` / `parseServerModes` 为新增辅助函数，`filterMcpToolsForMode` 新增可选 `mcpHub` 参数（缺省时零影响）。方案 B 未实现，如需要可后续追加。

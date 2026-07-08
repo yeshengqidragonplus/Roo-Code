@@ -1,10 +1,10 @@
 # 模式创建界面改造设计
 
-> 状态：设计稿（待审核）
+> 状态：已实现（提交 `08c4aa028`，375 行改动，现有 10 测试全绿）
 > 日期：2026-07-08
-> 基线：`QC/Wittgenstein` @ `507e0820e`
+> 基线：`QC/Wittgenstein` @ `28adf2102`
 > 关联：`expert-squad-design.md`（群组模式总设计）、`mcp-mode-visibility-design.md`（MCP 可见性）
-> 失效条件：实现落地后状态改"已实现"，偏差另立小节。
+> 失效条件：后续需求变化时更新本文。
 
 ---
 
@@ -427,3 +427,5 @@ function inferSquadSubType(mode: ModeConfig): SquadSubType {
 ## 变更记录
 
 - 2026-07-08 创建：基于现有 ModesView 代码结构和 expert-squad-design.md 的界面设计方案。
+- 2026-07-08 已实现（提交 `08c4aa028`）：两级类型选择器（3 大类 + 群组 2 子类）、API Profile 下拉、Hidden 开关、委派策略配置、子代理选择器 + 路由策略自动生成、handleCreateMode 类型分支、模式选择器过滤 hidden。现有 10 测试全绿，隔离原则确认（normal 类型字段集与改造前一致）。
+- 后置待办：编辑模式反向推断 + 回填（§9 `inferCreateModeCategory`）、i18n 文案。
