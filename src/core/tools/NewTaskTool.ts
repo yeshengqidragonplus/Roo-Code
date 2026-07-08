@@ -61,8 +61,13 @@ export async function extractImagesFromMessage(message: string, task: Task): Pro
 		return []
 	}
 
-	// Get the parent task's directory to resolve refs.
-	const taskDir = await getTaskDirectoryPath(task.globalStoragePath, task.taskId)
+	// Get the parent task's directory to resolve refs via the provider's contextProxy.
+	const provider = task.providerRef.deref()
+	if (!provider) {
+		return []
+	}
+	const globalStoragePath = provider.contextProxy.globalStorageUri.fsPath
+	const taskDir = await getTaskDirectoryPath(globalStoragePath, task.taskId)
 
 	const images: string[] = []
 	const seen = new Set<string>()

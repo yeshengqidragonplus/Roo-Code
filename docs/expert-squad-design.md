@@ -1,10 +1,10 @@
 # 群组模式设计文档（Expert Squad）
 
-> 状态：设计稿（待审核）
+> 状态：已实现（阶段 1-5 落地，阶段 6-7 后置）
 > 日期：2026-07-08
-> 基线：`QC/Wittgenstein` @ `1dbdfa401`
-> 失效条件：①实现落地后状态改"已实现"，偏差另立小节；②架构方向被推翻时按 `freeze-2026-07.md` 封存机制处理。
-> 关联：`expert-system-design.md`（专家系统总设计，类型 B 自驱专家）、`mcp-mode-visibility-design.md`（MCP 工具可见性）、`freeze-2026-07.md`（封存记录）
+> 基线：`QC/Wittgenstein` @ `e754b1b33`
+> 失效条件：①后续阶段实现落地后更新本节；②架构方向被推翻时按 `freeze-2026-07.md` 封存机制处理。
+> 关联：`expert-system-design.md`（专家系统总设计，类型 B 自驱专家）、`mcp-mode-visibility-design.md`（MCP 工具可见性）、`mode-creator-ui-design.md`（模式创建界面改造）、`memory-optimization.md` §2-C（图片引用机制）、`freeze-2026-07.md`（封存记录）
 
 ---
 
@@ -492,16 +492,43 @@ modes: z.array(z.string()).min(1).optional(),
 
 ---
 
-## 11. 风险与待办
+## 11. 实现进度
 
-- ⚠️ **pic_xxxx 的 sha 计算**：image block 的 dataUrl 字段路径需实现时确认（Anthropic 格式 vs OpenAI 格式）。`image-cleaning.ts` 当前不访问 dataUrl，需要改函数签名或预处理。
-- ⚠️ **condense 后图片丢失**：第一版返回错误让用户重新上传。后续可加 `picRegistry` 持久化缓存。
-- ⚠️ **群组创建界面的复杂度**：§6 的创建流程涉及 UI 重构，可能需要 2-3 天。第一版可先用纯配置（手写 `.roomodes`）验证，界面后做。
-- 🔗 **跨 MCP 可见性依赖**：§5 依赖 `mcp-mode-visibility-design.md` 的方案 A 实现，须先选型动工。
-- ⚠️ **子代理 `apiProfile` 与 sticky profile 的交互**：[`_taskApiConfigName`](../src/core/task/Task.ts:574) 在任务恢复时优先。需确认 `apiProfile` 激活后是否正确写入 `_taskApiConfigName`，避免恢复时覆盖。
+### 已实现（阶段 1-5）
+
+| 阶段 | 内容                                                                                                                                                         | 提交                      | 测试             |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------- | ---------------- |
+| 1    | Schema 字段：`apiProfile` / `hidden` / `maxRetries`                                                                                                          | `8758573ba`               | 28 passed        |
+| 2    | 委派链：`handleModeSwitch` 读 `apiProfile` 强制激活 + `delegateParentAndOpenChild` / `Task.startSubtask` 增加 `images` 透传                                  | `8b0b6caf4`               | 现有委派测试通过 |
+| 3    | 模式创建界面：两级类型选择器（3 大类 + 群组 2 子类）+ 群组组织者/成员特有字段 + hidden 过滤 + handleCreateMode 类型分支 + 路由策略自动生成                   | `08c4aa028`               | 10 passed        |
+| 4    | MCP 工具可见性方案 A：`BaseConfigSchema.modes` + `filterMcpToolsForMode` 注入侧过滤 + `presentAssistantMessage` 执行侧兜底                                   | `150b5c82c`               | 16 passed        |
+| 5    | pic_xxxx 图片传递：`image-cleaning.ts` 注入 `[图片: pic_xxxx]` 标识 + `NewTaskTool` 从 `clineMessages` 的 `roo-image-ref:` 引用取图（复用内存优化 2-C 机制） | `28947076a` + `e754b1b33` | 38 passed        |
+
+**隔离原则**：所有新增字段 `.optional()`，不设置时行为逐字不变；`createModeCategory === "normal"` 时表单与改造前一致；`modes` 字段未设置时 MCP 行为不变；`supportsImages: true` 时 image-cleaning 不变；message 无 `pic_xxxx` 时 NewTaskTool 不传 images。
+
+### 实现偏差
+
+- **§4.4 pic_xxxx 取图方式**：原设计从 `apiConversationHistory` 遍历 image block 算 sha 匹配。实现后发现与内存优化 2-C 的 `roo-image-ref:` 引用机制重复，重构为从 `clineMessages` 的 `images[]` 取引用 token，用 `refToDataUrl(parentTaskDir, ref)` 读磁盘还原 base64。`extractImagesFromMessage` 从同步改为 async。
+- **§5.1 MCP 可见性**：`isServerVisibleToMode` 和 `parseServerModes` 为新增辅助函数，`filterMcpToolsForMode` 新增可选 `mcpHub` 参数，缺省时不做模式过滤（零影响）。
+
+### 待办（后置）
+
+- **阶段 6：端到端验证**：定义带头人 + 子代理模式（手写 `.roomodes`），跑通完整链路。需实际运行环境。
+- **阶段 7：委派深度限制**：`NewTaskTool` 检查 `parentTaskId`，防止子代理嵌套。
+- **编辑模式反向推断 + 回填**：创建界面编辑现有模式时，从配置反推类型并回填表单。
+- **i18n 文案**：群组类型选择器、API Profile、Hidden 开关等新 UI 元素的国际化。
+
+### 风险（已消除）
+
+- ✅ **pic_xxxx 的 sha 计算**：已解决。从 `clineMessages` 的 `roo-image-ref:` 引用取文件名（含 sha256），不再需要从 image block 提取 dataUrl。
+- ✅ **群组创建界面复杂度**：已实现，375 行改动，现有 10 测试全绿。
+- ✅ **MCP 可见性依赖**：已实现方案 A，16 测试全绿。
+- ⚠️ **子代理 `apiProfile` 与 sticky profile 的交互**：[`_taskApiConfigName`](../src/core/task/Task.ts:574) 在任务恢复时优先。`activateProviderProfile` 会调用 `persistStickyProviderProfileToCurrentTask`，需在实际运行中确认不冲突。
+- ⚠️ **condense 后图片丢失**：`clineMessages` 里的引用可能被 condense 移除，`extractImagesFromMessage` 找不到时静默跳过。后续可加持久化缓存。
 
 ---
 
 ## 变更记录
 
 - 2026-07-08 创建：基于架构讨论（可行性 -> 权限/提示词 -> pic_xxxx/apiProfile/失败处理 -> 群组模式概念）的设计稿。
+- 2026-07-08 更新：阶段 1-5 全部落地，状态改"已实现"。pic_xxxx 取图重构为复用 `roo-image-ref:` 引用机制。

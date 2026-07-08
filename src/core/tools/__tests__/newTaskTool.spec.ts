@@ -723,6 +723,9 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 			getState: vi.fn().mockResolvedValue({ mode: "ask", experiments: {} }),
 			delegateParentAndOpenChild: vi.fn().mockResolvedValue({ taskId: "child-1" }),
 			handleModeSwitch: vi.fn(),
+			contextProxy: {
+				globalStorageUri: { fsPath: "/mock/global/storage" },
+			},
 		} as any
 		return {
 			ask: vi.fn(),
@@ -737,7 +740,6 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 			checkpointSave: mockCheckpointSave,
 			startSubtask: vi.fn(),
 			clineMessages: [{ type: "say", say: "user_feedback", text: "", images: imageRefs, ts: Date.now() }],
-			globalStoragePath: "/mock/global/storage",
 			providerRef: {
 				deref: vi.fn(() => providerSpy),
 			},
