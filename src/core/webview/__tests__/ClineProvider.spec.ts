@@ -441,7 +441,9 @@ describe("ClineProvider", () => {
 
 		expect(mockWebviewView.webview.options).toEqual({
 			enableScripts: true,
-			localResourceRoots: [mockContext.extensionUri],
+			// globalStorageUri is included so the webview can load task images persisted by the
+			// image store (memory opt 2-C). Without it, images render as broken in historical tasks.
+			localResourceRoots: [mockContext.extensionUri, mockContext.globalStorageUri],
 		})
 
 		expect(mockWebviewView.webview.html).toContain("<!DOCTYPE html>")
@@ -460,7 +462,7 @@ describe("ClineProvider", () => {
 
 		expect(mockWebviewView.webview.options).toEqual({
 			enableScripts: true,
-			localResourceRoots: [mockContext.extensionUri],
+			localResourceRoots: [mockContext.extensionUri, mockContext.globalStorageUri],
 		})
 
 		expect(mockWebviewView.webview.html).toContain("<!DOCTYPE html>")
@@ -477,6 +479,32 @@ describe("ClineProvider", () => {
 		expect(scriptSrcMatch![0]).toContain("'nonce-")
 		// Verify wasm-unsafe-eval is present for Shiki syntax highlighting
 		expect(scriptSrcMatch![0]).toContain("'wasm-unsafe-eval'")
+	})
+
+	describe("convertToWebviewUri", () => {
+		test("uses asWebviewUri when webview is available", async () => {
+			await provider.resolveWebviewView(mockWebviewView)
+			const fakeUri = { toString: () => "vscode-webview://fake-uri" }
+			;(mockWebviewView.webview.asWebviewUri as any).mockReturnValue(fakeUri)
+
+			const result = provider.convertToWebviewUri("/some/path/image.png")
+
+			expect(mockWebviewView.webview.asWebviewUri).toHaveBeenCalled()
+			expect(result).toBe("vscode-webview://fake-uri")
+		})
+
+		test("returns transparent data: placeholder (NOT file://) when webview is unavailable", async () => {
+			// Simulate webview not yet ready (e.g. restoring a historical task before view init).
+			// @ts-ignore - accessing private property for testing
+			provider.view = undefined
+
+			const result = provider.convertToWebviewUri("/some/path/image.png")
+
+			// CSP does not allow file:// in img-src, so a file:// fallback would render as a broken
+			// image. The fix returns a transparent data: placeholder instead.
+			expect(result).not.toContain("file://")
+			expect(result.startsWith("data:image/png;base64,")).toBe(true)
+		})
 	})
 
 	test("postMessageToWebview sends message to webview", async () => {

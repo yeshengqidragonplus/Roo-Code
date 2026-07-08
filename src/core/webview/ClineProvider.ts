@@ -749,6 +749,12 @@ export class ClineProvider
 		// Set up webview options with proper resource roots
 		const resourceRoots = [this.contextProxy.extensionUri]
 
+		// Add global storage root so the webview can load task images persisted by the image store
+		// (memory opt 2-C). Without this, `asWebviewUri` URIs for files under <globalStorage>/tasks/<id>/images/
+		// are rejected by the webview's localResourceRoots guard and render as broken images - notably
+		// when restoring historical tasks.
+		resourceRoots.push(this.contextProxy.globalStorageUri)
+
 		// Add workspace folders to allow access to workspace files
 		if (vscode.workspace.workspaceFolders) {
 			resourceRoots.push(...vscode.workspace.workspaceFolders.map((folder) => folder.uri))
@@ -3320,38 +3326,46 @@ export class ClineProvider
 	}
 
 	/**
-	 * Convert a file path to a webview-accessible URI
-	 * This method safely converts file paths to URIs that can be loaded in the webview
+	 * Convert a file path to a webview-accessible URI.
+	 *
+	 * This method safely converts file paths to URIs that can be loaded in the webview. When the
+	 * webview is available the VS Code webview URI scheme is used (allowed by the CSP `img-src`).
+	 *
+	 * IMPORTANT: `file://` URIs are NEVER returned as a fallback. The webview CSP
+	 * (`img-src ${webview.cspSource} ... data:`) does not allow `file:`, so a `file://` src would
+	 * always render as a broken image. When the webview is unavailable we instead return a tiny
+	 * transparent `data:` placeholder so the UI never shows a "broken image" icon; the real image is
+	 * resolved on the next state push once the webview is ready (e.g. when restoring a historical task
+	 * before the view has fully initialized).
 	 *
 	 * @param filePath - The absolute file path to convert
-	 * @returns The webview URI string, or the original file URI if conversion fails
-	 * @throws {Error} When webview is not available
-	 * @throws {TypeError} When file path is invalid
+	 * @returns The webview URI string, or a transparent placeholder data URI when conversion fails
 	 */
 	public convertToWebviewUri(filePath: string): string {
-		try {
-			const fileUri = vscode.Uri.file(filePath)
+		// 1x1 transparent PNG - CSP allows `data:` in img-src, so this never renders as broken.
+		const TRANSPARENT_PLACEHOLDER =
+			"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 
+		try {
 			// Check if we have a webview available
 			if (this.view?.webview) {
+				const fileUri = vscode.Uri.file(filePath)
 				const webviewUri = this.view.webview.asWebviewUri(fileUri)
 				return webviewUri.toString()
 			}
 
-			// Specific error for no webview available
-			const error = new Error("No webview available for URI conversion")
-			console.error(error.message)
-			// Fallback to file URI if no webview available
-			return fileUri.toString()
+			// No webview available - do NOT fall back to file:// (CSP blocks it, causing broken-image
+			// icons, notably when restoring historical tasks before the view is ready). The caller's
+			// messages will be re-resolved on the next postStateToWebview once the view exists.
+			console.warn("[convertToWebviewUri] No webview available; returning placeholder for", filePath)
+			return TRANSPARENT_PLACEHOLDER
 		} catch (error) {
-			// More specific error handling
 			if (error instanceof TypeError) {
 				console.error("Invalid file path provided for URI conversion:", error)
 			} else {
 				console.error("Failed to convert to webview URI:", error)
 			}
-			// Return file URI as fallback
-			return vscode.Uri.file(filePath).toString()
+			return TRANSPARENT_PLACEHOLDER
 		}
 	}
 
