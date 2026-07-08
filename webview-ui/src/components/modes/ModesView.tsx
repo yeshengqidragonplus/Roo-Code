@@ -56,6 +56,47 @@ const availableGroups = (Object.keys(TOOL_GROUPS) as ToolGroup[]).filter((group)
 
 type ModeSource = "global" | "project"
 
+// --- Squad (group mode) support -------------------------------------------------
+// These fields are all optional; when a mode is created as "normal", the form
+// behaves exactly as before (isolation principle). The helpers below build the
+// <!-- SQUAD_MEMBERS_BEGIN -->...<!-- SQUAD_MEMBERS_END --> block injected into
+// a squad-lead's role definition so it can discover its dispatchable members.
+
+type CreateModeCategory = "normal" | "workflow" | "squad"
+type SquadSubType = "lead" | "member"
+
+function generateSquadMembersSection(selectedMembers: ModeConfig[], maxRetries: number): string {
+	const memberLines = selectedMembers
+		.map((m) => `- ${m.slug} (${m.name})：${m.whenToUse ?? m.description ?? ""}`)
+		.join("\n")
+	return `<!-- SQUAD_MEMBERS_BEGIN -->
+可调度的专家：
+${memberLines}
+
+派单规则：
+- 用 new_task 工具指定 mode 参数，message 描述任务目标+必要上下文+期望返回格式。
+- 子任务返回摘要后你决定下一步：整合、重新派单、或向用户报告。
+- 最多重试 ${maxRetries} 次，超过后停止派单并告知用户需要介入。
+<!-- SQUAD_MEMBERS_END -->`
+}
+
+function updateRoleDefinitionWithSquad(
+	roleDefinition: string,
+	selectedMembers: ModeConfig[],
+	maxRetries: number,
+): string {
+	const section = generateSquadMembersSection(selectedMembers, maxRetries)
+	const beginMarker = "<!-- SQUAD_MEMBERS_BEGIN -->"
+	const endMarker = "<!-- SQUAD_MEMBERS_END -->"
+	if (roleDefinition.includes(beginMarker)) {
+		const regex = new RegExp(`${beginMarker}[\\s\\S]*?${endMarker}`, "g")
+		return roleDefinition.replace(regex, section)
+	} else {
+		return roleDefinition.trimEnd() + "\n\n" + section
+	}
+}
+// --- end squad support ---------------------------------------------------------
+
 type ImportModeResult = { type: "importModeResult"; success: boolean; slug?: string; error?: string }
 
 // Helper to get group name regardless of format
@@ -125,8 +166,11 @@ const ModesView = () => {
 
 	// Optimistic rename map so search reflects new names immediately
 	const [localRenames, setLocalRenames] = useState<Record<string, string>>({})
-	// Display list that overlays optimistic names
-	const displayModes = (modes || []).map((m) => (localRenames[m.slug] ? { ...m, name: localRenames[m.slug] } : m))
+	// Display list that overlays optimistic names; hidden modes are filtered out
+	// of the selector (they remain reachable via new_task / delegation).
+	const displayModes = (modes || [])
+		.filter((m) => !m.hidden)
+		.map((m) => (localRenames[m.slug] ? { ...m, name: localRenames[m.slug] } : m))
 
 	// Direct update functions
 	const updateAgentPrompt = useCallback(
@@ -320,6 +364,17 @@ const ModesView = () => {
 	// Empty string = autonomous (type B); a workflow id = workflow-driven (type A).
 	const [newModeWorkflowId, setNewModeWorkflowId] = useState("")
 
+	// --- Squad / group mode form state (all optional; "normal" category leaves
+	// the form identical to the pre-squad behavior). -------------------------
+	const [createModeCategory, setCreateModeCategory] = useState<CreateModeCategory>("normal")
+	const [squadSubType, setSquadSubType] = useState<SquadSubType>("lead")
+	const [newModeApiProfile, setNewModeApiProfile] = useState<string>("")
+	const [newModeHidden, setNewModeHidden] = useState<boolean>(false)
+	const [newModeMaxDepth, setNewModeMaxDepth] = useState<number>(3)
+	const [newModeMaxRetries, setNewModeMaxRetries] = useState<number>(3)
+	const [selectedSquadMembers, setSelectedSquadMembers] = useState<string[]>([])
+	// ------------------------------------------------------------------------
+
 	// Field-specific error states
 	const [nameError, setNameError] = useState<string>("")
 	const [slugError, setSlugError] = useState<string>("")
@@ -339,6 +394,14 @@ const ModesView = () => {
 		setNewModeCustomInstructions("")
 		setNewModeSource("global")
 		setNewModeWorkflowId("")
+		// Reset squad / group mode state (isolation: defaults match "normal").
+		setCreateModeCategory("normal")
+		setSquadSubType("lead")
+		setNewModeApiProfile("")
+		setNewModeHidden(false)
+		setNewModeMaxDepth(3)
+		setNewModeMaxRetries(3)
+		setSelectedSquadMembers([])
 		// Reset error states
 		setNameError("")
 		setSlugError("")
@@ -388,6 +451,33 @@ const ModesView = () => {
 		setGroupsError("")
 
 		const source = newModeSource
+		// Build the category-specific expert fields. "normal" appends nothing,
+		// preserving the exact pre-squad behavior (isolation principle).
+		const categoryFields: Partial<ModeConfig> =
+			createModeCategory === "workflow"
+				? newModeWorkflowId
+					? { kind: "workflow" as const, workflow: { workflowId: newModeWorkflowId } }
+					: {}
+				: createModeCategory === "squad" && squadSubType === "lead"
+					? {
+							kind: "autonomous" as const,
+							...(newModeApiProfile ? { apiProfile: newModeApiProfile } : {}),
+							delegation: {
+								canDelegate: true,
+								concurrency: "serial",
+								maxDepth: newModeMaxDepth,
+								maxRetries: newModeMaxRetries,
+								reportMode: "summary",
+							},
+							...(newModeHidden ? { hidden: true } : {}),
+						}
+					: createModeCategory === "squad" && squadSubType === "member"
+						? {
+								kind: "autonomous" as const,
+								...(newModeApiProfile ? { apiProfile: newModeApiProfile } : {}),
+								...(newModeHidden ? { hidden: true } : {}),
+							}
+						: {}
 		const newMode: ModeConfig = {
 			slug: newModeSlug,
 			name: newModeName,
@@ -397,10 +487,7 @@ const ModesView = () => {
 			customInstructions: newModeCustomInstructions.trim() || undefined,
 			groups: newModeGroups,
 			source,
-			// Type-A expert when a workflow is chosen; otherwise a default autonomous expert.
-			...(newModeWorkflowId
-				? { kind: "workflow" as const, workflow: { workflowId: newModeWorkflowId } }
-				: {}),
+			...categoryFields,
 		}
 
 		// Validate the mode against the schema
@@ -450,6 +537,13 @@ const ModesView = () => {
 		newModeGroups,
 		newModeSource,
 		newModeWorkflowId,
+		// Squad / group mode dependencies.
+		createModeCategory,
+		squadSubType,
+		newModeApiProfile,
+		newModeHidden,
+		newModeMaxDepth,
+		newModeMaxRetries,
 		updateCustomMode,
 	])
 
@@ -1403,6 +1497,78 @@ const ModesView = () => {
 								<span className="codicon codicon-close"></span>
 							</Button>
 							<h2 className="mb-4">{t("prompts:createModeDialog.title")}</h2>
+							{/* Mode category selector (normal / workflow / squad). */}
+							<div className="mb-4">
+								<div className="font-bold mb-1">类型</div>
+								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+									选择创建的模式类型。
+								</div>
+								<VSCodeRadioGroup
+									value={createModeCategory}
+									onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+										const target = ((e as CustomEvent)?.detail?.target ||
+											(e.target as HTMLInputElement)) as HTMLInputElement
+										const next = target.value as CreateModeCategory
+										setCreateModeCategory(next)
+										// Default handling per spec:
+										// - switching to squad defaults subType=lead, hidden=false
+										// - switching to squad-member defaults hidden=true
+										if (next === "squad") {
+											setSquadSubType("lead")
+											setNewModeHidden(false)
+										} else {
+											// leaving squad: reset hidden to its neutral default
+											setNewModeHidden(false)
+										}
+									}}>
+									<VSCodeRadio value="normal">
+										普通
+										<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+											独立工作模式，不派单也不被派单
+										</div>
+									</VSCodeRadio>
+									<VSCodeRadio value="workflow">
+										流程
+										<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+											绑定工作流图，按预定义流程执行
+										</div>
+									</VSCodeRadio>
+									<VSCodeRadio value="squad">
+										群组
+										<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+											任务编队协作模式。组织者调度子代理，成员执行专业任务
+										</div>
+									</VSCodeRadio>
+								</VSCodeRadioGroup>
+								{createModeCategory === "squad" && (
+									<div className="mt-3">
+										<div className="font-bold mb-1">群组子类型</div>
+										<VSCodeRadioGroup
+											value={squadSubType}
+											onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+												const target = ((e as CustomEvent)?.detail?.target ||
+													(e.target as HTMLInputElement)) as HTMLInputElement
+												const next = target.value as SquadSubType
+												setSquadSubType(next)
+												// member defaults hidden=true; lead defaults hidden=false
+												setNewModeHidden(next === "member")
+											}}>
+											<VSCodeRadio value="lead">
+												组织者
+												<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+													编队带头人，分解任务并调度子代理
+												</div>
+											</VSCodeRadio>
+											<VSCodeRadio value="member">
+												成员
+												<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+													专业子代理，被组织者派单调用
+												</div>
+											</VSCodeRadio>
+										</VSCodeRadioGroup>
+									</div>
+								)}
+							</div>
 							<div className="mb-4">
 								<div className="font-bold mb-1">{t("prompts:createModeDialog.name.label")}</div>
 								<Input
@@ -1489,6 +1655,185 @@ const ModesView = () => {
 								)}
 							</div>
 
+							{/* Squad member hint: pure text guidance below role definition. */}
+							{createModeCategory === "squad" && squadSubType === "member" && (
+								<div className="mb-4 text-[13px] text-vscode-descriptionForeground">
+									成员模式通常设为 hidden：它不会出现在模式选择器中，仅由组织者通过 new_task
+									派单调用。请在 Role Definition 中写明该成员的专业领域与职责边界。
+								</div>
+							)}
+
+							{/* Squad lead specific fields. */}
+							{createModeCategory === "squad" && squadSubType === "lead" && (
+								<>
+									<div className="mb-4">
+										<div className="font-bold mb-1">API Profile</div>
+										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+											绑定到该模式时激活的 API 配置（可选）。留空表示不绑定。
+										</div>
+										<Select
+											value={newModeApiProfile || "__none__"}
+											onValueChange={(v) => setNewModeApiProfile(v === "__none__" ? "" : v)}>
+											<SelectTrigger className="w-full">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__none__">不绑定</SelectItem>
+												{(listApiConfigMeta || []).map((config) => (
+													<SelectItem key={config.id} value={config.name}>
+														{config.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="mb-4">
+										<div className="font-bold mb-1">委派策略</div>
+										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+											控制组织者如何调度子代理。
+										</div>
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<div className="text-xs text-vscode-descriptionForeground mb-1">
+													最大递归深度 (maxDepth)
+												</div>
+												<Input
+													type="number"
+													min={1}
+													value={newModeMaxDepth}
+													onChange={(e) => {
+														const v = Number(e.target.value)
+														setNewModeMaxDepth(
+															Number.isFinite(v) && v > 0 ? Math.floor(v) : 3,
+														)
+													}}
+													className="w-full"
+												/>
+											</div>
+											<div>
+												<div className="text-xs text-vscode-descriptionForeground mb-1">
+													最大重试次数 (maxRetries)
+												</div>
+												<Input
+													type="number"
+													min={1}
+													value={newModeMaxRetries}
+													onChange={(e) => {
+														const v = Number(e.target.value)
+														setNewModeMaxRetries(
+															Number.isFinite(v) && v > 0 ? Math.floor(v) : 3,
+														)
+													}}
+													className="w-full"
+												/>
+											</div>
+										</div>
+									</div>
+
+									<div className="mb-4">
+										<div className="font-bold mb-1">可调度子代理</div>
+										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+											勾选该组织者可以派单调用的模式（含 hidden 模式）。勾选后将自动在 Role
+											Definition 中生成派单说明区块。
+										</div>
+										<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
+											{modes.map((m) => {
+												const checked = selectedSquadMembers.includes(m.slug)
+												return (
+													<VSCodeCheckbox
+														key={m.slug}
+														checked={checked}
+														onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+															const target =
+																(e as CustomEvent)?.detail?.target ||
+																(e.target as HTMLInputElement)
+															const isChecked = target.checked
+															const nextMembers = isChecked
+																? [...selectedSquadMembers, m.slug]
+																: selectedSquadMembers.filter((s) => s !== m.slug)
+															setSelectedSquadMembers(nextMembers)
+															// Update role definition with squad members section.
+															const selectedMemberConfigs = modes.filter((mm) =>
+																nextMembers.includes(mm.slug),
+															)
+															setNewModeRoleDefinition((prev) =>
+																updateRoleDefinitionWithSquad(
+																	prev,
+																	selectedMemberConfigs,
+																	newModeMaxRetries,
+																),
+															)
+														}}>
+														{m.name}
+														<span className="text-xs text-vscode-descriptionForeground ml-1">
+															({m.slug})
+														</span>
+													</VSCodeCheckbox>
+												)
+											})}
+										</div>
+									</div>
+
+									<div className="mb-4">
+										<VSCodeCheckbox
+											checked={newModeHidden}
+											onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+												const target =
+													(e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+												setNewModeHidden(target.checked)
+											}}>
+											隐藏该模式（hidden）
+											<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+												开启后该模式不会出现在模式选择器中，但仍可被 new_task 调用。
+											</div>
+										</VSCodeCheckbox>
+									</div>
+								</>
+							)}
+
+							{/* Squad member specific fields. */}
+							{createModeCategory === "squad" && squadSubType === "member" && (
+								<>
+									<div className="mb-4">
+										<div className="font-bold mb-1">API Profile</div>
+										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+											绑定到该模式时激活的 API 配置（可选）。留空表示不绑定。
+										</div>
+										<Select
+											value={newModeApiProfile || "__none__"}
+											onValueChange={(v) => setNewModeApiProfile(v === "__none__" ? "" : v)}>
+											<SelectTrigger className="w-full">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__none__">不绑定</SelectItem>
+												{(listApiConfigMeta || []).map((config) => (
+													<SelectItem key={config.id} value={config.name}>
+														{config.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="mb-4">
+										<VSCodeCheckbox
+											checked={newModeHidden}
+											onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+												const target =
+													(e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+												setNewModeHidden(target.checked)
+											}}>
+											隐藏该模式（hidden，成员默认开启）
+											<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+												开启后该模式不会出现在模式选择器中，仅由组织者通过 new_task 调用。
+											</div>
+										</VSCodeCheckbox>
+									</div>
+								</>
+							)}
+
 							<div className="mb-4">
 								<div className="font-bold mb-1">{t("prompts:createModeDialog.description.label")}</div>
 								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
@@ -1521,28 +1866,31 @@ const ModesView = () => {
 									className="w-full"
 								/>
 							</div>
-							<div className="mb-4">
-								<div className="font-bold mb-1">Workflow (Expert type)</div>
-								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
-									Leave as None for an autonomous expert that drives itself. Pick a workflow to make
-									this a workflow-driven expert constrained by that flow.
+							{/* Workflow binding: only shown for the "workflow" category. */}
+							{createModeCategory === "workflow" && (
+								<div className="mb-4">
+									<div className="font-bold mb-1">Workflow (Expert type)</div>
+									<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+										Leave as None for an autonomous expert that drives itself. Pick a workflow to
+										make this a workflow-driven expert constrained by that flow.
+									</div>
+									<Select
+										value={newModeWorkflowId || "__none__"}
+										onValueChange={(v) => setNewModeWorkflowId(v === "__none__" ? "" : v)}>
+										<SelectTrigger className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="__none__">None (autonomous)</SelectItem>
+											{(workflows ?? []).map((wf) => (
+												<SelectItem key={wf.id} value={wf.id}>
+													{wf.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-								<Select
-									value={newModeWorkflowId || "__none__"}
-									onValueChange={(v) => setNewModeWorkflowId(v === "__none__" ? "" : v)}>
-									<SelectTrigger className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__none__">None (autonomous)</SelectItem>
-										{(workflows ?? []).map((wf) => (
-											<SelectItem key={wf.id} value={wf.id}>
-												{wf.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
+							)}
 							<div className="mb-4">
 								<div className="font-bold mb-1">{t("prompts:createModeDialog.tools.label")}</div>
 								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
