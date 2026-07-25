@@ -61,7 +61,7 @@ import { resolveImageMentions } from "../mentions/resolveImageMentions"
 import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { getWorkspacePath } from "../../utils/path"
 import { isPathOutsideWorkspace } from "../../utils/pathUtils"
-import { Mode, defaultModeSlug } from "../../shared/modes"
+import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
 import { GetModelsOptions } from "../../shared/api"
 import { generateSystemPrompt } from "./generateSystemPrompt"
@@ -526,6 +526,17 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 	}
 
 	switch (message.type) {
+		case "openCommandTrustFile": {
+			const trustFilePath = path.join(getCurrentCwd(), ".roo", "command-trust.json")
+			await fs.mkdir(path.dirname(trustFilePath), { recursive: true })
+			try {
+				await fs.access(trustFilePath)
+			} catch {
+				await safeWriteJson(trustFilePath, { version: 1, entries: [] })
+			}
+			await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(trustFilePath))
+			break
+		}
 		case "webviewDidLaunch":
 			// Load custom modes first
 			const customModes = await provider.customModesManager.getCustomModes()
@@ -1784,6 +1795,27 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				} catch (error) {
 					provider.log(
 						`Error load api configuration by ID: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+					)
+					vscode.window.showErrorMessage(t("common:errors.load_api_config"))
+				}
+			}
+			break
+		case "loadWorkgroupApiConfigurationById":
+			if (message.text) {
+				try {
+					const task = provider.getCurrentTask()
+					const state = await provider.getState()
+					const mode = task ? getModeBySlug(await task.getTaskMode(), state.customModes) : undefined
+					if (!mode?.workgroup) {
+						throw new Error("Workgroup-only provider selection requested outside a workgroup task")
+					}
+					await provider.activateProviderProfile(
+						{ id: message.text },
+						{ persistModeConfig: false, persistTaskHistory: true },
+					)
+				} catch (error) {
+					provider.log(
+						`Error loading temporary workgroup API configuration: ${error instanceof Error ? error.message : String(error)}`,
 					)
 					vscode.window.showErrorMessage(t("common:errors.load_api_config"))
 				}

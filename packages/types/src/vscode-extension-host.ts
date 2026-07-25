@@ -387,7 +387,12 @@ export interface Command {
  * Webview | CLI -> Extension
  */
 
-export type ClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse" | "objectResponse"
+export type ClineAskResponse =
+	| "yesButtonClicked"
+	| "noButtonClicked"
+	| "messageResponse"
+	| "objectResponse"
+	| "trustCommand"
 
 export type AudioType = "notification" | "celebration" | "progress_loop"
 
@@ -408,6 +413,7 @@ export interface WebviewMessage {
 		| "deleteApiConfiguration"
 		| "loadApiConfiguration"
 		| "loadApiConfigurationById"
+		| "loadWorkgroupApiConfigurationById"
 		| "renameApiConfiguration"
 		| "getListApiConfiguration"
 		| "customInstructions"
@@ -435,6 +441,7 @@ export interface WebviewMessage {
 		| "openImage"
 		| "saveImage"
 		| "openFile"
+		| "openCommandTrustFile"
 		| "readFileContent"
 		| "openMention"
 		| "cancelTask"

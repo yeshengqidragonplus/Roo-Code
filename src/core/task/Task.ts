@@ -152,6 +152,7 @@ import { processUserContentMentions } from "../mentions/processUserContentMentio
 import { getMessagesSinceLastSummary, summarizeConversation, getEffectiveApiHistory } from "../condense"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
 import { AutoApprovalHandler, checkAutoApproval } from "../auto-approval"
+import { isCommandTrusted, trustCommand } from "../auto-approval/commandTrustStore"
 import { MessageManager } from "../message-manager"
 import { validateAndFixToolResultIds } from "./validateToolResultIds"
 import { mergeConsecutiveApiMessages } from "./mergeConsecutiveApiMessages"
@@ -767,6 +768,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		return this._taskMode || defaultModeSlug
 	}
 
+	/** Whether this task is a workgroup coordinator session. */
+	private async isWorkgroupMode(): Promise<boolean> {
+		const provider = this.providerRef.deref()
+		const state = provider ? await provider.getState() : undefined
+		const mode = getModeBySlug(await this.getTaskMode(), state?.customModes)
+		return mode?.workgroup !== undefined
+	}
+
 	/**
 	 * Get the task mode synchronously. This should only be used when you're certain
 	 * that the mode has already been initialized (e.g., after waitForModeInitialization).
@@ -1361,7 +1370,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Automatically approve if the ask according to the user's settings.
 		const provider = this.providerRef.deref()
 		const state = provider ? await provider.getState() : undefined
-		const approval = await checkAutoApproval({ state, ask: type, text, isProtected })
+		const isWorkgroup = await this.isWorkgroupMode()
+		const approvalState = isWorkgroup ? { ...state, autoApprovalMode: "sandbox" as const } : state
+		const useProjectCommandTrust =
+			type === "command" && text && (isWorkgroup || state?.autoApprovalMode === "sandbox")
+		const workgroupCommandTrusted = useProjectCommandTrust ? await isCommandTrusted(this.cwd, text) : undefined
+		const approval = await checkAutoApproval({
+			state: approvalState,
+			ask: type,
+			text,
+			isProtected,
+			workgroupCommandTrusted,
+		})
 
 		if (approval.decision === "approve") {
 			this.approveAsk()
@@ -1476,7 +1496,22 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			throw new AskIgnoredError("superseded")
 		}
 
-		const result = { response: this.askResponse!, text: this.askResponseText, images: this.askResponseImages }
+		let response = this.askResponse!
+		if (response === "trustCommand") {
+			// The UI only offers this action for command approvals. Keep the guard here
+			// so an arbitrary webview message can never create a normal-Mode trust rule.
+			if (
+				type === "command" &&
+				text &&
+				((await this.isWorkgroupMode()) || state?.autoApprovalMode === "sandbox")
+			) {
+				await trustCommand(this.cwd, text)
+				response = "yesButtonClicked"
+			} else {
+				response = "noButtonClicked"
+			}
+		}
+		const result = { response, text: this.askResponseText, images: this.askResponseImages }
 		this.askResponse = undefined
 		this.askResponseText = undefined
 		this.askResponseImages = undefined

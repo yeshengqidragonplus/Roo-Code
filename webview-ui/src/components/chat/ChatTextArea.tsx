@@ -108,6 +108,10 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			const m = customModes?.find((cm) => cm.slug === mode)
 			return m?.kind === "workflow" ? m.workflow?.workflowId : undefined
 		}, [customModes, mode])
+		const isWorkgroupMode = useMemo(
+			() => customModes?.find((customMode) => customMode.slug === mode)?.workgroup !== undefined,
+			[customModes, mode],
+		)
 
 		// Find the ID and display text for the currently selected API configuration.
 		const { currentConfigId, displayName } = useMemo(() => {
@@ -945,9 +949,15 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		)
 
 		// Helper function to handle API config change
-		const handleApiConfigChange = useCallback((value: string) => {
-			vscode.postMessage({ type: "loadApiConfigurationById", text: value })
-		}, [])
+		const handleApiConfigChange = useCallback(
+			(value: string) => {
+				vscode.postMessage({
+					type: isWorkgroupMode ? "loadWorkgroupApiConfigurationById" : "loadApiConfigurationById",
+					text: value,
+				})
+			},
+			[isWorkgroupMode],
+		)
 
 		const handleToggleLockApiConfig = useCallback(() => {
 			const newValue = !lockApiConfigAcrossModes
@@ -1328,8 +1338,10 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							lockApiConfigAcrossModes={!!lockApiConfigAcrossModes}
 							onToggleLockApiConfig={handleToggleLockApiConfig}
 						/>
-						<AutoApproveDropdown triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink" />
-						<SandboxModeToggle />
+						{!isWorkgroupMode && (
+							<AutoApproveDropdown triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink" />
+						)}
+						<SandboxModeToggle forced={isWorkgroupMode} />
 					</div>
 					<div className={cn("flex flex-shrink-0 items-center gap-0.5 h-5 leading-none", "pr-2")}>
 						{isTtsPlaying && (

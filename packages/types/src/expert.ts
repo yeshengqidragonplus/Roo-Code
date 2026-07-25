@@ -77,6 +77,17 @@ export const delegationPolicySchema = z.object({
 export type DelegationPolicy = z.infer<typeof delegationPolicySchema>
 
 /**
+ * Persistent workgroup membership for a coordinator Mode. This replaces the
+ * legacy prompt-only member list so the settings UI can edit a workgroup
+ * without parsing generated role-definition text.
+ */
+export const workgroupConfigSchema = z.object({
+	colleagueSlugs: z.array(z.string().min(1)).default([]),
+})
+
+export type WorkgroupConfig = z.infer<typeof workgroupConfigSchema>
+
+/**
  * Tool/skill execution policy for workflow (type-A) experts — Phase 3.
  *
  * This gates which tools/skills a workflow may mechanically invoke at hard
@@ -108,6 +119,8 @@ export const expertModeFields = {
 	/** Required (validated separately) when `kind === "workflow"`. */
 	workflow: workflowBindingSchema.optional(),
 	delegation: delegationPolicySchema.optional(),
+	/** Project workgroup colleagues coordinated by this Mode. */
+	workgroup: workgroupConfigSchema.optional(),
 	/** Phase 3: which tools/skills a workflow expert may mechanically invoke. */
 	toolPolicy: toolPolicySchema.optional(),
 	/**

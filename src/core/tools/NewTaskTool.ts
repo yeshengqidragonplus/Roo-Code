@@ -172,6 +172,16 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 				return
 			}
 
+			// A workgroup coordinator may delegate only to colleagues explicitly
+			// configured for that group. Plain Modes retain Roo's original behavior.
+			const parentMode = getModeBySlug(await task.getTaskMode(), state?.customModes)
+			if (parentMode?.workgroup && !parentMode.workgroup.colleagueSlugs.includes(mode)) {
+				pushToolResult(
+					formatResponse.toolError(`Mode "${mode}" is not a colleague in workgroup "${parentMode.name}"`),
+				)
+				return
+			}
+
 			const toolMessage = JSON.stringify({
 				tool: "newTask",
 				mode: targetMode.name,

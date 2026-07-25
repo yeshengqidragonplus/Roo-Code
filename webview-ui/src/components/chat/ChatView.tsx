@@ -833,6 +833,16 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		[clineAsk, startNewTask, isStreaming, setDidClickCancel],
 	)
 
+	const handleTrustCommandClick = useCallback(() => {
+		userRespondedRef.current = true
+		vscode.postMessage({ type: "askResponse", askResponse: "trustCommand" })
+		setSendingDisabled(true)
+		setClineAsk(undefined)
+		setEnableButtons(false)
+		setPrimaryButtonText(undefined)
+		setSecondaryButtonText(undefined)
+	}, [])
+
 	const { info: model } = useSelectedModel(apiConfiguration)
 
 	const selectImages = useCallback(() => vscode.postMessage({ type: "selectImages" }), [])
@@ -1777,6 +1787,15 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 												{secondaryButtonText}
 											</Button>
 										</StandardTooltip>
+									)}
+									{clineAsk === "command" && secondaryButtonText && (
+										<Button
+											variant="secondary"
+											disabled={!enableButtons}
+											className="flex-1 ml-[6px]"
+											onClick={handleTrustCommandClick}>
+											完全信任
+										</Button>
 									)}
 								</>
 							)}

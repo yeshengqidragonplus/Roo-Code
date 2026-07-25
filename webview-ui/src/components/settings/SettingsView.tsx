@@ -80,6 +80,7 @@ import { UISettings } from "./UISettings"
 import ModesView from "../modes/ModesView"
 import McpView from "../mcp/McpView"
 import { WorktreesView } from "../worktrees/WorktreesView"
+import WorkgroupsView from "../workgroups/WorkgroupsView"
 import { SettingsSearch } from "./SettingsSearch"
 import { useSearchIndexRegistry, SearchIndexProvider } from "./useSettingsSearch"
 
@@ -104,6 +105,7 @@ export const sectionNames = [
 	"contextManagement",
 	"terminal",
 	"modes",
+	"workgroups",
 	"mcp",
 	"worktrees",
 	"prompts",
@@ -550,6 +552,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		() => [
 			{ id: "providers", icon: Plug },
 			{ id: "modes", icon: Users2 },
+			{ id: "workgroups", icon: Users2 },
 			{ id: "skills", icon: GraduationCap },
 			{ id: "slashCommands", icon: SquareSlash },
 			{ id: "autoApprove", icon: CheckCheck },
@@ -739,7 +742,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								data-compact={isCompactMode}>
 								<div className={cn("flex items-center gap-2", isCompactMode && "justify-center")}>
 									<Icon className="w-4 h-4" />
-									<span className="tab-label">{t(`settings:sections.${id}`)}</span>
+									<span className="tab-label">
+										{id === "workgroups" ? "工作群组" : t(`settings:sections.${id}`)}
+									</span>
 								</div>
 							</TabTrigger>
 						)
@@ -754,7 +759,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 											{React.cloneElement(triggerComponent)}
 										</TooltipTrigger>
 										<TooltipContent side="right" className="text-base">
-											<p className="m-0">{t(`settings:sections.${id}`)}</p>
+											<p className="m-0">
+												{id === "workgroups" ? "工作群组" : t(`settings:sections.${id}`)}
+											</p>
 										</TooltipContent>
 									</Tooltip>
 								</TooltipProvider>
@@ -911,6 +918,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 
 						{/* Modes Section */}
 						{renderTab === "modes" && <ModesView />}
+
+						{/* Workgroups Section */}
+						{renderTab === "workgroups" && <WorkgroupsView />}
 
 						{/* MCP Section */}
 						{renderTab === "mcp" && <McpView />}

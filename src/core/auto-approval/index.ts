@@ -50,14 +50,24 @@ export async function checkAutoApproval({
 	ask,
 	text,
 	isProtected,
+	workgroupCommandTrusted,
 }: {
 	state?: Pick<ExtensionState, AutoApprovalState | AutoApprovalStateOptions>
 	ask: ClineAsk
 	text?: string
 	isProtected?: boolean
+	/** Defined only for workgroup command approvals; legacy Modes never set it. */
+	workgroupCommandTrusted?: boolean
 }): Promise<CheckAutoApprovalResult> {
 	if (isNonBlockingAsk(ask)) {
 		return { decision: "approve" }
+	}
+
+	// A workgroup deliberately has a separate command trust model. Do this before
+	// sandbox/legacy settings so a global prefix allow-list cannot bypass its exact
+	// SHA-256 project whitelist.
+	if (ask === "command" && workgroupCommandTrusted !== undefined) {
+		return workgroupCommandTrusted ? { decision: "approve" } : { decision: "ask" }
 	}
 
 	// Session-level "sandbox autonomy" posture. This is an ADDITIVE pre-layer:

@@ -56,7 +56,7 @@ const availableGroups = (Object.keys(TOOL_GROUPS) as ToolGroup[]).filter((group)
 
 type ModeSource = "global" | "project"
 
-// --- Squad (group mode) support -------------------------------------------------
+// --- Workgroup support -----------------------------------------------------------
 // These fields are all optional; when a mode is created as "normal", the form
 // behaves exactly as before (isolation principle). The helpers below build the
 // <!-- SQUAD_MEMBERS_BEGIN -->...<!-- SQUAD_MEMBERS_END --> block injected into
@@ -364,8 +364,8 @@ const ModesView = () => {
 	// Empty string = autonomous (type B); a workflow id = workflow-driven (type A).
 	const [newModeWorkflowId, setNewModeWorkflowId] = useState("")
 
-	// --- Squad / group mode form state (all optional; "normal" category leaves
-	// the form identical to the pre-squad behavior). -------------------------
+	// --- Workgroup mode form state (all optional; "normal" category leaves
+	// the form identical to the pre-workgroup behavior). ---------------------
 	const [createModeCategory, setCreateModeCategory] = useState<CreateModeCategory>("normal")
 	const [squadSubType, setSquadSubType] = useState<SquadSubType>("lead")
 	const [newModeApiProfile, setNewModeApiProfile] = useState<string>("")
@@ -394,7 +394,7 @@ const ModesView = () => {
 		setNewModeCustomInstructions("")
 		setNewModeSource("global")
 		setNewModeWorkflowId("")
-		// Reset squad / group mode state (isolation: defaults match "normal").
+		// Reset workgroup mode state (isolation: defaults match "normal").
 		setCreateModeCategory("normal")
 		setSquadSubType("lead")
 		setNewModeApiProfile("")
@@ -469,6 +469,7 @@ const ModesView = () => {
 								maxRetries: newModeMaxRetries,
 								reportMode: "summary",
 							},
+							workgroup: { colleagueSlugs: selectedSquadMembers },
 							...(newModeHidden ? { hidden: true } : {}),
 						}
 					: createModeCategory === "squad" && squadSubType === "member"
@@ -537,13 +538,14 @@ const ModesView = () => {
 		newModeGroups,
 		newModeSource,
 		newModeWorkflowId,
-		// Squad / group mode dependencies.
+		// Workgroup mode dependencies.
 		createModeCategory,
 		squadSubType,
 		newModeApiProfile,
 		newModeHidden,
 		newModeMaxDepth,
 		newModeMaxRetries,
+		selectedSquadMembers,
 		updateCustomMode,
 	])
 
@@ -1497,7 +1499,7 @@ const ModesView = () => {
 								<span className="codicon codicon-close"></span>
 							</Button>
 							<h2 className="mb-4">{t("prompts:createModeDialog.title")}</h2>
-							{/* Mode category selector (normal / workflow / squad). */}
+							{/* Mode category selector: single mode / workflow / workgroup. */}
 							<div className="mb-4">
 								<div className="font-bold mb-1">类型</div>
 								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
@@ -1522,9 +1524,9 @@ const ModesView = () => {
 										}
 									}}>
 									<VSCodeRadio value="normal">
-										普通
+										单个 Mode
 										<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-											独立工作模式，不派单也不被派单
+											日常独立工作模式；保持现有 Mode 的使用方式
 										</div>
 									</VSCodeRadio>
 									<VSCodeRadio value="workflow">
@@ -1534,15 +1536,15 @@ const ModesView = () => {
 										</div>
 									</VSCodeRadio>
 									<VSCodeRadio value="squad">
-										群组
+										工作群组
 										<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-											任务编队协作模式。组织者调度子代理，成员执行专业任务
+											由协调者和一组专业同事协作完成任务；当前按串行委派执行
 										</div>
 									</VSCodeRadio>
 								</VSCodeRadioGroup>
 								{createModeCategory === "squad" && (
 									<div className="mt-3">
-										<div className="font-bold mb-1">群组子类型</div>
+										<div className="font-bold mb-1">工作群组角色</div>
 										<VSCodeRadioGroup
 											value={squadSubType}
 											onChange={(e: Event | React.FormEvent<HTMLElement>) => {
@@ -1554,15 +1556,15 @@ const ModesView = () => {
 												setNewModeHidden(next === "member")
 											}}>
 											<VSCodeRadio value="lead">
-												组织者
+												协调者
 												<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-													编队带头人，分解任务并调度子代理
+													分解任务、委派同事并整合结果
 												</div>
 											</VSCodeRadio>
 											<VSCodeRadio value="member">
-												成员
+												同事
 												<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-													专业子代理，被组织者派单调用
+													专业工作者，由协调者委派明确工作单
 												</div>
 											</VSCodeRadio>
 										</VSCodeRadioGroup>
@@ -1655,15 +1657,15 @@ const ModesView = () => {
 								)}
 							</div>
 
-							{/* Squad member hint: pure text guidance below role definition. */}
+							{/* Workgroup colleague hint: pure text guidance below role definition. */}
 							{createModeCategory === "squad" && squadSubType === "member" && (
 								<div className="mb-4 text-[13px] text-vscode-descriptionForeground">
-									成员模式通常设为 hidden：它不会出现在模式选择器中，仅由组织者通过 new_task
-									派单调用。请在 Role Definition 中写明该成员的专业领域与职责边界。
+									同事模式通常设为 hidden：它不会出现在模式选择器中，仅由协调者通过 new_task
+									委派调用。请在 Role Definition 中写明该同事的专业领域与职责边界。
 								</div>
 							)}
 
-							{/* Squad lead specific fields. */}
+							{/* Workgroup coordinator specific fields. */}
 							{createModeCategory === "squad" && squadSubType === "lead" && (
 								<>
 									<div className="mb-4">
@@ -1689,9 +1691,9 @@ const ModesView = () => {
 									</div>
 
 									<div className="mb-4">
-										<div className="font-bold mb-1">委派策略</div>
+										<div className="font-bold mb-1">协作策略</div>
 										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
-											控制组织者如何调度子代理。
+											控制协调者如何向同事委派工作。
 										</div>
 										<div className="grid grid-cols-2 gap-4">
 											<div>
@@ -1732,9 +1734,9 @@ const ModesView = () => {
 									</div>
 
 									<div className="mb-4">
-										<div className="font-bold mb-1">可调度子代理</div>
+										<div className="font-bold mb-1">可委派同事</div>
 										<div className="text-[13px] text-vscode-descriptionForeground mb-2">
-											勾选该组织者可以派单调用的模式（含 hidden 模式）。勾选后将自动在 Role
+											勾选该协调者可以委派调用的 Mode（含 hidden 模式）。勾选后将自动在 Role
 											Definition 中生成派单说明区块。
 										</div>
 										<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
@@ -1792,7 +1794,7 @@ const ModesView = () => {
 								</>
 							)}
 
-							{/* Squad member specific fields. */}
+							{/* Workgroup colleague specific fields. */}
 							{createModeCategory === "squad" && squadSubType === "member" && (
 								<>
 									<div className="mb-4">
@@ -1825,9 +1827,9 @@ const ModesView = () => {
 													(e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
 												setNewModeHidden(target.checked)
 											}}>
-											隐藏该模式（hidden，成员默认开启）
+											隐藏该模式（hidden，同事默认开启）
 											<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-												开启后该模式不会出现在模式选择器中，仅由组织者通过 new_task 调用。
+												开启后该模式不会出现在模式选择器中，仅由协调者通过 new_task 调用。
 											</div>
 										</VSCodeCheckbox>
 									</div>
