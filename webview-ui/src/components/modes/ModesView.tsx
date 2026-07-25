@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react"
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
 	VSCodeCheckbox,
 	VSCodeRadioGroup,
@@ -110,7 +110,6 @@ const ModesView = () => {
 	const {
 		customModePrompts,
 		listApiConfigMeta,
-		currentApiConfigName,
 		mode,
 		customInstructions,
 		setCustomInstructions,
@@ -130,8 +129,12 @@ const ModesView = () => {
 	// 3. Still sending the mode change to the backend for persistence
 	const [visualMode, setVisualMode] = useState(mode)
 
-	// Build modes fresh each render so search reflects inline rename updates immediately
-	const modes = getAllModes(customModes)
+	// The Mode settings page edits ordinary personas only. Workflows and
+	// workgroups have their own settings pages and must not leak into this list.
+	const modes = useMemo(
+		() => getAllModes(customModes).filter((mode) => mode.kind !== "workflow" && mode.workgroup === undefined),
+		[customModes],
+	)
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [selectedPromptContent, setSelectedPromptContent] = useState("")
@@ -263,8 +266,10 @@ const ModesView = () => {
 
 	// Sync visualMode with backend mode changes to prevent desync
 	useEffect(() => {
-		setVisualMode(mode)
-	}, [mode])
+		const activeMode = customModes?.find((customMode) => customMode.slug === mode)
+		const isNonMode = activeMode?.kind === "workflow" || activeMode?.workgroup !== undefined
+		setVisualMode(isNonMode ? (modes.find((item) => item.slug === defaultModeSlug)?.slug ?? modes[0]?.slug ?? mode) : mode)
+	}, [mode, customModes, modes])
 
 	// Handler for popover open state change
 	const onOpenChange = useCallback((open: boolean) => {
@@ -457,7 +462,9 @@ const ModesView = () => {
 			createModeCategory === "workflow"
 				? newModeWorkflowId
 					? { kind: "workflow" as const, workflow: { workflowId: newModeWorkflowId } }
-					: {}
+					: newModeApiProfile
+						? { apiProfile: newModeApiProfile }
+						: {}
 				: createModeCategory === "squad" && squadSubType === "lead"
 					? {
 							kind: "autonomous" as const,
@@ -995,40 +1002,38 @@ const ModesView = () => {
 						)}
 					</div>
 
-					{/* API Configuration - Moved Here */}
-					<div className="mb-3">
-						<div className="font-bold mb-1">{t("prompts:apiConfiguration.title")}</div>
-						<div className="text-sm text-vscode-descriptionForeground mb-2">
-							{t("prompts:apiConfiguration.select")}
-						</div>
-						<div className="mb-2">
+					{findModeBySlug(visualMode, customModes) && (
+						<div className="mb-3">
+							<div className="font-bold mb-1">默认 API 配置（执行模型）</div>
+							<div className="text-sm text-vscode-descriptionForeground mb-2">
+								此配置会在切换或委派到该 Mode 时使用；它不改变其他 Mode 的默认模型。
+							</div>
 							<Select
-								value={currentApiConfigName}
+								value={findModeBySlug(visualMode, customModes)?.apiProfile || "__none__"}
 								onValueChange={(value) => {
-									vscode.postMessage({
-										type: "loadApiConfiguration",
-										text: value,
-									})
+									const currentMode = findModeBySlug(visualMode, customModes)
+									if (currentMode) {
+										updateCustomMode(visualMode, {
+											...currentMode,
+											apiProfile: value === "__none__" ? undefined : value,
+										})
+									}
 								}}>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder={t("settings:common.select")} />
-								</SelectTrigger>
+								<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
 								<SelectContent>
-									{(listApiConfigMeta || []).map((config) => (
-										<SelectItem key={config.id} value={config.name}>
-											{config.name}
-										</SelectItem>
-									))}
+									<SelectItem value="__none__">不绑定（使用会话当前配置）</SelectItem>
+									{(listApiConfigMeta || []).map((config) => <SelectItem key={config.id} value={config.name}>{config.name}</SelectItem>)}
 								</SelectContent>
 							</Select>
 						</div>
-					</div>
+					)}
 				</div>
 
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">系统提示词：发送给模型</div>
 				{/* Role Definition section */}
 				<div className="mb-4">
 					<div className="flex justify-between items-center mb-1">
-						<div className="font-bold">{t("prompts:roleDefinition.title")}</div>
+						<div className="font-bold">角色与职责（系统提示词）</div>
 						{!findModeBySlug(visualMode, customModes) && (
 							<StandardTooltip content={t("prompts:roleDefinition.resetToDefault")}>
 								<Button
@@ -1081,10 +1086,11 @@ const ModesView = () => {
 					/>
 				</div>
 
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">用户可见信息：用于模式选择与说明</div>
 				{/* Description section */}
 				<div className="mb-4">
 					<div className="flex justify-between items-center mb-1">
-						<div className="font-bold">{t("prompts:description.title")}</div>
+						<div className="font-bold">简短说明（用户可见）</div>
 						{!findModeBySlug(visualMode, customModes) && (
 							<StandardTooltip content={t("prompts:description.resetToDefault")}>
 								<Button
@@ -1138,7 +1144,7 @@ const ModesView = () => {
 				{/* When to Use section */}
 				<div className="mb-4">
 					<div className="flex justify-between items-center mb-1">
-						<div className="font-bold">{t("prompts:whenToUse.title")}</div>
+						<div className="font-bold">使用场景（用户可见；供系统路由参考）</div>
 						{!findModeBySlug(visualMode, customModes) && (
 							<StandardTooltip content={t("prompts:whenToUse.resetToDefault")}>
 								<Button
@@ -1191,6 +1197,7 @@ const ModesView = () => {
 					/>
 				</div>
 
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">系统执行配置：工具与补充提示词</div>
 				{/* Mode settings */}
 				<>
 					{/* Show tools for all modes */}
@@ -1500,7 +1507,10 @@ const ModesView = () => {
 							</Button>
 							<h2 className="mb-4">{t("prompts:createModeDialog.title")}</h2>
 							{/* Mode category selector: single mode / workflow / workgroup. */}
-							<div className="mb-4">
+							<div className="mb-4 rounded border border-vscode-editor-lineHighlightBorder p-3 text-sm text-vscode-descriptionForeground">
+								此页面仅创建普通 Mode。工作流请在“工作流”中管理，工作群组请在“工作群组”中管理。
+							</div>
+							<div className="hidden">
 								<div className="font-bold mb-1">类型</div>
 								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
 									选择创建的模式类型。
@@ -1655,6 +1665,20 @@ const ModesView = () => {
 										{roleDefinitionError}
 									</div>
 								)}
+							</div>
+
+							<div className="mb-4">
+								<div className="font-bold mb-1">默认 API 配置（执行模型）</div>
+								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
+									创建后切换或委派到此 Mode 时使用。留空表示使用会话当前配置。
+								</div>
+								<Select value={newModeApiProfile || "__none__"} onValueChange={(value) => setNewModeApiProfile(value === "__none__" ? "" : value)}>
+									<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__none__">不绑定</SelectItem>
+										{(listApiConfigMeta || []).map((config) => <SelectItem key={config.id} value={config.name}>{config.name}</SelectItem>)}
+									</SelectContent>
+								</Select>
 							</div>
 
 							{/* Workgroup colleague hint: pure text guidance below role definition. */}
