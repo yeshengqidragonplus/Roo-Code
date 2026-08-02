@@ -28,6 +28,11 @@ export const expertKindSchema = z.enum(["autonomous", "workflow"])
 
 export type ExpertKind = z.infer<typeof expertKindSchema>
 
+/** How a Mode should use the tools that have already been assigned to it. */
+export const toolUsePolicySchema = z.enum(["on-demand", "evidence-required"])
+
+export type ToolUsePolicy = z.infer<typeof toolUsePolicySchema>
+
 /**
  * Reference to a workflow (type-A experts only). Workflow graphs live as JSON
  * files under a `.roo/workflows/` directory (project + global); the expert
@@ -132,6 +137,11 @@ export const expertModeFields = {
 	workgroup: workgroupConfigSchema.optional(),
 	/** Phase 3: which tools/skills a workflow expert may mechanically invoke. */
 	toolPolicy: toolPolicySchema.optional(),
+	/**
+	 * Prompt-level guidance for model-driven tool calls. This never grants a
+	 * capability: native tools, MCP servers and Skills are assigned separately.
+	 */
+	toolUsePolicy: toolUsePolicySchema.optional(),
 	/**
 	 * Soft guidance for type-B experts on when the task is considered done.
 	 * Kept separate from `customInstructions` to allow future programmatic

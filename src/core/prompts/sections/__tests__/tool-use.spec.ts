@@ -8,11 +8,18 @@ describe("getSharedToolUseSection", () => {
 		expect(section).toContain("Do not include XML markup or examples")
 	})
 
-	it("should include multiple tools per message guidance", () => {
+	it("uses the on-demand policy by default", () => {
 		const section = getSharedToolUseSection()
 
-		expect(section).toContain("You must call at least one tool per assistant response")
-		expect(section).toContain("Prefer calling as many tools as are reasonably needed")
+		expect(section).toContain("Use available tools when they materially improve accuracy")
+		expect(section).not.toContain("You must call at least one tool per assistant response")
+	})
+
+	it("supports the evidence-required policy without forcing irrelevant calls", () => {
+		const section = getSharedToolUseSection("evidence-required")
+
+		expect(section).toContain("Before reporting completion")
+		expect(section).toContain("Do not call irrelevant tools")
 	})
 
 	it("should NOT include single tool per message restriction", () => {

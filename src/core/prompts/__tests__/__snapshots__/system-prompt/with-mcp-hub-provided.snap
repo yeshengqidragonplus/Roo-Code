@@ -10,7 +10,7 @@ ALL responses MUST show ANY `language construct` OR filename reference as clicka
 
 TOOL USE
 
-You have access to a set of tools that are executed upon the user's approval. Use the provider-native tool-calling mechanism. Do not include XML markup or examples. You must call at least one tool per assistant response. Prefer calling as many tools as are reasonably needed in a single response to reduce back-and-forth and complete tasks faster.
+You have access to a set of tools that are executed upon the user's approval. Use the provider-native tool-calling mechanism. Do not include XML markup or examples. Use available tools when they materially improve accuracy, gather needed facts, make changes, or verify results. Do not call tools merely to satisfy a quota. When several independent tool calls are needed, prefer grouping the reasonably necessary calls to reduce back-and-forth.
 
 	# Tool Use Guidelines
 

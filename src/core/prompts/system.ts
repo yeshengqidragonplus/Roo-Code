@@ -89,6 +89,10 @@ async function generatePrompt(
 		getModesSection(context, mode, customModeConfigs),
 		getSkillsSection(skillsManager, executionMode),
 	])
+	const hasNonMcpToolGroup = modeConfig.groups.some((groupEntry) => getGroupName(groupEntry) !== "mcp")
+	const shouldIncludeToolUse =
+		hasNonMcpToolGroup || shouldIncludeMcp || Boolean(skillsSection) || Boolean(modeConfig.delegation?.canDelegate)
+	const toolUseSection = shouldIncludeToolUse ? getSharedToolUseSection(modeConfig.toolUsePolicy) : ""
 
 	// Tools catalog is not included in the system prompt.
 	const toolsCatalog = ""
@@ -106,7 +110,7 @@ async function generatePrompt(
 
 ${markdownFormattingSection()}
 
-${getSharedToolUseSection()}${toolsCatalog}
+${toolUseSection}${toolsCatalog}
 
 ${getToolUseGuidelinesSection()}
 

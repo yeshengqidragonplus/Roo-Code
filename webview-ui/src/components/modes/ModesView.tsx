@@ -1479,6 +1479,32 @@ const ModesView = () => {
 					</div>
 				)}
 
+				{findModeBySlug(visualMode, customModes) && (
+					<div className="mb-4">
+						<div className="font-bold mb-1">工具调用策略</div>
+						<div className="text-sm text-vscode-descriptionForeground mb-2">
+							此设置只约束已分配工具的使用方式，不会授予任何工具、MCP 或 Skill。
+						</div>
+						<Select
+							value={findModeBySlug(visualMode, customModes)?.toolUsePolicy ?? "on-demand"}
+							onValueChange={(value) => {
+								const currentMode = findModeBySlug(visualMode, customModes)
+								if (currentMode) {
+									updateCustomMode(visualMode, {
+										...currentMode,
+										toolUsePolicy: value === "evidence-required" ? "evidence-required" : undefined,
+									})
+								}
+							}}>
+							<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+							<SelectContent>
+								<SelectItem value="on-demand">按需调用（默认）</SelectItem>
+								<SelectItem value="evidence-required">完成前必须取证</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+
 				{/* Role definition for both built-in and custom modes */}
 				<div className="mb-2">
 					<div className="flex justify-between items-center mb-1">
