@@ -9,9 +9,38 @@ vi.mock("../../core/prompts/sections/custom-instructions", () => ({
 	addCustomInstructions: vi.fn().mockResolvedValue("Combined instructions"),
 }))
 
-import { FileRestrictionError, getFullModeDetails, modes, getModeSelection } from "../modes"
+import { FileRestrictionError, getExecutionModeConfig, getFullModeDetails, getModeSelection, modes } from "../modes"
 import { isToolAllowedForMode } from "../../core/tools/validateToolUse"
 import { addCustomInstructions } from "../../core/prompts/sections/custom-instructions"
+
+describe("workgroup execution mode", () => {
+	const workgroupModes: ModeConfig[] = [
+		{
+			slug: "arthur",
+			name: "Arthur",
+			roleDefinition: "Lead developer",
+			groups: ["read", "edit", "command"],
+		},
+		{
+			slug: "studio",
+			name: "Studio",
+			roleDefinition: "Legacy coordinator prompt",
+			groups: ["mcp"],
+			workgroup: { leadModeSlug: "arthur", colleagueSlugs: ["unity-operator"] },
+		},
+	]
+
+	it("uses the lead's capabilities while keeping the workgroup runtime slug", () => {
+		expect(getExecutionModeConfig("studio", workgroupModes)?.slug).toBe("arthur")
+		expect(isToolAllowedForMode("write_to_file", "studio", workgroupModes)).toBe(true)
+		expect(isToolAllowedForMode("use_mcp_tool", "studio", workgroupModes)).toBe(false)
+	})
+
+	it("falls back to legacy workgroup capabilities when its lead is unavailable", () => {
+		const legacy = [{ ...workgroupModes[1], workgroup: { leadModeSlug: "missing", colleagueSlugs: [] } }]
+		expect(getExecutionModeConfig("studio", legacy)?.slug).toBe("studio")
+	})
+})
 
 describe("isToolAllowedForMode", () => {
 	const customModes: ModeConfig[] = [

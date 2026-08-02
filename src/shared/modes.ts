@@ -58,6 +58,29 @@ export function getModeBySlug(slug: string, customModes?: ModeConfig[]): ModeCon
 	return modes.find((mode) => mode.slug === slug)
 }
 
+/**
+ * Returns the Mode that supplies prompt, base tool and skill capabilities for
+ * a runtime Mode. A workgroup deliberately keeps its own runtime slug for
+ * approvals and delegation boundaries, but executes as its configured lead.
+ *
+ * Missing or stale lead references fall back to the workgroup itself so older
+ * configurations remain usable while the user completes the migration.
+ */
+export function getExecutionModeConfig(runtimeModeSlug: string, customModes?: ModeConfig[]): ModeConfig | undefined {
+	const runtimeMode = getModeBySlug(runtimeModeSlug, customModes)
+	const leadModeSlug = runtimeMode?.workgroup?.leadModeSlug
+
+	if (leadModeSlug) {
+		return getModeBySlug(leadModeSlug, customModes) ?? runtimeMode
+	}
+
+	return runtimeMode
+}
+
+export function getExecutionModeSlug(runtimeModeSlug: string, customModes?: ModeConfig[]): string {
+	return getExecutionModeConfig(runtimeModeSlug, customModes)?.slug ?? runtimeModeSlug
+}
+
 export function getModeConfig(slug: string, customModes?: ModeConfig[]): ModeConfig {
 	const mode = getModeBySlug(slug, customModes)
 	if (!mode) {

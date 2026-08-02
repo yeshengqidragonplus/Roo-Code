@@ -464,6 +464,7 @@ export interface WebviewMessage {
 		| "toggleToolEnabledForPrompt"
 		| "toggleMcpServer"
 		| "updateMcpTimeout"
+		| "updateMcpServerModes"
 		| "enhancePrompt"
 		| "enhancedPrompt"
 		| "draggedImages"
@@ -598,6 +599,8 @@ export interface WebviewMessage {
 	slug?: string
 	modeConfig?: ModeConfig
 	timeout?: number
+	/** Mode slugs permitted to receive an MCP server's tools; [] leaves the server unassigned. */
+	modeSlugs?: string[]
 	payload?: WebViewMessagePayload
 	source?: "global" | "project"
 	skillName?: string // For skill operations (createSkill, deleteSkill, moveSkill, openSkillFile)

@@ -114,6 +114,7 @@ const ModesView = () => {
 		customInstructions,
 		setCustomInstructions,
 		customModes,
+		mcpServers,
 		workflows,
 	} = useExtensionState()
 
@@ -140,6 +141,7 @@ const ModesView = () => {
 	const [selectedPromptContent, setSelectedPromptContent] = useState("")
 	const [selectedPromptTitle, setSelectedPromptTitle] = useState("")
 	const [isToolsEditMode, setIsToolsEditMode] = useState(false)
+	const [isMcpAssignmentOpen, setIsMcpAssignmentOpen] = useState(false)
 	const [showConfigMenu, setShowConfigMenu] = useState(false)
 	const [isCreateModeDialogOpen, setIsCreateModeDialogOpen] = useState(false)
 	const [isExporting, setIsExporting] = useState(false)
@@ -169,11 +171,9 @@ const ModesView = () => {
 
 	// Optimistic rename map so search reflects new names immediately
 	const [localRenames, setLocalRenames] = useState<Record<string, string>>({})
-	// Display list that overlays optimistic names; hidden modes are filtered out
-	// of the selector (they remain reachable via new_task / delegation).
-	const displayModes = (modes || [])
-		.filter((m) => !m.hidden)
-		.map((m) => (localRenames[m.slug] ? { ...m, name: localRenames[m.slug] } : m))
+	// Settings must be able to manage hidden specialist/lead modes too. Hiding
+	// only affects the chat mode picker, never the configuration editor.
+	const displayModes = (modes || []).map((m) => (localRenames[m.slug] ? { ...m, name: localRenames[m.slug] } : m))
 
 	// Direct update functions
 	const updateAgentPrompt = useCallback(
@@ -268,7 +268,9 @@ const ModesView = () => {
 	useEffect(() => {
 		const activeMode = customModes?.find((customMode) => customMode.slug === mode)
 		const isNonMode = activeMode?.kind === "workflow" || activeMode?.workgroup !== undefined
-		setVisualMode(isNonMode ? (modes.find((item) => item.slug === defaultModeSlug)?.slug ?? modes[0]?.slug ?? mode) : mode)
+		setVisualMode(
+			isNonMode ? (modes.find((item) => item.slug === defaultModeSlug)?.slug ?? modes[0]?.slug ?? mode) : mode,
+		)
 	}, [mode, customModes, modes])
 
 	// Handler for popover open state change
@@ -1019,17 +1021,25 @@ const ModesView = () => {
 										})
 									}
 								}}>
-								<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="__none__">不绑定（使用会话当前配置）</SelectItem>
-									{(listApiConfigMeta || []).map((config) => <SelectItem key={config.id} value={config.name}>{config.name}</SelectItem>)}
+									{(listApiConfigMeta || []).map((config) => (
+										<SelectItem key={config.id} value={config.name}>
+											{config.name}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>
 					)}
 				</div>
 
-				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">系统提示词：发送给模型</div>
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">
+					系统提示词：发送给模型
+				</div>
 				{/* Role Definition section */}
 				<div className="mb-4">
 					<div className="flex justify-between items-center mb-1">
@@ -1086,7 +1096,9 @@ const ModesView = () => {
 					/>
 				</div>
 
-				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">用户可见信息：用于模式选择与说明</div>
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">
+					用户可见信息：用于模式选择与说明
+				</div>
 				{/* Description section */}
 				<div className="mb-4">
 					<div className="flex justify-between items-center mb-1">
@@ -1197,7 +1209,9 @@ const ModesView = () => {
 					/>
 				</div>
 
-				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">系统执行配置：工具与补充提示词</div>
+				<div className="text-xs font-semibold uppercase tracking-wide text-vscode-descriptionForeground mb-2">
+					系统执行配置：工具与补充提示词
+				</div>
 				{/* Mode settings */}
 				<>
 					{/* Show tools for all modes */}
@@ -1286,6 +1300,102 @@ const ModesView = () => {
 						)}
 					</div>
 				</>
+
+				{/* MCP assignment: servers remain globally visible in MCP Settings,
+				    while this list controls which server tools enter this Mode's prompt. */}
+				{findModeBySlug(visualMode, customModes) && (
+					<div className="mb-4">
+						<div className="font-bold mb-1">已分配 MCP</div>
+						<div className="text-sm text-vscode-descriptionForeground mb-2">
+							MCP 服务始终在“MCP 服务”页完整显示；这里只决定哪些服务的工具会注入当前 Mode 的系统提示词。
+						</div>
+						{(() => {
+							const currentMode = getCurrentMode()
+							const canUseMcp = currentMode?.groups?.some((group) => getGroupName(group) === "mcp")
+							const availableModeSlugs = modes.map((item) => item.slug)
+							const assignedCount = mcpServers.filter((server) => {
+								try {
+									const configuredModes = (JSON.parse(server.config) as { modes?: unknown }).modes
+									return !Array.isArray(configuredModes) || configuredModes.includes(visualMode)
+								} catch {
+									return false
+								}
+							}).length
+
+							return (
+								<>
+									{!canUseMcp && (
+										<div className="text-sm text-vscode-descriptionForeground mb-2">
+											请先在“工具权限”中开启 MCP，才能为此 Mode 分配服务。
+										</div>
+									)}
+									<Popover open={isMcpAssignmentOpen} onOpenChange={setIsMcpAssignmentOpen}>
+										<PopoverTrigger asChild>
+											<Button
+												variant="secondary"
+												disabled={!canUseMcp || mcpServers.length === 0}>
+												选择 MCP（{assignedCount}/{mcpServers.length}）
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent className="w-80 max-h-80 overflow-y-auto">
+											<div className="flex flex-col gap-2">
+												{mcpServers.map((server) => {
+													let explicitModeSlugs: string[] | undefined
+													try {
+														const parsedConfig = JSON.parse(server.config) as {
+															modes?: unknown
+														}
+														if (Array.isArray(parsedConfig.modes)) {
+															explicitModeSlugs = parsedConfig.modes.filter(
+																(value): value is string => typeof value === "string",
+															)
+														}
+													} catch {
+														// Keep the server visible. An invalid config is handled by the MCP settings page.
+													}
+
+													const assigned = explicitModeSlugs
+														? explicitModeSlugs.includes(visualMode)
+														: true
+													return (
+														<VSCodeCheckbox
+															key={`${server.name}-${server.source || "global"}`}
+															checked={assigned}
+															disabled={!canUseMcp}
+															onChange={(event) => {
+																const checked = (event.target as HTMLInputElement)
+																	.checked
+																const nextModeSlugs = checked
+																	? [
+																			...new Set([
+																				...(explicitModeSlugs ??
+																					availableModeSlugs),
+																				visualMode,
+																			]),
+																		]
+																	: (explicitModeSlugs ?? availableModeSlugs).filter(
+																			(slug) => slug !== visualMode,
+																		)
+																vscode.postMessage({
+																	type: "updateMcpServerModes",
+																	serverName: server.name,
+																	source: server.source || "global",
+																	modeSlugs: nextModeSlugs,
+																})
+															}}>
+															{server.name}
+															{server.disabled ? "（已停用）" : ""}
+														</VSCodeCheckbox>
+													)
+												})}
+											</div>
+										</PopoverContent>
+									</Popover>
+								</>
+							)
+						})()}
+					</div>
+				)}
 
 				{/* Role definition for both built-in and custom modes */}
 				<div className="mb-2">
@@ -1672,11 +1782,19 @@ const ModesView = () => {
 								<div className="text-[13px] text-vscode-descriptionForeground mb-2">
 									创建后切换或委派到此 Mode 时使用。留空表示使用会话当前配置。
 								</div>
-								<Select value={newModeApiProfile || "__none__"} onValueChange={(value) => setNewModeApiProfile(value === "__none__" ? "" : value)}>
-									<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+								<Select
+									value={newModeApiProfile || "__none__"}
+									onValueChange={(value) => setNewModeApiProfile(value === "__none__" ? "" : value)}>
+									<SelectTrigger className="w-full">
+										<SelectValue />
+									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="__none__">不绑定</SelectItem>
-										{(listApiConfigMeta || []).map((config) => <SelectItem key={config.id} value={config.name}>{config.name}</SelectItem>)}
+										{(listApiConfigMeta || []).map((config) => (
+											<SelectItem key={config.id} value={config.name}>
+												{config.name}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</div>

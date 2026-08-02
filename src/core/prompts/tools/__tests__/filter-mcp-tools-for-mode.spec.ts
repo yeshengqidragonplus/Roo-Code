@@ -93,13 +93,13 @@ describe("isServerVisibleToMode", () => {
 		expect(isServerVisibleToMode("srv", "{invalid json", "code")).toBe(true)
 	})
 
-	it("returns true (visible to all) when modes is an empty array", () => {
+	it("returns false when modes is an empty array (not assigned to any Mode)", () => {
 		const server: McpServer = {
 			name: "srv",
 			config: JSON.stringify({ type: "stdio", command: "test", modes: [] }),
 			status: "connected",
 		}
-		expect(isServerVisibleToMode("srv", server.config, "code")).toBe(true)
+		expect(isServerVisibleToMode("srv", server.config, "code")).toBe(false)
 	})
 })
 

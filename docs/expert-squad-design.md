@@ -286,7 +286,7 @@ MCP 工具对模式是"全有或全无"：有 `mcp` 组就看到所有服务器�
 在 [`McpHub.ts`](../src/services/mcp/McpHub.ts) 的 `BaseConfigSchema` 增加：
 
 ```ts
-modes: z.array(z.string()).min(1).optional(),
+modes: z.array(z.string()).optional(),
 ```
 
 **配置**（`mcp_settings.json` / `.roo/mcp.json`）：
@@ -302,7 +302,7 @@ modes: z.array(z.string()).min(1).optional(),
 }
 ```
 
-**语义**：`modes` 存在时，该服务器的工具只对列出的模式可见；未设置 = 所有带 `mcp` 组的模式可见（零影响，向后兼容）。
+**语义**：`modes` 未设置 = 所有带 `mcp` 组的模式可见（零影响，向后兼容）；非空数组 = 仅列出的模式可见；空数组 = 服务不注入任何 Mode，保留供后续在配置界面重新分配。
 
 ### 5.3 实现
 

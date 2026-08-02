@@ -7,6 +7,7 @@ import { customToolRegistry, formatNative } from "@roo-code/core"
 
 import type { ClineProvider } from "../webview/ClineProvider"
 import { getRooDirectoriesForCwd } from "../../services/roo-config/index.js"
+import { getExecutionModeSlug } from "../../shared/modes"
 
 import { getNativeTools, getMcpServerTools } from "../prompts/tools/native-tools"
 import {
@@ -93,6 +94,7 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 	} = options
 
 	const mcpHub = provider.getMcpHub()
+	const executionMode = mode ? getExecutionModeSlug(mode, customModes) : mode
 
 	// Get CodeIndexManager for feature checking.
 	const { CodeIndexManager } = await import("../../services/code-index/manager")
@@ -116,7 +118,7 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 	// Filter native tools based on mode restrictions.
 	const filteredNativeTools = filterNativeToolsForMode(
 		nativeTools,
-		mode,
+		executionMode,
 		customModes,
 		experiments,
 		codeIndexManager,
@@ -126,7 +128,7 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 
 	// Filter MCP tools based on mode restrictions (including per-server mode visibility).
 	const mcpTools = getMcpServerTools(mcpHub)
-	const filteredMcpTools = filterMcpToolsForMode(mcpTools, mode, customModes, experiments, mcpHub)
+	const filteredMcpTools = filterMcpToolsForMode(mcpTools, executionMode, customModes, experiments, mcpHub)
 
 	// Add custom tools if they are available and the experiment is enabled.
 	let nativeCustomTools: OpenAI.Chat.ChatCompletionFunctionTool[] = []

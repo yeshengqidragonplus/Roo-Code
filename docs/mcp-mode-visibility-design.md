@@ -61,7 +61,7 @@ modes: z.array(z.string()).min(1).optional(),   // 该服务器工具仅对这�
 }
 ```
 
-**语义**：`modes` 存在时，该服务器的工具只对列出的模式可见；未设置 = 所有带 `mcp` 组的模式可见（零影响，向后兼容）。
+**语义**：`modes` 未设置 = 所有带 `mcp` 组的模式可见（零影响，向后兼容）；非空数组 = 仅列出的模式可见；空数组 = 服务保留但暂不分配给任何模式。空数组让配置 UI 可以取消最后一个 Mode，而不会意外退回“全模式可见”。
 
 **效果**：一处声明，unity-pro 即从主流程和其他所有模式（含内置模式）消失，只在 unity-context 出现。其他任何模式、任何服务器配置都不用动。
 
@@ -168,7 +168,7 @@ Gemini 的 `includeAllToolsWithRestrictions` 路径无需单改：`allowedFuncti
 
 ## 6. 测试计划
 
-Schema 校验（按所选方案）：A：`modes` 合法/空数组拒绝/缺省通过；B：`servers` 合法/空数组拒绝/缺省通过/出现在非 mcp 组时忽略。
+Schema 校验（按所选方案）：A：`modes` 合法/空数组表示未分配/缺省通过；B：`servers` 合法/空数组拒绝/缺省通过/出现在非 mcp 组时忽略。
 
 `filterMcpToolsForMode`（新增用例）：
 

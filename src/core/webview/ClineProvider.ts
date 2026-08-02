@@ -43,7 +43,7 @@ import { Package } from "../../shared/package"
 import { findLast } from "../../shared/array"
 import { supportPrompt } from "../../shared/support-prompt"
 import { GlobalFileNames } from "../../shared/globalFileNames"
-import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
+import { Mode, defaultModeSlug, getExecutionModeConfig, getModeBySlug } from "../../shared/modes"
 import { experimentDefault } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
 import { WebviewMessage } from "../../shared/WebviewMessage"
@@ -200,6 +200,10 @@ export class ClineProvider
 			.then((hub) => {
 				this.mcpHub = hub
 				this.mcpHub.registerClient()
+				// The initial state may have been posted before the asynchronous MCP
+				// hub finished loading. Publish again so settings (including the Mode
+				// MCP assignment list) receives every configured server immediately.
+				void this.postStateToWebviewWithoutClineMessages()
 			})
 			.catch((error) => {
 				this.log(`Failed to initialize MCP Hub: ${error}`)
@@ -1423,7 +1427,7 @@ export class ClineProvider
 		// declared model regardless of global settings. See
 		// docs/expert-squad-design.md §3.1.
 		const customModes = await this.customModesManager.getCustomModes()
-		const targetModeConfig = getModeBySlug(newMode, customModes)
+		const targetModeConfig = getExecutionModeConfig(newMode, customModes)
 		if (targetModeConfig?.apiProfile) {
 			const listApiConfig = await this.providerSettingsManager.listConfig()
 			const profileExists = listApiConfig.some((c) => c.name === targetModeConfig.apiProfile)
@@ -2262,7 +2266,7 @@ export class ClineProvider
 			autoApprovalMode: autoApprovalMode ?? "manual",
 			customModes,
 			experiments: experiments ?? experimentDefault,
-			mcpServers: this.mcpHub?.getAllServers() ?? [],
+			mcpServers: (await this.mcpHub?.getConfiguredServers()) ?? [],
 			maxOpenTabsContext: maxOpenTabsContext ?? 20,
 			maxWorkspaceFiles: maxWorkspaceFiles ?? 200,
 			cwd,
@@ -2403,7 +2407,7 @@ export class ClineProvider
 			mode: stateValues.mode ?? defaultModeSlug,
 			language: stateValues.language ?? formatLanguage(vscode.env.language),
 			mcpEnabled: stateValues.mcpEnabled ?? true,
-			mcpServers: this.mcpHub?.getAllServers() ?? [],
+			mcpServers: (await this.mcpHub?.getConfiguredServers()) ?? [],
 			currentApiConfigName: stateValues.currentApiConfigName ?? "default",
 			listApiConfigMeta: stateValues.listApiConfigMeta ?? [],
 			pinnedApiConfigs: stateValues.pinnedApiConfigs ?? {},
@@ -3373,11 +3377,11 @@ export class ClineProvider
 					)
 				}
 			}
-	
+
 			// Auto-resume parent without ask("resume_task")
 			await parentInstance.resumeAfterDelegation()
 		}
-	
+
 		// 9) Emit TaskDelegationResumed (provider-level)
 		try {
 			this.emit(RooCodeEventName.TaskDelegationResumed, parentTaskId, childTaskId)

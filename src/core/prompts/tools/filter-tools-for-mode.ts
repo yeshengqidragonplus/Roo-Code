@@ -435,7 +435,7 @@ export function getAvailableToolsInGroup(
  * undefined (meaning "visible to all modes").
  *
  * @param configJson - The JSON-string config from McpServer.config
- * @returns Array of mode slugs if `modes` is set and non-empty, undefined otherwise
+ * @returns Array of mode slugs if `modes` is set (including an empty assignment), undefined otherwise
  */
 function parseServerModes(configJson: string | undefined): string[] | undefined {
 	if (!configJson) {
@@ -444,7 +444,7 @@ function parseServerModes(configJson: string | undefined): string[] | undefined 
 	try {
 		const parsed = JSON.parse(configJson) as { modes?: unknown }
 		const modes = parsed?.modes
-		if (Array.isArray(modes) && modes.length > 0 && modes.every((m) => typeof m === "string")) {
+		if (Array.isArray(modes) && modes.every((m) => typeof m === "string")) {
 			return modes
 		}
 		return undefined
@@ -458,7 +458,8 @@ function parseServerModes(configJson: string | undefined): string[] | undefined 
  *
  * A server is visible to a mode when:
  * - It has no `modes` field configured (unset = visible to all modes), or
- * - The `modes` array includes the given mode slug.
+ * - The `modes` array includes the given mode slug. An explicit empty array
+ *   means the server has not been assigned to any Mode.
  *
  * This is the single source of truth for server-side mode visibility (scheme A).
  * Used by both the injection-side filter (filterMcpToolsForMode) and the
@@ -471,7 +472,7 @@ function parseServerModes(configJson: string | undefined): string[] | undefined 
  */
 export function isServerVisibleToMode(serverName: string, configJson: string | undefined, modeSlug: string): boolean {
 	const modes = parseServerModes(configJson)
-	if (!modes || modes.length === 0) {
+	if (!modes) {
 		return true // unset = visible to all modes
 	}
 	return modes.includes(modeSlug)

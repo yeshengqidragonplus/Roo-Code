@@ -1556,13 +1556,13 @@ describe("McpHub", () => {
 				expect(parsed.modes).toEqual(["unity-context"])
 			})
 
-			it("should reject an empty modes array", () => {
+			it("should accept an empty modes array for an unassigned server", () => {
 				const config = {
 					type: "stdio",
 					command: "test",
 					modes: [],
 				}
-				expect(() => ServerConfigSchema.parse(config)).toThrow()
+				expect(ServerConfigSchema.parse(config).modes).toEqual([])
 			})
 
 			it("should reject non-string entries in modes", () => {

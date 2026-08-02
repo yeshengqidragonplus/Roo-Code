@@ -2,7 +2,7 @@ import type { ToolName, ModeConfig, ExperimentId, GroupOptions, GroupEntry } fro
 import { toolNames as validToolNames } from "@roo-code/types"
 import { customToolRegistry } from "@roo-code/core"
 
-import { type Mode, FileRestrictionError, getModeBySlug, getGroupName } from "../../shared/modes"
+import { type Mode, FileRestrictionError, getExecutionModeSlug, getModeBySlug, getGroupName } from "../../shared/modes"
 import { EXPERIMENT_IDS } from "../../shared/experiments"
 import { TOOL_GROUPS, ALWAYS_AVAILABLE_TOOLS, TOOL_ALIASES } from "../../shared/tools"
 
@@ -166,7 +166,8 @@ export function isToolAllowedForMode(
 		}
 	}
 
-	const mode = getModeBySlug(modeSlug, customModes)
+	const executionModeSlug = getExecutionModeSlug(modeSlug, customModes)
+	const mode = getModeBySlug(executionModeSlug, customModes)
 
 	if (!mode) {
 		return false

@@ -82,6 +82,15 @@ export type DelegationPolicy = z.infer<typeof delegationPolicySchema>
  * without parsing generated role-definition text.
  */
 export const workgroupConfigSchema = z.object({
+	/**
+	 * The Mode that performs the group's primary work. A workgroup is an
+	 * execution context for its lead, not a second coordinator personality:
+	 * the lead supplies the prompt, base model and baseline tools, while the
+	 * workgroup supplies delegation boundaries and approval behavior.
+	 */
+	leadModeSlug: z.string().min(1).optional(),
+	/** Short collaboration rules appended to the lead's system prompt. */
+	instructions: z.string().optional(),
 	colleagueSlugs: z.array(z.string().min(1)).default([]),
 })
 

@@ -4,15 +4,12 @@ import type { McpServer } from "@roo-code/types"
  * Reads the mode-level visibility whitelist from a server's validated config.
  * Returns undefined when the server does not restrict visibility (no `modes`
  * field), which means the server is visible to every mode with the "mcp" group.
+ * An explicit empty array means the server has not been assigned to any Mode.
  */
 export function getServerVisibleModes(server: McpServer): string[] | undefined {
 	try {
 		const config = JSON.parse(server.config) as { modes?: unknown }
-		if (
-			Array.isArray(config.modes) &&
-			config.modes.length > 0 &&
-			config.modes.every((mode) => typeof mode === "string")
-		) {
+		if (Array.isArray(config.modes) && config.modes.every((mode) => typeof mode === "string")) {
 			return config.modes
 		}
 	} catch {
@@ -24,7 +21,8 @@ export function getServerVisibleModes(server: McpServer): string[] | undefined {
 
 /**
  * Whether a server's tools are visible to the given mode.
- * Servers without a `modes` whitelist are visible to all modes.
+ * Servers without a `modes` whitelist are visible to all modes; an empty
+ * whitelist is visible to none.
  */
 export function isServerVisibleToMode(server: McpServer, modeSlug: string): boolean {
 	const modes = getServerVisibleModes(server)

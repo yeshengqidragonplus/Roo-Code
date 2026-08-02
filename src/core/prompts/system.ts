@@ -2,7 +2,15 @@ import * as vscode from "vscode"
 
 import { type ModeConfig, type PromptComponent, type CustomModePrompts, type TodoItem } from "@roo-code/types"
 
-import { Mode, modes, defaultModeSlug, getModeBySlug, getGroupName, getModeSelection } from "../../shared/modes"
+import {
+	Mode,
+	modes,
+	defaultModeSlug,
+	getModeBySlug,
+	getExecutionModeConfig,
+	getGroupName,
+	getModeSelection,
+} from "../../shared/modes"
 import { DiffStrategy } from "../../shared/tools"
 import { formatLanguage } from "../../shared/language"
 import { isEmpty } from "../../utils/object"
@@ -62,8 +70,10 @@ async function generatePrompt(
 	}
 
 	// Get the full mode config to ensure we have the role definition (used for groups, etc.)
-	const modeConfig = getModeBySlug(mode, customModeConfigs) || modes.find((m) => m.slug === mode) || modes[0]
-	const { roleDefinition, baseInstructions } = getModeSelection(mode, promptComponent, customModeConfigs)
+	const runtimeModeConfig = getModeBySlug(mode, customModeConfigs) || modes.find((m) => m.slug === mode) || modes[0]
+	const modeConfig = getExecutionModeConfig(mode, customModeConfigs) || runtimeModeConfig
+	const executionMode = modeConfig.slug
+	const { roleDefinition, baseInstructions } = getModeSelection(executionMode, promptComponent, customModeConfigs)
 
 	// Check if MCP functionality should be included
 	const hasMcpGroup = modeConfig.groups.some((groupEntry) => getGroupName(groupEntry) === "mcp")
@@ -76,8 +86,8 @@ async function generatePrompt(
 	const effectiveProtocol = "native"
 
 	const [modesSection, skillsSection] = await Promise.all([
-		getModesSection(context),
-		getSkillsSection(skillsManager, mode as string),
+		getModesSection(context, mode, customModeConfigs),
+		getSkillsSection(skillsManager, executionMode),
 	])
 
 	// Tools catalog is not included in the system prompt.
@@ -112,7 +122,7 @@ ${getObjectiveSection()}
 ${terminationSection}
 ${getMemoryInstructionsSection(settings)}
 
-${await addCustomInstructions(baseInstructions, globalCustomInstructions || "", cwd, mode, {
+${await addCustomInstructions(baseInstructions, globalCustomInstructions || "", cwd, executionMode, {
 	language: language ?? formatLanguage(vscode.env.language),
 	rooIgnoreInstructions,
 	settings,
@@ -143,11 +153,13 @@ export const SYSTEM_PROMPT = async (
 		throw new Error("Extension context is required for generating system prompt")
 	}
 
-	// Check if it's a custom mode
-	const promptComponent = getPromptComponent(customModePrompts, mode)
-
 	// Get full mode config from custom modes or fall back to built-in modes
 	const currentMode = getModeBySlug(mode, customModes) || modes.find((m) => m.slug === mode) || modes[0]
+	// A workgroup executes as its lead. Prompt overrides must follow that lead
+	// as well; otherwise a legacy workgroup role definition could overwrite the
+	// lead's identity.
+	const executionMode = getExecutionModeConfig(currentMode.slug, customModes)?.slug ?? currentMode.slug
+	const promptComponent = getPromptComponent(customModePrompts, executionMode)
 
 	return generatePrompt(
 		context,

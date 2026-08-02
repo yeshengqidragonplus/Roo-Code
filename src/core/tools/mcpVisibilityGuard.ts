@@ -1,7 +1,7 @@
 import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 import { t } from "../../i18n"
-import { defaultModeSlug } from "../../shared/modes"
+import { defaultModeSlug, getExecutionModeSlug } from "../../shared/modes"
 import { isServerVisibleToMode } from "../../services/mcp/mode-visibility"
 
 /**
@@ -33,7 +33,7 @@ export async function ensureServerVisibleToMode(
 		}
 
 		const state = await provider?.getState()
-		modeSlug = state?.mode ?? defaultModeSlug
+		modeSlug = getExecutionModeSlug(state?.mode ?? defaultModeSlug, state?.customModes)
 	} catch (error) {
 		// Same posture as validateToolExists: an error while checking must not
 		// block execution — this guard is defense in depth, the primary filter

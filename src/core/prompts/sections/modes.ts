@@ -2,15 +2,44 @@ import * as vscode from "vscode"
 
 import type { ModeConfig } from "@roo-code/types"
 
-import { getAllModesWithPrompts } from "../../../shared/modes"
+import { getAllModesWithPrompts, getModeBySlug } from "../../../shared/modes"
 import { ensureSettingsDirectoryExists } from "../../../utils/globalContext"
 
-export async function getModesSection(context: vscode.ExtensionContext): Promise<string> {
+export async function getModesSection(
+	context: vscode.ExtensionContext,
+	runtimeModeSlug?: string,
+	customModes?: ModeConfig[],
+): Promise<string> {
 	// Make sure path gets created
 	await ensureSettingsDirectoryExists(context)
 
 	// Get all modes with their overrides from extension state
 	const allModes = await getAllModesWithPrompts(context)
+	const runtimeMode = runtimeModeSlug ? getModeBySlug(runtimeModeSlug, customModes) : undefined
+
+	// A workgroup must expose only its own colleagues. The global mode registry
+	// is intentionally shared by a project, but loading every specialist into a
+	// lead's prompt defeats progressive capability expansion and misleads it into
+	// attempting invalid delegations.
+	if (runtimeMode?.workgroup) {
+		const colleagueSlugs = new Set(runtimeMode.workgroup.colleagueSlugs)
+		const colleagues = allModes.filter((mode) => colleagueSlugs.has(mode.slug))
+		const leadName = runtimeMode.workgroup.leadModeSlug ?? runtimeMode.name
+		const instructions = runtimeMode.workgroup.instructions?.trim()
+
+		return `====
+
+WORKGROUP COLLEAGUES
+
+You are working as ${leadName} in the "${runtimeMode.name}" workgroup.
+Delegate specialized work only with \`new_task\` and only to the colleagues below. Their professional tools, MCP servers and Skills are loaded only inside their delegated task; do not attempt to use or reproduce those tools yourself.
+${colleagues
+	.map((mode: ModeConfig) => {
+		const description = mode.whenToUse?.trim() || mode.description || mode.roleDefinition.split(".")[0]
+		return `  * "${mode.name}" (${mode.slug}) - ${description.replace(/\n/g, "\n    ")}`
+	})
+	.join("\n")}${instructions ? `\n\nWORKGROUP RULES\n\n${instructions}` : ""}`
+	}
 
 	const modesContent = `====
 

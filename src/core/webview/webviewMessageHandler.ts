@@ -1911,6 +1911,24 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				}
 			}
 			break
+		case "updateMcpServerModes":
+			if (message.serverName && Array.isArray(message.modeSlugs)) {
+				try {
+					await provider
+						.getMcpHub()
+						?.updateServerModes(
+							message.serverName,
+							message.modeSlugs,
+							message.source as "global" | "project",
+						)
+				} catch (error) {
+					provider.log(
+						`Failed to update MCP mode assignment for ${message.serverName}: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+					)
+					vscode.window.showErrorMessage(`Failed to update MCP assignment for ${message.serverName}`)
+				}
+			}
+			break
 		case "updateCustomMode":
 			if (message.modeConfig) {
 				try {

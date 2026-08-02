@@ -70,16 +70,9 @@ const BaseConfigSchema = z.object({
 	alwaysAllow: z.array(z.string()).default([]),
 	watchPaths: z.array(z.string()).optional(), // paths to watch for changes and restart server
 	disabledTools: z.array(z.string()).default([]),
-	// Mode-level visibility: when set, this server's tools are only visible to the
-	// listed mode slugs. Unset = visible to every mode with the "mcp" group.
-	// An empty array is rejected — to hide the server everywhere, use `disabled`.
-	modes: z
-		.array(z.string())
-		.min(
-			1,
-			"modes must list at least one mode slug; omit the field to allow all modes, or use 'disabled' to hide the server entirely",
-		)
-		.optional(),
+	// Mode-level visibility: omitted = legacy/global availability; an empty
+	// array = deliberately not assigned to any Mode yet.
+	modes: z.array(z.string()).optional(),
 })
 
 // Custom error messages for better user feedback
@@ -483,6 +476,50 @@ export class McpHub {
 	getAllServers(): McpServer[] {
 		// Return all servers regardless of state
 		return this.connections.map((conn) => conn.server)
+	}
+
+	/**
+	 * Returns every server declared in the global/project MCP files, including
+	 * services that have not connected yet. Configuration UIs must use this
+	 * instead of the runtime connection list so assignments can be edited before
+	 * a server starts successfully.
+	 */
+	async getConfiguredServers(): Promise<McpServer[]> {
+		const readSource = async (source: "global" | "project", configPath: string | null): Promise<McpServer[]> => {
+			if (!configPath) return []
+			try {
+				const rawConfig = JSON.parse(await fs.readFile(configPath, "utf-8")) as {
+					mcpServers?: Record<string, Record<string, unknown>>
+				}
+				return Object.entries(rawConfig.mcpServers ?? {}).map(([name, config]) => {
+					const runtimeServer = this.connections.find(
+						(connection) =>
+							connection.server.name === name && (connection.server.source || "global") === source,
+					)?.server
+					return {
+						name,
+						config: JSON.stringify(config),
+						status: runtimeServer?.status ?? "disconnected",
+						disabled: config.disabled === true,
+						source,
+						tools: runtimeServer?.tools,
+						resources: runtimeServer?.resources,
+						resourceTemplates: runtimeServer?.resourceTemplates,
+						error: runtimeServer?.error,
+					}
+				})
+			} catch {
+				return []
+			}
+		}
+
+		const [globalServers, projectServers] = await Promise.all([
+			readSource("global", await this.getMcpSettingsFilePath()),
+			readSource("project", await this.getProjectMcpPath()),
+		])
+		const serversByName = new Map(globalServers.map((server) => [server.name, server]))
+		for (const server of projectServers) serversByName.set(server.name, server)
+		return Array.from(serversByName.values())
 	}
 
 	async getMcpServersPath(): Promise<string> {
@@ -1600,6 +1637,12 @@ export class McpHub {
 			...configUpdate,
 		}
 
+		for (const [key, value] of Object.entries(configUpdate)) {
+			if (value === undefined) {
+				delete serverConfig[key]
+			}
+		}
+
 		// Ensure required fields exist
 		if (!serverConfig.alwaysAllow) {
 			serverConfig.alwaysAllow = []
@@ -1648,6 +1691,28 @@ export class McpHub {
 			this.showErrorMessage(`Failed to update server ${serverName} timeout settings`, error)
 			throw error
 		}
+	}
+
+	/**
+	 * Restrict an MCP server to selected modes. An empty selection leaves the
+	 * server configured but unassigned to every Mode.
+	 */
+	public async updateServerModes(
+		serverName: string,
+		modeSlugs: string[],
+		source?: "global" | "project",
+	): Promise<void> {
+		const connection = this.findConnection(serverName, source)
+		const uniqueModeSlugs = [...new Set(modeSlugs.filter((slug) => slug.trim().length > 0))]
+		const serverSource = connection?.server.source || source || "global"
+		await this.updateServerConfig(serverName, { modes: uniqueModeSlugs }, serverSource)
+
+		if (connection) {
+			const currentConfig = JSON.parse(connection.server.config)
+			currentConfig.modes = uniqueModeSlugs
+			connection.server.config = JSON.stringify(currentConfig)
+		}
+		await this.notifyWebviewOfServerChanges()
 	}
 
 	public async deleteServer(serverName: string, source?: "global" | "project"): Promise<void> {
