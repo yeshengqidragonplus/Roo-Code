@@ -45,7 +45,7 @@ import { checkExistKey } from "../../shared/checkExistApiConfig"
 import { experimentDefault } from "../../shared/experiments"
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { openFile } from "../../integrations/misc/open-file"
-import { openImage, saveImage } from "../../integrations/misc/image-handler"
+import { openImage, saveImage, resolveWebviewImageUri } from "../../integrations/misc/image-handler"
 import { selectImages } from "../../integrations/misc/process-images"
 import { stampSubtaskChildIds, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { getTheme } from "../../integrations/theme/getTheme"
@@ -1107,6 +1107,32 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			break
 		case "saveImage":
 			if (message.dataUri) {
+				// A webview display URI (https://*.vscode-cdn.net/...) is a rendered task image;
+				// resolve it back to its real file path so saving works (same as openImage).
+				const mappedPath = resolveWebviewImageUri(message.dataUri)
+				if (mappedPath) {
+					const ext = path.extname(mappedPath).slice(1) || "png"
+					const defaultUri = await resolveDefaultSaveUri(
+						provider.contextProxy,
+						"lastImageSavePath",
+						`img_${Date.now()}.${ext}`,
+						{
+							useWorkspace: false,
+							fallbackDir: path.join(os.homedir(), "Downloads"),
+						},
+					)
+					try {
+						await fs.copyFile(mappedPath, defaultUri.fsPath)
+						vscode.window.showInformationMessage(t("common:info.image_saved", { path: defaultUri.fsPath }))
+					} catch (error) {
+						vscode.window.showErrorMessage(
+							t("common:errors.error_saving_image", {
+								errorMessage: error instanceof Error ? error.message : String(error),
+							}),
+						)
+					}
+					break
+				}
 				const matches = message.dataUri.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/)
 				if (!matches) {
 					// Let saveImage handle invalid URI error

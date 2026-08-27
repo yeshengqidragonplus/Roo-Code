@@ -1,5 +1,20 @@
 # MCP 配置避坑指南（Q-Code / Roo Code）
 
+## ⚠️ 本机真实配置位置是 D:\QCodeStorage（2026-08-27 确认）
+
+**最重要的避坑点**：QCode fork 有 `customStoragePath` 设置（`src/utils/storage.ts` 的 `getStorageBasePath()`，读取 VS Code 设置 `qcode.customStoragePath`），设置后 settings/tasks/cache 全部重定向。
+
+**本机已配置重定向到 `D:\QCodeStorage`**，所以：
+
+- ✅ 真实 MCP 配置：`D:\QCodeStorage\settings\mcp_settings.json`
+- ❌ `%APPDATA%/Code/User/globalStorage/qcode.qcode/settings/mcp_settings.json` **不是**扩展实际读取的位置（C 盘 globalStorage 里只剩 tasks/ 空壳是正常的，不是数据丢失）
+
+排查 MCP 问题前先确认 `qcode.customStoragePath` 是否生效，否则会改错文件。
+
+## 0. MCP 面板为空的排查路径（2026-08-27 实战记录）
+
+本次 "CoderGraph MCP 消失" 的真正原因：`D:\QCodeStorage\settings\mcp_settings.json` 内容为空 `{"mcpServers": {}}`（何时被清空未知）。修复：直接把 server 配置写回该文件，`watchMcpSettingsFile`（McpHub.ts）监听 onDidChange/onDidCreate 会自动重连，无需重启 VS Code；若面板未刷新可点"刷新 MCP 服务器"按钮。
+
 ## 1. 合法的 server type 只有三种
 
 `mcp_settings.json` 里 `type` 字段只接受：`stdio`、`sse`、`streamable-http`。
@@ -25,6 +40,10 @@
 
 [`auto-approval/mcp.ts`](src/core/auto-approval/mcp.ts:6) 判断逻辑：`state.alwaysAllowMcp === true && isMcpToolAlwaysAllowed(...)`。`alwaysAllow`（per-server 白名单）和 `alwaysAllowMcp`（全局总开关）必须同时开启，工具才会真正免确认执行。
 
-## 5. 配置文件位置
+## 5. stdio 命令在 Windows 上会被 cmd.exe 自动包装
 
-全局 MCP 配置：`<globalStorage>/qcode.qcode/settings/mcp_settings.json`（Windows 下为 `%APPDATA%/Code/User/globalStorage/qcode.qcode/settings/mcp_settings.json`）。修改后 [`watchMcpSettingsFile`](src/services/mcp/McpHub.ts:168) 会自动检测变更并重连，无需重启。
+[McpHub.ts:758](src/services/mcp/McpHub.ts:758)：Windows 下 stdio server 的 `command` 会被自动包成 `cmd.exe /c <command> <args>`，所以配置里直接写 `codegraph` 这类 `.cmd` shim 命令名即可，无需自己包装。
+
+## 6. CodeGraph MCP 的标准配置
+
+npm 包 `@colbymchenry/codegraph`（全局安装，bin 为 `codegraph`），MCP 启动方式为 `codegraph serve --mcp`。注意：工作区无 `.codegraph/` 索引时 server 以 inactive 状态连接且不提供工具，需先 `codegraph init`。

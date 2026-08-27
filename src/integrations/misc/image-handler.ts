@@ -4,7 +4,38 @@ import * as vscode from "vscode"
 import { getWorkspacePath } from "../../utils/path"
 import { t } from "../../i18n"
 
+/**
+ * Reverse map from webview display URIs (https://*.vscode-cdn.net/..., vscode-webview://...)
+ * back to the real on-disk image file paths they were generated from.
+ *
+ * The webview renders task images via `webview.asWebviewUri` (memory opt 2-C), so thumbnails in
+ * chat history carry the CDN URI — not a file path and not a data URI. When the user clicks such
+ * a thumbnail we must map it back to the actual file to open/save it; otherwise `openImage`
+ * rejects it with "invalid data URI" (the URI is https:, so it skips the file-path branch but
+ * fails the base64 data-URI regex).
+ */
+const webviewUriToFilePath = new Map<string, string>()
+
+/** Remember which real file path a webview display URI was generated from. */
+export function registerWebviewImageUri(webviewUri: string, filePath: string): void {
+	if (webviewUri && filePath) {
+		webviewUriToFilePath.set(webviewUri, filePath)
+	}
+}
+
+/** Look up the real file path behind a webview display URI, if one was registered. */
+export function resolveWebviewImageUri(uri: string): string | undefined {
+	return webviewUriToFilePath.get(uri)
+}
+
 export async function openImage(dataUriOrPath: string, options?: { values?: { action?: string } }) {
+	// A webview display URI (e.g. https://*.vscode-cdn.net/...) is really an on-disk image file
+	// that was mapped through asWebviewUri — resolve it back to its path first.
+	const mappedPath = resolveWebviewImageUri(dataUriOrPath)
+	if (mappedPath) {
+		dataUriOrPath = mappedPath
+	}
+
 	// Check if it's a file path (absolute or relative)
 	const isFilePath =
 		!dataUriOrPath.startsWith("data:") &&

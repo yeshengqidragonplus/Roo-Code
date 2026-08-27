@@ -87,6 +87,7 @@ import { Task } from "../task/Task"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
 import { isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
+import { registerWebviewImageUri } from "../../integrations/misc/image-handler"
 import { getTaskDirectoryPath } from "../../utils/storage"
 import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
@@ -3416,7 +3417,11 @@ export class ClineProvider
 			if (this.view?.webview) {
 				const fileUri = vscode.Uri.file(filePath)
 				const webviewUri = this.view.webview.asWebviewUri(fileUri)
-				return webviewUri.toString()
+				const uriString = webviewUri.toString()
+				// Remember the reverse mapping so clicking the rendered image can open/save the
+				// real file instead of failing with "invalid data URI" on the CDN URI.
+				registerWebviewImageUri(uriString, filePath)
+				return uriString
 			}
 
 			// No webview available - do NOT fall back to file:// (CSP blocks it, causing broken-image
