@@ -116,6 +116,14 @@ interface PendingEditOperation {
 	createdAt: number
 }
 
+/**
+ * 1x1 transparent PNG data URL. Historically returned by convertToWebviewUri when the webview
+ * wasn't ready; some of these leaked into persisted message JSON. Kept as a named constant so
+ * resolveImageRefsForWebview can strip leaked placeholders (self-healing).
+ */
+const TRANSPARENT_PLACEHOLDER_DATA_URL =
+	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+
 export class ClineProvider
 	extends EventEmitter<TaskProviderEvents>
 	implements vscode.WebviewViewProvider, TaskProviderLike
@@ -3425,10 +3433,6 @@ export class ClineProvider
 	 * @returns The webview URI string, or a transparent placeholder data URI when conversion fails
 	 */
 	public convertToWebviewUri(filePath: string): string {
-		// 1x1 transparent PNG - CSP allows `data:` in img-src, so this never renders as broken.
-		const TRANSPARENT_PLACEHOLDER =
-			"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-
 		try {
 			// Check if we have a webview available
 			if (this.view?.webview) {
@@ -3442,17 +3446,20 @@ export class ClineProvider
 			}
 
 			// No webview available - do NOT fall back to file:// (CSP blocks it, causing broken-image
-			// icons, notably when restoring historical tasks before the view is ready). The caller's
-			// messages will be re-resolved on the next postStateToWebview once the view exists.
-			console.warn("[convertToWebviewUri] No webview available; returning placeholder for", filePath)
-			return TRANSPARENT_PLACEHOLDER
+			// icons) and do NOT return the transparent placeholder either: the placeholder can leak
+			// into PERSISTED message JSON (e.g. via message-edit round-trips), permanently replacing
+			// the real image with an invisible 1x1 pixel. Return the original path instead — it is
+			// not renderable under the CSP, but it is re-resolvable on the next state push once the
+			// view exists, so the image recovers instead of being lost forever.
+			console.warn("[convertToWebviewUri] No webview available; returning raw path for", filePath)
+			return filePath
 		} catch (error) {
 			if (error instanceof TypeError) {
 				console.error("Invalid file path provided for URI conversion:", error)
 			} else {
 				console.error("Failed to convert to webview URI:", error)
 			}
-			return TRANSPARENT_PLACEHOLDER
+			return filePath
 		}
 	}
 
@@ -3460,6 +3467,10 @@ export class ClineProvider
 	 * Resolve image references (`roo-image-ref:...`) in clineMessages to webview-accessible URIs so the
 	 * webview can render them. Stored messages are NOT mutated — shallow copies are returned only for
 	 * messages that actually carry refs. Legacy base64 `data:` URIs pass through untouched (2-C).
+	 *
+	 * Self-healing: persisted messages may contain the 1x1 transparent placeholder that an older
+	 * build leaked into storage when the webview wasn't ready (see convertToWebviewUri). Those
+	 * placeholders are stripped here so they never render as invisible/broken images again.
 	 */
 	public async resolveImageRefsForWebview(messages: ClineMessage[], taskId: string): Promise<ClineMessage[]> {
 		// Fast path: nothing to resolve (the common case — most messages have no images).
@@ -3479,9 +3490,13 @@ export class ClineProvider
 			if (!m.images?.some(isImageRef)) {
 				return m
 			}
+			const cleaned = m.images.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
+			if (cleaned.length === 0) {
+				return { ...m, images: [] }
+			}
 			return {
 				...m,
-				images: resolveImagesForDisplay(taskDir, m.images, (absPath) => this.convertToWebviewUri(absPath)),
+				images: resolveImagesForDisplay(taskDir, cleaned, (absPath) => this.convertToWebviewUri(absPath)),
 			}
 		})
 	}

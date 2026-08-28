@@ -493,17 +493,18 @@ describe("ClineProvider", () => {
 			expect(result).toBe("vscode-webview://fake-uri")
 		})
 
-		test("returns transparent data: placeholder (NOT file://) when webview is unavailable", async () => {
+		test("returns the raw path (NOT a placeholder, NOT file://) when webview is unavailable", async () => {
 			// Simulate webview not yet ready (e.g. restoring a historical task before view init).
 			// @ts-ignore - accessing private property for testing
 			provider.view = undefined
 
 			const result = provider.convertToWebviewUri("/some/path/image.png")
 
-			// CSP does not allow file:// in img-src, so a file:// fallback would render as a broken
-			// image. The fix returns a transparent data: placeholder instead.
-			expect(result).not.toContain("file://")
-			expect(result.startsWith("data:image/png;base64,")).toBe(true)
+			// The transparent placeholder must NOT be returned: it can leak into persisted
+			// message JSON (message-edit round-trips) and permanently replace the real image
+			// with an invisible 1x1 pixel. The raw path is not renderable under the CSP but
+			// is re-resolvable on the next state push, so the image recovers.
+			expect(result).toBe("/some/path/image.png")
 		})
 	})
 
