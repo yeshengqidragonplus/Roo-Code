@@ -802,6 +802,31 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		case "deleteTaskWithId":
 			provider.deleteTaskWithId(message.text!)
 			break
+		case "requestTaskArtifacts": {
+			// Build the "associated artifacts" view for the delete-confirmation UI.
+			const { getTaskArtifacts } = await import("../../integrations/misc/shared-file-store")
+			const taskId = message.text!
+			try {
+				const globalStoragePath = provider.contextProxy.globalStorageUri.fsPath
+				const { getTaskDirectoryPath } = await import("../../utils/storage")
+				const taskDir = await getTaskDirectoryPath(globalStoragePath, taskId)
+				const artifacts = await getTaskArtifacts(globalStoragePath, taskDir)
+				await provider.postMessageToWebview({
+					type: "taskArtifactsResponse",
+					taskArtifacts: { taskId, ...artifacts },
+				})
+			} catch (error) {
+				// Task dir may not exist (legacy/empty task) — respond with empty view.
+				await provider.postMessageToWebview({
+					type: "taskArtifactsResponse",
+					taskArtifacts: { taskId, shared: [], legacyImages: 0, legacyImagesBytes: 0 },
+				})
+				console.error(
+					`[requestTaskArtifacts] failed for ${taskId}: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+			break
+		}
 		case "deleteMultipleTasksWithIds": {
 			const ids = message.ids
 

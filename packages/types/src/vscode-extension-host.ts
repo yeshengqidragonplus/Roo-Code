@@ -99,11 +99,19 @@ export interface ExtensionMessage {
 		| "workflowSaveError"
 		| "workflowGraph"
 		| "fileContent"
+		| "taskArtifactsResponse"
 	text?: string
 	/** Workflow id for workflowGraph / workflowSaved messages. */
 	workflowId?: string
 	/** Workflow graph JSON for workflowGraph message. */
 	graph?: Record<string, unknown>
+	/** For taskArtifactsResponse: artifacts associated with a task. */
+	taskArtifacts?: {
+		taskId: string
+		shared: Array<{ hash: string; ext: string; size: number; kind: string; source: string; ts: number }>
+		legacyImages: number
+		legacyImagesBytes: number
+	}
 	/** For fileContent: { path, content, error? } */
 	fileContent?: { path: string; content: string | null; error?: string }
 	payload?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -564,6 +572,8 @@ export interface WebviewMessage {
 		| "requestWorkflowGraph"
 		| "openWorkflowEditor"
 		| "closeWorkflowEditor"
+		// Task artifact messages (shared-file store)
+		| "requestTaskArtifacts"
 	text?: string
 	workflowId?: string
 	graph?: Record<string, unknown>

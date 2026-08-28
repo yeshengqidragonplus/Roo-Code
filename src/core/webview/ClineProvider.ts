@@ -1961,6 +1961,23 @@ export class ClineProvider
 				}
 			}
 
+			// Lazy-GC the shared file store: remove shared files whose hashes are no
+			// longer referenced by any remaining task manifest. Best-effort — failures
+			// leave files for a later GC pass.
+			try {
+				const { gcSharedFiles } = await import("../../integrations/misc/shared-file-store")
+				const gc = await gcSharedFiles(globalStoragePath, allIdsToDelete)
+				if (gc.removed.length > 0) {
+					console.log(
+						`[deleteTaskWithId] shared-file GC removed ${gc.removed.length} file(s), kept ${gc.kept.length} still referenced`,
+					)
+				}
+			} catch (error) {
+				console.error(
+					`[deleteTaskWithId] shared-file GC failed (non-fatal): ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+
 			await this.postStateToWebview()
 		} catch (error) {
 			// If task is not found, just remove it from state
