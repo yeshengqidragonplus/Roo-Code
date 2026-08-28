@@ -17,6 +17,13 @@
 	"deleteTaskMessage": "Are you sure you want to delete this task? This action cannot be undone.",
 	"cancel": "Cancel",
 	"delete": "Delete",
+	"artifacts": {
+		"viewDetails": "View associated files ({{count}})",
+		"hideDetails": "Hide associated files",
+		"sharedFiles": "Shared files ({{count}}; files not referenced by any other task will be cleaned up)",
+		"sharedGcHint": "Files still referenced by other tasks are kept and unaffected by this deletion.",
+		"legacyImages": "Task-local images ({{count}}, {{size}} total, deleted with the task)"
+	},
 	"exitSelection": "Exit Selection",
 	"selectionMode": "Selection Mode",
 	"deselectAll": "Deselect all",

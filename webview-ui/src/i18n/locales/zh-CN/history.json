@@ -17,6 +17,13 @@
 	"deleteTaskMessage": "确认删除该任务？此操作不可逆。",
 	"cancel": "取消",
 	"delete": "删除",
+	"artifacts": {
+		"viewDetails": "查看关联文件（{{count}} 项）",
+		"hideDetails": "收起关联文件",
+		"sharedFiles": "共享文件（{{count}} 项，删除任务后无其他任务引用的文件将被清理）",
+		"sharedGcHint": "仍被其他任务引用的文件会保留，不受本次删除影响。",
+		"legacyImages": "任务内图片（{{count}} 张，共 {{size}}，随任务一起删除）"
+	},
 	"exitSelection": "退出多选",
 	"selectionMode": "多选模式",
 	"deselectAll": "取消全选",
