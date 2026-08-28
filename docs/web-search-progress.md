@@ -1,7 +1,7 @@
 # Web Search 工具进度
 
 > 分支：`QC/Wittgenstein`
-> 更新：2026-06-27
+> 更新：2026-08-28
 
 ## 背景
 
@@ -13,6 +13,20 @@ QCode 内置了两个 provider 无关的 web 工具（提交 `894e24f41`，Phase
 两个工具走现有 native-tool 模式，归入 `read` 工具组，由 `webSearch` 实验开关 + `tavilyApiKey` 全局 secret 门控。
 
 ## 已完成
+
+### 0. 免费 Bing HTML 后端（2026-08-28，commit `067c10348`）
+
+`web_search` 新增第三个后端 **Bing（免费，无需 API key）**，对标 ddgs 库"抓搜索引擎 HTML 页"的思路：
+
+- [`src/services/web-search/bing.ts`](../src/services/web-search/bing.ts)：GET `https://www.bing.com/search`，cheerio 解析 `li.b_algo`（`h2 a` 标题 + `.b_caption p` 摘要），解码 `/ck/a?...&u=a1<base64url>` 点击跳转链接还原真实 URL；`includeDomains` 用 `site:` 操作符 OR 连接实现。
+- `webSearchProvider` 枚举扩展为 `"tavily" | "google" | "bing" | "auto"`；**auto 默认优先免费 Bing**，无任何凭据也能搜索，再回退 Google/Tavily（有凭据时）。
+- UI：WebSearchSettings 单选组 + NodeConfigPanel 工作流节点下拉均加 "Bing (free, no API key)"。
+- 测试：`bing.spec.ts` 7 项 + `webSearchTool.spec.ts` 扩展至 20 项；web-search 目录回归 61/61 全绿，lint 零警告。
+- **真实环境冒烟**：搜索 "unity webgl memory leak" 返回 3 条真实结果，URL 解包正确。
+
+**关键决策记录**：最初按 ddgs 思路实现 DuckDuckGo HTML 抓取，但真实环境两个端点（`html.`/`lite.`）都返回 **202 + 反爬验证码**（"Select all squares containing a duck"），裸 HTTP 客户端被识别——ddgs 库本身也因这类反爬需要频繁更新绕过策略。Bing 的 HTML 搜索页对带浏览器 UA 的 GET 请求宽松（实测 200 + 10 条结果），故选 Bing。若 Bing 未来收紧，备选方案是走 Playwright MCP 浏览器抓取（cookie 持久化 + 真实指纹）。
+
+**注意**：Bing 无合成 answer（Tavily 独有），工具输出不含 "Answer (synthesized)" 行。
 
 ### 1. 单元测试补齐（2026-06-27）
 
