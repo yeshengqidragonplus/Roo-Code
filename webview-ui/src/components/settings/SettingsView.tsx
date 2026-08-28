@@ -368,7 +368,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		})
 	}, [])
 
-	const setWebSearchProvider = useCallback((provider: "tavily" | "google" | "auto") => {
+	const setWebSearchProvider = useCallback((provider: "tavily" | "google" | "bing" | "auto") => {
 		setCachedState((prevState) => {
 			if (prevState.webSearchProvider !== provider) {
 				setChangeDetected(true)
@@ -970,7 +970,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								setGoogleApiKey={setGoogleApiKey}
 								googleCseId={googleCseId as string | undefined}
 								setGoogleCseId={setGoogleCseId}
-								webSearchProvider={webSearchProvider as "tavily" | "google" | "auto" | undefined}
+								webSearchProvider={webSearchProvider as "tavily" | "google" | "bing" | "auto" | undefined}
 								setWebSearchProvider={setWebSearchProvider}
 							/>
 						)}

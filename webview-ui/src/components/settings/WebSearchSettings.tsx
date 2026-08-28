@@ -10,8 +10,8 @@ interface WebSearchSettingsProps {
 	setGoogleApiKey: (apiKey: string) => void
 	googleCseId?: string
 	setGoogleCseId: (cseId: string) => void
-	webSearchProvider?: "tavily" | "google" | "auto"
-	setWebSearchProvider: (provider: "tavily" | "google" | "auto") => void
+	webSearchProvider?: "tavily" | "google" | "bing" | "auto"
+	setWebSearchProvider: (provider: "tavily" | "google" | "bing" | "auto") => void
 }
 
 export const WebSearchSettings = ({
@@ -30,7 +30,8 @@ export const WebSearchSettings = ({
 
 	const tavilyConfigured = !!tavilyApiKey
 	const googleConfigured = !!googleApiKey && !!googleCseId
-	const isConfigured = tavilyConfigured || googleConfigured
+	// DuckDuckGo needs no credentials — always configured.
+	const isConfigured = tavilyConfigured || googleConfigured || true
 
 	return (
 		<div className="space-y-4">
@@ -54,7 +55,10 @@ export const WebSearchSettings = ({
 							value={webSearchProvider || "auto"}
 							onChange={(e: any) => setWebSearchProvider(e.target.value)}>
 							<VSCodeRadio value="auto" name="web-search-provider">
-								Auto (prefer Google if configured, else Tavily)
+								Auto (prefer free Bing, then Google/Tavily if configured)
+							</VSCodeRadio>
+							<VSCodeRadio value="bing" name="web-search-provider">
+								Bing (free, no API key)
 							</VSCodeRadio>
 							<VSCodeRadio value="tavily" name="web-search-provider">
 								Tavily

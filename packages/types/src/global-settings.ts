@@ -100,10 +100,11 @@ export const globalSettingsSchema = z.object({
 	/** Google Custom Search Engine ID (the "cx" parameter). */
 	googleCseId: z.string().optional(),
 	/**
-	 * Which search backend to use: "tavily", "google", or "auto" (pick the
-	 * first one with valid credentials). Default "auto".
+	 * Which search backend to use: "tavily", "google", "bing", or
+	 * "auto" (prefer the free Bing backend, then the first paid backend
+	 * with valid credentials). Default "auto".
 	 */
-	webSearchProvider: z.enum(["tavily", "google", "auto"]).optional(),
+	webSearchProvider: z.enum(["tavily", "google", "bing", "auto"]).optional(),
 
 	customCondensingPrompt: z.string().optional(),
 

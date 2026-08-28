@@ -354,7 +354,7 @@ export type ExtensionState = Pick<
 	tavilyApiKey?: string
 	googleApiKey?: string
 	googleCseId?: string
-	webSearchProvider?: "tavily" | "google" | "auto"
+	webSearchProvider?: "tavily" | "google" | "bing" | "auto"
 	messageQueue?: QueuedMessage[]
 	lastShownAnnouncementId?: string
 	apiModelId?: string

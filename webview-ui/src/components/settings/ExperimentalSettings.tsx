@@ -33,8 +33,8 @@ type ExperimentalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setGoogleApiKey?: (apiKey: string) => void
 	googleCseId?: string
 	setGoogleCseId?: (cseId: string) => void
-	webSearchProvider?: "tavily" | "google" | "auto"
-	setWebSearchProvider?: (provider: "tavily" | "google" | "auto") => void
+	webSearchProvider?: "tavily" | "google" | "bing" | "auto"
+	setWebSearchProvider?: (provider: "tavily" | "google" | "bing" | "auto") => void
 }
 
 export const ExperimentalSettings = ({

@@ -2,6 +2,7 @@ import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 import { tavilySearch } from "../../services/web-search/tavily"
 import { googleSearch } from "../../services/web-search/google"
+import { bingSearch } from "../../services/web-search/bing"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import type { ToolUse, NativeToolArgs } from "../../shared/tools"
 
@@ -22,15 +23,16 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 		if (!experiments.isEnabled(state?.experiments ?? {}, EXPERIMENT_IDS.WEB_SEARCH)) {
 			pushToolResult(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (DuckDuckGo, Tavily or Google).",
 				),
 			)
 			return
 		}
 
 		// --- Backend selection -------------------------------------------------
-		// webSearchProvider: "tavily" | "google" | "auto" (default "auto").
-		// "auto" picks the first backend with valid credentials.
+		// webSearchProvider: "bing" | "tavily" | "google" | "auto" (default "auto").
+		// "auto" prefers the free Bing backend, then Google/Tavily when
+		// credentials are present.
 		const webSearchProvider = state?.webSearchProvider ?? "auto"
 		const tavilyKey = state?.tavilyApiKey
 		const googleKey = state?.googleApiKey
@@ -38,32 +40,42 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 
 		const googleReady = !!(googleKey && googleCx)
 		const tavilyReady = !!tavilyKey
+		// Bing HTML scraping needs no credentials — always ready.
+		const bingReady = true
 
-		let useGoogle: boolean
-		if (webSearchProvider === "google") {
-			useGoogle = true
-		} else if (webSearchProvider === "tavily") {
-			useGoogle = false
-		} else {
-			// auto: prefer Google if configured, else Tavily, else error.
-			useGoogle = googleReady
+		type Backend = "bing" | "google" | "tavily"
+		let backend: Backend
+		switch (webSearchProvider) {
+			case "google":
+				backend = "google"
+				break
+			case "tavily":
+				backend = "tavily"
+				break
+			case "bing":
+				backend = "bing"
+				break
+			default:
+				// auto: prefer free Bing, then Google, then Tavily.
+				backend = bingReady ? "bing" : googleReady ? "google" : "tavily"
+				break
 		}
 
 		// Validate credentials for the chosen / auto-resolved backend.
-		if (useGoogle && !googleReady) {
+		if (backend === "google" && !googleReady) {
 			pushToolResult(
 				formatResponse.toolError(
 					"Web search is set to use Google but the Google API key or Custom Search Engine ID (cx) is missing. " +
-						"Add them in the Web Search settings, or switch to Tavily.",
+						"Add them in the Web Search settings, or switch to Bing (free, no key needed).",
 				),
 			)
 			return
 		}
-		if (!useGoogle && !tavilyReady) {
+		if (backend === "tavily" && !tavilyReady) {
 			pushToolResult(
 				formatResponse.toolError(
-					"Web search requires a Tavily API key (or Google API key + CSE ID). " +
-						"Add credentials in the Web Search settings.",
+					"Web search is set to use Tavily but no API key is configured. " +
+						"Add a Tavily API key in the Web Search settings, or switch to Bing (free, no key needed).",
 				),
 			)
 			return
@@ -92,7 +104,7 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 			let results: { title: string; url: string; content: string }[]
 			let answer: string | undefined
 
-			if (useGoogle) {
+			if (backend === "google") {
 				const googleResults = await googleSearch({
 					apiKey: googleKey!,
 					cseId: googleCx!,
@@ -102,6 +114,15 @@ export class WebSearchTool extends BaseTool<"web_search"> {
 				})
 				results = googleResults.results
 				// Google CSE does not synthesize an answer; leave it undefined.
+				answer = undefined
+			} else if (backend === "bing") {
+				const bingResponse = await bingSearch({
+					query,
+					maxResults,
+					includeDomains: allowedDomains,
+				})
+				results = bingResponse.results
+				// Bing HTML scraping does not synthesize an answer.
 				answer = undefined
 			} else {
 				const tavilyResponse = await tavilySearch({

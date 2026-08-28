@@ -6,9 +6,11 @@ import { formatResponse } from "../../prompts/responses"
 import { EXPERIMENT_IDS } from "../../../shared/experiments"
 import * as tavily from "../../../services/web-search/tavily"
 import * as google from "../../../services/web-search/google"
+import * as bing from "../../../services/web-search/bing"
 
 vi.mock("../../../services/web-search/tavily")
 vi.mock("../../../services/web-search/google")
+vi.mock("../../../services/web-search/bing")
 
 describe("webSearchTool", () => {
 	let mockTask: any
@@ -44,6 +46,9 @@ describe("webSearchTool", () => {
 					getState: vi.fn().mockResolvedValue({
 						experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
 						tavilyApiKey: "tavily-key",
+						// Pin the paid backend by default; "auto" now prefers the
+						// free DuckDuckGo backend, which would bypass these mocks.
+						webSearchProvider: "tavily",
 					}),
 				}),
 			},
@@ -65,7 +70,7 @@ describe("webSearchTool", () => {
 
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (DuckDuckGo, Tavily or Google).",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -82,7 +87,7 @@ describe("webSearchTool", () => {
 			// Absent config falls back to the disabled default -> same gating error.
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
-					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (Tavily or Google).",
+					"Web search is an experimental feature that must be enabled in settings. Enable 'Web Search' in the Experimental Settings section and configure a search backend (DuckDuckGo, Tavily or Google).",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -90,23 +95,24 @@ describe("webSearchTool", () => {
 	})
 
 	describe("api key validation", () => {
-		it("errors when no backend credentials are configured", async () => {
+		it("proceeds with the free Bing backend when no credentials are configured", async () => {
 			mockTask.providerRef.deref().getState.mockResolvedValue({
 				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
 				tavilyApiKey: undefined,
 				googleApiKey: undefined,
 				googleCseId: undefined,
+				// webSearchProvider unset -> "auto" -> free Bing, no key needed
+			})
+			vi.mocked(bing.bingSearch).mockResolvedValue({
+				results: [{ title: "B", url: "https://b", content: "c" }],
 			})
 
 			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
 
-			expect(mockPushToolResult).toHaveBeenCalledWith(
-				formatResponse.toolError(
-					"Web search requires a Tavily API key (or Google API key + CSE ID). " +
-						"Add credentials in the Web Search settings.",
-				),
-			)
+			expect(vi.mocked(bing.bingSearch)).toHaveBeenCalled()
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
+			expect(mockPushToolResult).not.toHaveBeenCalledWith(expect.stringContaining("requires a Tavily API key"))
 		})
 
 		it("errors when webSearchProvider is google but credentials are missing", async () => {
@@ -123,7 +129,7 @@ describe("webSearchTool", () => {
 			expect(mockPushToolResult).toHaveBeenCalledWith(
 				formatResponse.toolError(
 					"Web search is set to use Google but the Google API key or Custom Search Engine ID (cx) is missing. " +
-						"Add them in the Web Search settings, or switch to Tavily.",
+						"Add them in the Web Search settings, or switch to Bing (free, no key needed).",
 				),
 			)
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
@@ -271,12 +277,34 @@ describe("webSearchTool", () => {
 			expect(output).toContain("Unreal is powerful.")
 		})
 
-		it("auto-selects google when google credentials are present and no provider is set", async () => {
+		it("auto-selects bing (free) when no provider is set, even with paid creds present", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				tavilyApiKey: "tavily-key",
+				googleApiKey: "google-key",
+				googleCseId: "cx-id",
+				// webSearchProvider unset -> "auto" -> prefers free Bing
+			})
+			vi.mocked(bing.bingSearch).mockResolvedValue({
+				results: [{ title: "B", url: "https://b", content: "c" }],
+			})
+
+			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
+
+			expect(vi.mocked(bing.bingSearch)).toHaveBeenCalled()
+			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+		})
+
+		it("auto-selects google when provider is auto and bing is explicitly unavailable", async () => {
+			// Bing is always ready, so "auto" only reaches Google when the
+			// user forces a paid backend; this test pins the google branch via
+			// explicit provider selection.
 			mockTask.providerRef.deref().getState.mockResolvedValue({
 				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
 				googleApiKey: "google-key",
 				googleCseId: "cx-id",
-				// webSearchProvider unset -> "auto" -> prefers google
+				webSearchProvider: "google",
 			})
 			vi.mocked(google.googleSearch).mockResolvedValue({
 				results: [{ title: "R", url: "https://r", content: "c" }],
@@ -286,21 +314,23 @@ describe("webSearchTool", () => {
 
 			expect(vi.mocked(google.googleSearch)).toHaveBeenCalled()
 			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
+			expect(vi.mocked(bing.bingSearch)).not.toHaveBeenCalled()
 		})
 
-		it("falls back to tavily when provider is auto and only tavily credentials are present", async () => {
+		it("auto still prefers free Bing when only tavily credentials are present", async () => {
 			mockTask.providerRef.deref().getState.mockResolvedValue({
 				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
 				tavilyApiKey: "tavily-key",
-				// google creds absent
+				// google creds absent; webSearchProvider unset -> "auto" -> Bing
 			})
-			vi.mocked(tavily.tavilySearch).mockResolvedValue({
-				results: [{ title: "T", url: "https://u", content: "c" }],
+			vi.mocked(bing.bingSearch).mockResolvedValue({
+				results: [{ title: "B", url: "https://b", content: "c" }],
 			})
 
 			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
 
-			expect(vi.mocked(tavily.tavilySearch)).toHaveBeenCalled()
+			expect(vi.mocked(bing.bingSearch)).toHaveBeenCalled()
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
 			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
 		})
 
@@ -319,6 +349,30 @@ describe("webSearchTool", () => {
 			await webSearchTool.handle(mockTask as Task, makeBlock({ query: "q" }), callbacks())
 
 			expect(vi.mocked(tavily.tavilySearch)).toHaveBeenCalled()
+			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
+		})
+
+		it("forces bing when webSearchProvider is bing and passes domain filters", async () => {
+			mockTask.providerRef.deref().getState.mockResolvedValue({
+				experiments: { [EXPERIMENT_IDS.WEB_SEARCH]: true },
+				webSearchProvider: "bing",
+			})
+			vi.mocked(bing.bingSearch).mockResolvedValue({
+				results: [{ title: "B", url: "https://b", content: "c" }],
+			})
+
+			await webSearchTool.handle(
+				mockTask as Task,
+				makeBlock({ query: "q", allowed_domains: ["docs.unity3d.com"] }),
+				callbacks(),
+			)
+
+			expect(vi.mocked(bing.bingSearch)).toHaveBeenCalledWith({
+				query: "q",
+				maxResults: undefined,
+				includeDomains: ["docs.unity3d.com"],
+			})
+			expect(vi.mocked(tavily.tavilySearch)).not.toHaveBeenCalled()
 			expect(vi.mocked(google.googleSearch)).not.toHaveBeenCalled()
 		})
 	})

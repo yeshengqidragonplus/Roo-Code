@@ -52,7 +52,8 @@ const NODE_CONFIG_FIELDS: Record<string, { key: string; label: string; type: "te
 /** Provider options for expert nodes that delegate to web-search sub-experts. */
 const WEB_SEARCH_PROVIDER_OPTIONS = [
 	{ value: "", label: "Use global setting" },
-	{ value: "auto", label: "Auto (prefer Google)" },
+	{ value: "auto", label: "Auto (prefer free Bing)" },
+	{ value: "bing", label: "Bing (free)" },
 	{ value: "tavily", label: "Tavily" },
 	{ value: "google", label: "Google Custom Search" },
 ]
