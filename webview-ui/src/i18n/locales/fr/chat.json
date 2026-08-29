@@ -262,7 +262,7 @@
 		"goToSubtask": "Afficher la tâche"
 	},
 	"questions": {
-		"hasQuestion": "Roo a une question"
+		"hasQuestion": "QCode a une question"
 	},
 	"taskCompleted": "Tâche terminée",
 	"modelResponseIncomplete": "Réponse du modèle incomplète",

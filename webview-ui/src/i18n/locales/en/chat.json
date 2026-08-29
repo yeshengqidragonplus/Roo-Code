@@ -310,7 +310,7 @@
 		"goToSubtask": "View task"
 	},
 	"questions": {
-		"hasQuestion": "Roo has a question"
+		"hasQuestion": "QCode has a question"
 	},
 	"taskCompleted": "Task Completed",
 	"error": "Error",

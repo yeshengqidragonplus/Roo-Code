@@ -262,7 +262,7 @@
 		"goToSubtask": "कार्य देखें"
 	},
 	"questions": {
-		"hasQuestion": "Roo का एक प्रश्न है"
+		"hasQuestion": "QCode का एक प्रश्न है"
 	},
 	"taskCompleted": "कार्य पूरा हुआ",
 	"modelResponseIncomplete": "मॉडल प्रतिक्रिया अपूर्ण",

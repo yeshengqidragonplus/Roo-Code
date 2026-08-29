@@ -263,7 +263,7 @@
 		"goToSubtask": "Görevi görüntüle"
 	},
 	"questions": {
-		"hasQuestion": "Roo'nun bir sorusu var"
+		"hasQuestion": "QCode'nun bir sorusu var"
 	},
 	"taskCompleted": "Görev Tamamlandı",
 	"modelResponseIncomplete": "Model yanıtı eksik",

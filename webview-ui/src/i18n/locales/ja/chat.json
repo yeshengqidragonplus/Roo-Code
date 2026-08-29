@@ -262,7 +262,7 @@
 		"goToSubtask": "タスクを表示"
 	},
 	"questions": {
-		"hasQuestion": "Rooは質問があります"
+		"hasQuestion": "QCodeは質問があります"
 	},
 	"taskCompleted": "タスク完了",
 	"modelResponseIncomplete": "モデルの応答が不完全",

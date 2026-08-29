@@ -263,7 +263,7 @@
 		"goToSubtask": "Xem nhiệm vụ"
 	},
 	"questions": {
-		"hasQuestion": "Roo có một câu hỏi"
+		"hasQuestion": "QCode có một câu hỏi"
 	},
 	"taskCompleted": "Nhiệm vụ hoàn thành",
 	"modelResponseIncomplete": "Phản hồi của mô hình không đầy đủ",

@@ -307,7 +307,7 @@
 		"goToSubtask": "查看工作"
 	},
 	"questions": {
-		"hasQuestion": "Roo 有一個問題"
+		"hasQuestion": "QCode 有一個問題"
 	},
 	"taskCompleted": "工作完成",
 	"error": "錯誤",

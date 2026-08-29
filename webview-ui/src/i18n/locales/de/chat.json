@@ -262,7 +262,7 @@
 		"goToSubtask": "Aufgabe anzeigen"
 	},
 	"questions": {
-		"hasQuestion": "Roo hat eine Frage"
+		"hasQuestion": "QCode hat eine Frage"
 	},
 	"taskCompleted": "Aufgabe abgeschlossen",
 	"modelResponseIncomplete": "Modellantwort unvollständig",

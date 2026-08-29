@@ -262,7 +262,7 @@
 		"goToSubtask": "Visualizza attività"
 	},
 	"questions": {
-		"hasQuestion": "Roo ha una domanda"
+		"hasQuestion": "QCode ha una domanda"
 	},
 	"taskCompleted": "Attività completata",
 	"modelResponseIncomplete": "Risposta del modello incompleta",

@@ -313,7 +313,7 @@
 		"goToSubtask": "Lihat tugas"
 	},
 	"questions": {
-		"hasQuestion": "Roo punya pertanyaan"
+		"hasQuestion": "QCode punya pertanyaan"
 	},
 	"taskCompleted": "Tugas Selesai",
 	"error": "Error",

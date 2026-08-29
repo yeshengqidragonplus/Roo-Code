@@ -257,7 +257,7 @@
 		"goToSubtask": "Taak weergeven"
 	},
 	"questions": {
-		"hasQuestion": "Roo heeft een vraag"
+		"hasQuestion": "QCode heeft een vraag"
 	},
 	"taskCompleted": "Taak voltooid",
 	"error": "Fout",

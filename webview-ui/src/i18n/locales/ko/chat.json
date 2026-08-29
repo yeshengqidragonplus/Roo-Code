@@ -262,7 +262,7 @@
 		"goToSubtask": "작업 보기"
 	},
 	"questions": {
-		"hasQuestion": "Roo에게 질문이 있습니다"
+		"hasQuestion": "QCode에게 질문이 있습니다"
 	},
 	"taskCompleted": "작업 완료",
 	"modelResponseIncomplete": "모델 응답 불완전",

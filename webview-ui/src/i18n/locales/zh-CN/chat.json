@@ -269,7 +269,7 @@
 		"goToSubtask": "查看任务"
 	},
 	"questions": {
-		"hasQuestion": "Roo有一个问题"
+		"hasQuestion": "QCode有一个问题"
 	},
 	"taskCompleted": "任务完成",
 	"modelResponseIncomplete": "模型响应不完整",
