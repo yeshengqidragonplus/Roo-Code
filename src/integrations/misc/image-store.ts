@@ -123,6 +123,39 @@ export async function resolveImageToDataUrl(taskDir: string, image: string): Pro
 	return isImageRef(image) ? refToDataUrl(taskDir, image) : image
 }
 
+/** Whether an `images[]` entry is a bare file path the webview CSP cannot render (needs re-resolution). */
+export function isBareFilePath(value: string): boolean {
+	return (
+		!value.startsWith("data:") &&
+		!value.startsWith("http:") &&
+		!value.startsWith("https:") &&
+		!value.startsWith("vscode-webview:") &&
+		!value.startsWith("vscode-resource:") &&
+		!value.startsWith("file+.vscode-resource")
+	)
+}
+
+/**
+ * Resolve a single `images[]` entry for display: reference tokens resolve from the task's image
+ * store, legacy base64 `data:` URIs pass through, and bare file paths (leaked by an older build's
+ * no-webview fallback in convertToWebviewUri) are treated as absolute paths and re-resolved so they
+ * render instead of showing as broken images. Pure — unit-testable without a webview.
+ */
+export function resolveDisplayImage(
+	taskDir: string,
+	image: string,
+	toDisplayUri: (absPath: string) => string,
+): string {
+	if (isImageRef(image)) {
+		return toDisplayUri(refToAbsPath(taskDir, image))
+	}
+	if (isDataUrl(image)) {
+		return image
+	}
+	// Bare file path — not renderable under the webview CSP; re-resolve it.
+	return toDisplayUri(image)
+}
+
 /**
  * Map an `images[]` array for display: reference tokens are turned into a renderable URI via the
  * supplied resolver (e.g. `webview.asWebviewUri`); legacy base64 `data:` URIs pass through unchanged.
@@ -133,5 +166,5 @@ export function resolveImagesForDisplay(
 	images: string[],
 	toDisplayUri: (absPath: string) => string,
 ): string[] {
-	return images.map((img) => (isImageRef(img) ? toDisplayUri(refToAbsPath(taskDir, img)) : img))
+	return images.map((img) => resolveDisplayImage(taskDir, img, toDisplayUri))
 }

@@ -22,6 +22,7 @@ import { safeWriteJson } from "../../../utils/safeWriteJson"
 
 import { ClineProvider } from "../ClineProvider"
 import { MessageManager } from "../../message-manager"
+import { getStorageBasePath } from "../../../utils/storage"
 
 // Mock setup must come before imports.
 vi.mock("../../prompts/sections/custom-instructions")
@@ -54,6 +55,7 @@ vi.mock("../../../utils/storage", () => ({
 	getSettingsDirectoryPath: vi.fn().mockResolvedValue("/test/settings/path"),
 	getTaskDirectoryPath: vi.fn().mockResolvedValue("/test/task/path"),
 	getGlobalStoragePath: vi.fn().mockResolvedValue("/test/storage/path"),
+	getStorageBasePath: vi.fn().mockResolvedValue("/test/storage/path"),
 }))
 
 vi.mock("@modelcontextprotocol/sdk/types.js", () => ({
@@ -116,7 +118,7 @@ vi.mock("vscode", () => ({
 	WebviewView: vi.fn(),
 	Uri: {
 		joinPath: vi.fn(),
-		file: vi.fn(),
+		file: vi.fn().mockImplementation((p: string) => ({ fsPath: p, toString: () => p })),
 	},
 	CodeActionKind: {
 		QuickFix: { value: "quickfix" },
@@ -443,10 +445,33 @@ describe("ClineProvider", () => {
 			enableScripts: true,
 			// globalStorageUri is included so the webview can load task images persisted by the
 			// image store (memory opt 2-C). Without it, images render as broken in historical tasks.
+			// getStorageBasePath resolves to the same root in this test, so no extra entry appears.
 			localResourceRoots: [mockContext.extensionUri, mockContext.globalStorageUri],
 		})
 
 		expect(mockWebviewView.webview.html).toContain("<!DOCTYPE html>")
+	})
+
+	test("resolveWebviewView adds the configured storage root to localResourceRoots when storage is redirected", async () => {
+		// Simulate `customStoragePath` redirecting storage to a different drive/directory.
+		vi.mocked(getStorageBasePath).mockResolvedValue("/custom/storage/root")
+
+		await provider.resolveWebviewView(mockWebviewView)
+
+		const options = mockWebviewView.webview.options as { localResourceRoots: vscode.Uri[] }
+		const fsPaths = options.localResourceRoots.map((uri) => uri.fsPath)
+		// The redirected root must be declared, otherwise asWebviewUri URIs for task images
+		// under it are rejected by the webview guard and render as broken thumbnails.
+		expect(fsPaths).toContain("/custom/storage/root")
+	})
+
+	test("resolveWebviewView dedupes the storage root when it matches globalStorageUri", async () => {
+		vi.mocked(getStorageBasePath).mockResolvedValue("/test/storage/path")
+
+		await provider.resolveWebviewView(mockWebviewView)
+
+		const options = mockWebviewView.webview.options as { localResourceRoots: vscode.Uri[] }
+		expect(options.localResourceRoots).toHaveLength(2)
 	})
 
 	test("resolveWebviewView sets up webview correctly in development mode even if local server is not running", async () => {
@@ -505,6 +530,73 @@ describe("ClineProvider", () => {
 			// with an invisible 1x1 pixel. The raw path is not renderable under the CSP but
 			// is re-resolvable on the next state push, so the image recovers.
 			expect(result).toBe("/some/path/image.png")
+		})
+	})
+
+	describe("resolveImageRefsForWebview", () => {
+		beforeEach(async () => {
+			await provider.resolveWebviewView(mockWebviewView)
+		})
+
+		test("re-resolves bare file paths leaked by the legacy no-webview fallback", async () => {
+			// Older builds returned the raw path from convertToWebviewUri when the webview wasn't
+			// ready; such values are not renderable under the webview CSP and must be re-resolved.
+			const fakeUri = { toString: () => "vscode-webview://healed-uri" }
+			;(mockWebviewView.webview.asWebviewUri as any).mockReturnValue(fakeUri)
+
+			const messages = [
+				{
+					ts: 1,
+					type: "say" as const,
+					say: "user_feedback" as const,
+					text: "with leaked raw path",
+					images: ["/test/task/path/images/abc.png"],
+				},
+			]
+
+			const resolved = await provider.resolveImageRefsForWebview(messages as any, "test-task-id")
+
+			expect(resolved[0].images).toEqual(["vscode-webview://healed-uri"])
+		})
+
+		test("strips leaked transparent placeholders even when no ref is present", async () => {
+			const messages = [
+				{
+					ts: 1,
+					type: "say" as const,
+					say: "user_feedback" as const,
+					text: "placeholder only",
+					images: [
+						"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+					],
+				},
+			]
+
+			const resolved = await provider.resolveImageRefsForWebview(messages as any, "test-task-id")
+
+			expect(resolved[0].images).toEqual([])
+		})
+
+		test("passes legacy data URIs through untouched (fast path)", async () => {
+			const dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+			const messages = [
+				{
+					ts: 1,
+					type: "say" as const,
+					say: "user_feedback" as const,
+					text: "legacy base64",
+					images: [dataUri],
+				},
+			]
+
+			// resolveWebviewView (in beforeEach) already invoked asWebviewUri while building the
+			// HTML; clear it so we can assert the fast path never touches the converter.
+			;(mockWebviewView.webview.asWebviewUri as any).mockClear()
+
+			const resolved = await provider.resolveImageRefsForWebview(messages as any, "test-task-id")
+
+			expect(resolved).toBe(messages)
+			expect(mockWebviewView.webview.asWebviewUri).not.toHaveBeenCalled()
 		})
 	})
 

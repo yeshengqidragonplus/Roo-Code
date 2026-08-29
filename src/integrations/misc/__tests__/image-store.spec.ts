@@ -6,6 +6,7 @@ import {
 	IMAGE_REF_PREFIX,
 	isImageRef,
 	isDataUrl,
+	isBareFilePath,
 	parseDataUrl,
 	refToAbsPath,
 	storeImage,
@@ -13,6 +14,7 @@ import {
 	refToDataUrl,
 	resolveImageToDataUrl,
 	resolveImagesForDisplay,
+	resolveDisplayImage,
 } from "../image-store"
 
 // A 1x1 transparent PNG.
@@ -92,6 +94,31 @@ describe("image-store", () => {
 		})
 	})
 
+	describe("isBareFilePath", () => {
+		it("classifies renderable vs non-renderable image values", () => {
+			expect(isBareFilePath("/abs/path/img.png")).toBe(true)
+			expect(isBareFilePath("C:\\abs\\path\\img.png")).toBe(true)
+			expect(isBareFilePath(PNG_DATA_URL)).toBe(false)
+			expect(isBareFilePath("https://cdn.example/img.png")).toBe(false)
+			expect(isBareFilePath("http://cdn.example/img.png")).toBe(false)
+			expect(isBareFilePath("vscode-webview://webview/img.png")).toBe(false)
+			expect(isBareFilePath("file+.vscode-resource.vscode-cdn.net/img.png")).toBe(false)
+		})
+	})
+
+	describe("resolveDisplayImage", () => {
+		it("re-resolves bare file paths (legacy no-webview fallback leak) instead of passing them through", () => {
+			const toUri = (absPath: string) => `vscode-webview://host/${path.basename(absPath)}`
+			expect(resolveDisplayImage(taskDir, "/abs/path/img.png", toUri)).toBe("vscode-webview://host/img.png")
+		})
+
+		it("passes legacy base64 data URIs through untouched", () => {
+			const toUri = vi.fn((absPath: string) => absPath)
+			expect(resolveDisplayImage(taskDir, PNG_DATA_URL, toUri)).toBe(PNG_DATA_URL)
+			expect(toUri).not.toHaveBeenCalled()
+		})
+	})
+
 	describe("resolveImagesForDisplay", () => {
 		it("maps refs through the resolver and passes base64 through unchanged", () => {
 			const toUri = (absPath: string) => `vscode-webview://host/${path.basename(absPath)}`
@@ -105,11 +132,10 @@ describe("image-store", () => {
 			expect(result[2]).toBe("vscode-webview://host/def.webp")
 		})
 
-		it("returns identical content when there are no refs (resolver never called)", () => {
-			const toUri = vi.fn((absPath: string) => absPath)
-			const result = resolveImagesForDisplay(taskDir, [PNG_DATA_URL], toUri)
-			expect(result).toEqual([PNG_DATA_URL])
-			expect(toUri).not.toHaveBeenCalled()
+		it("re-resolves bare file paths mixed in with refs", () => {
+			const toUri = (absPath: string) => `vscode-webview://host/${path.basename(absPath)}`
+			const result = resolveImagesForDisplay(taskDir, ["/leaked/raw/path.png"], toUri)
+			expect(result).toEqual(["vscode-webview://host/path.png"])
 		})
 	})
 

@@ -86,9 +86,9 @@ import { Task } from "../task/Task"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
-import { isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
+import { isBareFilePath, isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
 import { registerWebviewImageUri } from "../../integrations/misc/image-handler"
-import { getTaskDirectoryPath } from "../../utils/storage"
+import { getTaskDirectoryPath, getStorageBasePath } from "../../utils/storage"
 import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
 import { readTaskMessages } from "../task-persistence/taskMessages"
@@ -767,6 +767,21 @@ export class ClineProvider
 		// are rejected by the webview's localResourceRoots guard and render as broken images - notably
 		// when restoring historical tasks.
 		resourceRoots.push(this.contextProxy.globalStorageUri)
+
+		// The effective storage root follows the `customStoragePath` setting (getStorageBasePath).
+		// When storage is redirected, task images live under that root and the default
+		// globalStorageUri above does NOT cover them — asWebviewUri URIs would be rejected by the
+		// localResourceRoots guard and render as broken thumbnails (chat + history list). Add the
+		// resolved root (deduped) so rendering follows the configuration wherever it points.
+		try {
+			const storageBasePath = await getStorageBasePath(this.contextProxy.globalStorageUri.fsPath)
+			const storageRootUri = vscode.Uri.file(storageBasePath)
+			if (!resourceRoots.some((uri) => uri.fsPath === storageRootUri.fsPath)) {
+				resourceRoots.push(storageRootUri)
+			}
+		} catch (error) {
+			this.log(`[resolveWebviewView] Failed to resolve storage root for localResourceRoots: ${error}`)
+		}
 
 		// Add workspace folders to allow access to workspace files
 		if (vscode.workspace.workspaceFolders) {
@@ -3473,8 +3488,13 @@ export class ClineProvider
 	 * placeholders are stripped here so they never render as invisible/broken images again.
 	 */
 	public async resolveImageRefsForWebview(messages: ClineMessage[], taskId: string): Promise<ClineMessage[]> {
-		// Fast path: nothing to resolve (the common case — most messages have no images).
-		if (!messages.some((m) => m.images?.some(isImageRef))) {
+		// Fast path: nothing to resolve (the common case — most messages have no images). A message
+		// needs resolution if it carries refs, bare file paths (leaked by an older build's
+		// no-webview fallback in convertToWebviewUri — not renderable under the webview CSP), or a
+		// leaked transparent placeholder that must be stripped.
+		const needsResolution = (img: string) =>
+			isImageRef(img) || isBareFilePath(img) || img === TRANSPARENT_PLACEHOLDER_DATA_URL
+		if (!messages.some((m) => m.images?.some(needsResolution))) {
 			return messages
 		}
 
@@ -3487,7 +3507,7 @@ export class ClineProvider
 		}
 
 		return messages.map((m) => {
-			if (!m.images?.some(isImageRef)) {
+			if (!m.images?.some(needsResolution)) {
 				return m
 			}
 			const cleaned = m.images.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
