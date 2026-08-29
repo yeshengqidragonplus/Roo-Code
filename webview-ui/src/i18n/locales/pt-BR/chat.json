@@ -328,29 +328,6 @@
 		"copyToInput": "Copiar para entrada (ou Shift + clique)",
 		"timerPrefix": "Aprovação automática ativada. Selecionando em {{seconds}}s…"
 	},
-	"announcement": {
-		"title": "Roo Code {{version}} Lançado",
-		"support": "Apoie o Roo Code nos dando uma estrela no <githubLink>GitHub</githubLink>.",
-		"finalRelease": {
-			"title": "A última versão do Roo Code",
-			"intro": "Esta é a última versão do Roo Code. <announcementLink>Como anunciamos há algumas semanas</announcementLink>, decidimos focar no <roomoteLink>Roomote</roomoteLink>, nossa plataforma de agentes na nuvem, que acreditamos ser o futuro do desenvolvimento de software. Muito obrigado pelo seu apoio ao longo deste último ano, mais ou menos.",
-			"continuity": "Esta extensão deve continuar funcionando indefinidamente, mas não receberá correções de bugs, novos recursos ou atualizações de modelos.",
-			"alternatives": "Se você quiser usar uma extensão, recomendamos conferir o <zooCodeLink>ZooCode</zooCodeLink> (um fork do Roo Code feito pela comunidade) e o <clineLink>Cline</clineLink> (de onde o Roo Code começou originalmente).",
-			"signoff": "Bom código!"
-		},
-		"release": {
-			"heading": "Novidades:",
-			"gpt55": "GPT-5.5 via OpenAI Codex: Adicionado suporte ao GPT-5.5 no provedor OpenAI Codex para você usar o modelo mais recente diretamente do Roo Code.",
-			"claudeOpus47": "Claude Opus 4.7 no Vertex AI: Adicionado o Claude Opus 4.7 ao provedor Vertex AI, o mais novo modelo de raciocínio flagship da Anthropic.",
-			"checkpointNav": "Navegação por checkpoints anteriores: Adicionados controles no chat para voltar por checkpoints anteriores, com suporte completo a i18n."
-		},
-		"cloudAgents": {
-			"heading": "Novidades na Nuvem:",
-			"specialized": "Apresentando <bold>Explainer</bold>, <bold>Planner</bold> e <bold>Coder</bold> - três agentes em nuvem especializados para aprimorar seus fluxos de trabalho.",
-			"description": "Os agentes trabalham juntos na nuvem e podem ser acionados a partir da web ou por meio do Slack.",
-			"tryButton": "Experimentar Agentes em Nuvem"
-		}
-	},
 	"costs": {
 		"totalWithSubtasks": "Custo Total (incluindo subtarefas): ${{cost}}",
 		"total": "Custo Total: ${{cost}}",
@@ -419,9 +396,6 @@
 		"error": "Erro do índice",
 		"status": "Status do índice",
 		"stopping": "Parando a indexação..."
-	},
-	"versionIndicator": {
-		"ariaLabel": "Versão {{version}} - Clique para ver as notas de lançamento"
 	},
 	"editMessage": {
 		"placeholder": "Edite sua mensagem..."

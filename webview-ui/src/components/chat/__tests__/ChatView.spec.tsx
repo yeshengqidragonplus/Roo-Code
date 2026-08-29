@@ -23,7 +23,6 @@ interface ExtensionState {
 	version: string
 	clineMessages: ClineMessage[]
 	taskHistory: any[]
-	shouldShowAnnouncement: boolean
 	allowedCommands: string[]
 	alwaysAllowExecute: boolean
 	[key: string]: any
@@ -73,27 +72,6 @@ vi.mock("react-virtuoso", () => ({
 					</div>
 				))}
 			</div>
-		)
-	},
-}))
-
-// Mock VersionIndicator - returns null by default to prevent rendering in tests
-vi.mock("../../common/VersionIndicator", () => ({
-	default: vi.fn(() => null),
-}))
-
-// Get the mock function after the module is mocked
-const mockVersionIndicator = vi.mocked((await import("../../common/VersionIndicator")).default)
-
-vi.mock("../Announcement", () => ({
-	default: function MockAnnouncement({ hideAnnouncement }: { hideAnnouncement: () => void }) {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const React = require("react")
-		return React.createElement(
-			"div",
-			{ "data-testid": "announcement-modal" },
-			React.createElement("div", null, "What's New"),
-			React.createElement("button", { onClick: hideAnnouncement }, "Close"),
 		)
 	},
 }))
@@ -150,12 +128,7 @@ vi.mock("@src/components/welcome/RooHero", () => ({
 // Mock i18n
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: any) => {
-			if (key === "chat:versionIndicator.ariaLabel" && options?.version) {
-				return `Version ${options.version}`
-			}
-			return key
-		},
+		t: (key: string) => key,
 	}),
 	initReactI18next: {
 		type: "3rdParty",
@@ -272,7 +245,6 @@ const mockPostMessage = (state: Partial<ExtensionState>) => {
 				version: "1.0.0",
 				clineMessages: [],
 				taskHistory: [],
-				shouldShowAnnouncement: false,
 				allowedCommands: [],
 				alwaysAllowExecute: false,
 				cloudIsAuthenticated: false,
@@ -285,8 +257,6 @@ const mockPostMessage = (state: Partial<ExtensionState>) => {
 
 const defaultProps: ChatViewProps = {
 	isHidden: false,
-	showAnnouncement: false,
-	hideAnnouncement: () => {},
 }
 
 const queryClient = new QueryClient()
@@ -509,156 +479,6 @@ describe("ChatView - Focus Grabbing Tests", () => {
 
 		// Should not grab focus for follow-up questions
 		expect(mockFocus).not.toHaveBeenCalled()
-	})
-})
-
-describe("ChatView - Version Indicator Tests", () => {
-	beforeEach(() => {
-		vi.clearAllMocks()
-		// Reset the mock to return null by default
-		mockVersionIndicator.mockReturnValue(null)
-	})
-
-	it("displays version indicator button", () => {
-		// Mock VersionIndicator to return a button
-		mockVersionIndicator.mockReturnValue(
-			React.createElement("button", {
-				"data-testid": "version-indicator",
-				"aria-label": "Version 1.0.0",
-				className: "version-indicator-button",
-			}),
-		)
-
-		const { getByTestId } = renderChatView()
-
-		// Hydrate state with no active task
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [],
-		})
-
-		// Should display version indicator
-		expect(getByTestId("version-indicator")).toBeInTheDocument()
-	})
-
-	it("opens announcement modal when version indicator is clicked", async () => {
-		// Mock VersionIndicator to return a button with onClick
-		mockVersionIndicator.mockImplementation(({ onClick }: { onClick?: () => void }) =>
-			React.createElement("button", {
-				"data-testid": "version-indicator",
-				onClick,
-			}),
-		)
-
-		const { getByTestId, queryByTestId } = renderChatView({ showAnnouncement: false })
-
-		// Hydrate state
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [],
-		})
-
-		// Wait for component to render
-		await waitFor(() => {
-			expect(getByTestId("version-indicator")).toBeInTheDocument()
-		})
-
-		// Click version indicator
-		const versionIndicator = getByTestId("version-indicator")
-		act(() => {
-			versionIndicator.click()
-		})
-
-		// Wait for announcement modal to appear
-		await waitFor(() => {
-			expect(queryByTestId("announcement-modal")).toBeInTheDocument()
-		})
-	})
-
-	it("version indicator has correct styling classes", () => {
-		// Mock VersionIndicator to return a button with specific classes
-		mockVersionIndicator.mockReturnValue(
-			React.createElement("button", {
-				"data-testid": "version-indicator",
-				className: "version-indicator-button absolute top-2 right-2",
-			}),
-		)
-
-		const { getByTestId } = renderChatView()
-
-		// Hydrate state
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [],
-		})
-
-		const versionIndicator = getByTestId("version-indicator")
-		expect(versionIndicator.className).toContain("version-indicator-button")
-		expect(versionIndicator.className).toContain("absolute")
-		expect(versionIndicator.className).toContain("top-2")
-		expect(versionIndicator.className).toContain("right-2")
-	})
-
-	it("version indicator has proper accessibility attributes", () => {
-		// Mock VersionIndicator to return a button with aria-label
-		mockVersionIndicator.mockReturnValue(
-			React.createElement("button", {
-				"data-testid": "version-indicator",
-				"aria-label": "Version 1.0.0",
-				role: "button",
-			}),
-		)
-
-		const { getByTestId } = renderChatView()
-
-		// Hydrate state
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [],
-		})
-
-		const versionIndicator = getByTestId("version-indicator")
-		expect(versionIndicator.getAttribute("aria-label")).toBe("Version 1.0.0")
-		expect(versionIndicator.getAttribute("role")).toBe("button")
-	})
-
-	it("does not display version indicator when there is an active task", () => {
-		// Mock VersionIndicator to return null (simulating hidden state)
-		mockVersionIndicator.mockReturnValue(null)
-
-		const { queryByTestId } = renderChatView()
-
-		// Hydrate state with active task
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [
-				{
-					type: "say",
-					say: "task",
-					ts: Date.now(),
-					text: "Active task",
-				},
-			],
-		})
-
-		// Should not display version indicator during active task
-		expect(queryByTestId("version-indicator")).not.toBeInTheDocument()
-	})
-
-	it("displays version indicator only on welcome screen (no task)", () => {
-		// Mock VersionIndicator to return a button
-		mockVersionIndicator.mockReturnValue(React.createElement("button", { "data-testid": "version-indicator" }))
-
-		const { queryByTestId } = renderChatView()
-
-		// Hydrate state with no active task
-		mockPostMessage({
-			version: "1.0.0",
-			clineMessages: [],
-		})
-
-		// Should display version indicator on welcome screen
-		expect(queryByTestId("version-indicator")).toBeInTheDocument()
 	})
 })
 

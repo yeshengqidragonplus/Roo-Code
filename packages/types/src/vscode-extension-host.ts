@@ -318,7 +318,6 @@ export type ExtensionState = Pick<
 	currentTaskTodos?: TodoItem[] // Initial todos for the current task
 	apiConfiguration: ProviderSettings
 	uriScheme?: string
-	shouldShowAnnouncement: boolean
 
 	taskHistory: HistoryItem[]
 
@@ -364,7 +363,6 @@ export type ExtensionState = Pick<
 	googleCseId?: string
 	webSearchProvider?: "tavily" | "google" | "bing" | "auto"
 	messageQueue?: QueuedMessage[]
-	lastShownAnnouncementId?: string
 	apiModelId?: string
 	mcpServers?: McpServer[]
 	openAiCodexIsAuthenticated?: boolean
@@ -431,7 +429,6 @@ export interface WebviewMessage {
 		| "requestMessageWindow"
 		| "terminalOperation"
 		| "clearTask"
-		| "didShowAnnouncement"
 		| "selectImages"
 		| "exportCurrentTask"
 		| "showTaskWithId"

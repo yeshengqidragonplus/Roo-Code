@@ -350,29 +350,6 @@
 		"triggerLabel_other": "{{count}} 個自動核准",
 		"triggerLabelAll": "BRRR"
 	},
-	"announcement": {
-		"title": "Roo Code {{version}} 已發布",
-		"support": "請在 <githubLink>GitHub</githubLink> 上給 Roo Code 星星支持我們。",
-		"finalRelease": {
-			"title": "Roo Code 的最後一個版本",
-			"intro": "這是 Roo Code 的最後一個版本。<announcementLink>正如我們幾週前宣布的那樣</announcementLink>，我們決定將重心轉向 <roomoteLink>Roomote</roomoteLink>，這是我們的雲端代理平台，我們相信它是軟體開發的未來。非常感謝你在過去一年左右的支持。",
-			"continuity": "這個擴充功能應該會繼續無限期運作，但不會再收到錯誤修正、新功能或模型更新。",
-			"alternatives": "如果你想使用擴充功能，我們建議看看 <zooCodeLink>ZooCode</zooCodeLink>（由社群維護的 Roo Code fork）和 <clineLink>Cline</clineLink>（Roo Code 最初起源的專案）。",
-			"signoff": "Happy coding!"
-		},
-		"release": {
-			"heading": "新增功能：",
-			"gpt55": "透過 OpenAI Codex 支援 GPT-5.5：已在 OpenAI Codex 供應商中新增 GPT-5.5 支援，讓你可以直接在 Roo Code 中使用最新模型。",
-			"claudeOpus47": "Vertex AI 上的 Claude Opus 4.7：已將 Anthropic 最新旗艦推理模型 Claude Opus 4.7 新增至 Vertex AI 供應商。",
-			"checkpointNav": "前一個存檔點導覽：在聊天中新增控制項，可回到此前的存檔點，並提供完整的 i18n 支援。"
-		},
-		"cloudAgents": {
-			"heading": "雲端的新功能：",
-			"specialized": "推出 <bold>Explainer</bold>、<bold>Planner</bold> 和 <bold>Coder</bold>，三個專業雲端代理用來強化工作流程。",
-			"description": "代理在雲端協同工作，可從網頁或透過 Slack 觸發。",
-			"tryButton": "試用雲端代理"
-		}
-	},
 	"reasoning": {
 		"thinking": "思考中",
 		"seconds": "{{count}} 秒"
@@ -418,9 +395,6 @@
 		"error": "索引錯誤",
 		"status": "索引狀態",
 		"stopping": "正在停止索引..."
-	},
-	"versionIndicator": {
-		"ariaLabel": "版本 {{version}} - 點選查看發布說明"
 	},
 	"command": {
 		"triggerDescription": "觸發 {{name}} 命令"

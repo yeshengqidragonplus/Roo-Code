@@ -774,10 +774,6 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			await provider.clearTask()
 			await provider.postStateToWebview()
 			break
-		case "didShowAnnouncement":
-			await updateGlobalState("lastShownAnnouncementId", provider.latestAnnouncementId)
-			await provider.postStateToWebview()
-			break
 		case "selectImages":
 			const images = await selectImages()
 			await provider.postMessageToWebview({

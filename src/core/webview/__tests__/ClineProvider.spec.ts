@@ -578,7 +578,8 @@ describe("ClineProvider", () => {
 		})
 
 		test("passes legacy data URIs through untouched (fast path)", async () => {
-			const dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+			const dataUri =
+				"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
 			const messages = [
 				{
 					ts: 1,
@@ -607,7 +608,6 @@ describe("ClineProvider", () => {
 			version: "1.0.0",
 			clineMessages: [],
 			taskHistory: [],
-			shouldShowAnnouncement: false,
 			apiConfiguration: {
 				apiProvider: "openrouter",
 			},

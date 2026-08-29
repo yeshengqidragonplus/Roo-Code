@@ -54,9 +54,8 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 const WORKFLOW_EDITOR_MODE = (window as { WORKFLOW_EDITOR_MODE?: { workflowId: string } }).WORKFLOW_EDITOR_MODE
 
 const App = () => {
-	const { didHydrateState, showWelcome, shouldShowAnnouncement, renderContext } = useExtensionState()
+	const { didHydrateState, showWelcome, renderContext } = useExtensionState()
 
-	const [showAnnouncement, setShowAnnouncement] = useState(false)
 	const [tab, setTab] = useState<Tab>("chat")
 	const [editorWorkflowId, setEditorWorkflowId] = useState<string | undefined>(undefined)
 
@@ -144,13 +143,6 @@ const App = () => {
 
 	useEvent("message", onMessage)
 
-	useEffect(() => {
-		if (shouldShowAnnouncement && tab === "chat") {
-			setShowAnnouncement(true)
-			vscode.postMessage({ type: "didShowAnnouncement" })
-		}
-	}, [shouldShowAnnouncement, tab])
-
 	// Tell the extension that we are ready to receive messages.
 	useEffect(() => vscode.postMessage({ type: "webviewDidLaunch" }), [])
 
@@ -208,12 +200,7 @@ const App = () => {
 			{tab === "workflowEditor" && editorWorkflowId && (
 				<WorkflowEditorView workflowId={editorWorkflowId} onDone={() => setTab("chat")} />
 			)}
-			<ChatView
-				ref={chatViewRef}
-				isHidden={tab !== "chat"}
-				showAnnouncement={showAnnouncement}
-				hideAnnouncement={() => setShowAnnouncement(false)}
-			/>
+			<ChatView ref={chatViewRef} isHidden={tab !== "chat"} />
 			{deleteMessageDialogState.hasCheckpoint ? (
 				<MemoizedCheckpointRestoreDialog
 					open={deleteMessageDialogState.isOpen}

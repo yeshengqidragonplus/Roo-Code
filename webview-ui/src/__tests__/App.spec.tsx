@@ -131,7 +131,6 @@ describe("App", () => {
 		mockUseExtensionState.mockReturnValue({
 			didHydrateState: true,
 			showWelcome: false,
-			shouldShowAnnouncement: false,
 			experiments: {},
 			language: "en",
 		})
