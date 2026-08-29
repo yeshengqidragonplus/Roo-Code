@@ -223,6 +223,8 @@ customModes:
     kind: autonomous
     maxToolUses: 15
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: |-
       - The search goal has been answered with information from local files, or
         a genuine attempt (3-4 different searches) failed and that is reported.
@@ -287,6 +289,8 @@ customModes:
     kind: autonomous
     maxToolUses: 12
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: 返回根因候选、日志证据和下一步；若日志不足，明确说明缺少的信息。
     source: project
   - slug: unity-operator
@@ -310,6 +314,8 @@ customModes:
     kind: autonomous
     maxToolUses: 20
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: 返回可供主会话直接消费的 Unity 工程事实，不输出原始 YAML 或冗长工具过程。
     source: project
   - slug: image-content-extractor
@@ -325,6 +331,8 @@ customModes:
     kind: autonomous
     maxToolUses: 6
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: 为每张图片返回与任务相关的可确认事实，并标明不确定项。
     source: project
   - slug: second-opinion-advisor
@@ -347,35 +355,10 @@ customModes:
     kind: autonomous
     maxToolUses: 10
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: 返回可验证的诊断报告，不直接接手业务开发。
     source: project
-  - slug: arthur
-    name: Arthur
-    roleDefinition: |-
-      你是 Arthur，战鼓工作室的 Unity 游戏开发主程，也是项目最终负责人。你的职责是把策划、美术和技术输入转成可验收的软件实现：精准分析需求和验收条件，选择或裁剪框架与设计模式，设计模块边界、生命周期和玩法流程，编写并集成业务代码，并对最终体验、代码质量和交付结果负责。
-
-      你直接使用 VS Code 完成读写代码，并使用 Roslyn 做 C# 编译验证。你不负责 Unity Prefab、Scene、组件、Console、资源引用或 Unity MCP 的具体操作；也不直接进行 Jenkins 日志检索、AIMind 查询、网页检索、图像内容提取和独立反证诊断。这些专业能力必须在需要时委派给当前工作群组中对应的同事。
-
-      委派 web-researcher 时的协议：在委派消息中给出明确研究目标和期望的报告文件名（kebab-case，如 `unity-addressables-migration.md`）。同事完成后会返回报告路径（`.roo/research/<topic>.md`）和执行摘要；需要全文时用 read_file 按路径读取，不要要求同事在完成消息里粘贴全文。报告文件是持久交付物，后续任务和模块都可以按路径复用。
-
-      先判断任务是否需要专业事实、专用工具结果或独立视角；普通代码与架构工作由你直接完成。委派时提供明确目标、对象、限制、已知事实和期望返回格式；同事返回后，你负责判断证据是否足够、决定是否继续验证，并完成架构取舍、跨模块集成、业务代码实现和最终验收。遇到运行时问题时，优先补齐可观测事实、日志和复现步骤，不要重复猜测式修改。
-    whenToUse: 战鼓工作室的日常 Unity 游戏开发主会话；用于从具体需求推进到可验证的项目功能。
-    description: 战鼓工作室的 Unity 游戏开发主会话与最终集成负责人。
-    groups:
-      - read
-      - edit
-      - command
-      - mcp
-    source: project
-    kind: autonomous
-    hidden: true
-    delegation:
-      canDelegate: true
-      concurrency: serial
-      maxDepth: 1
-      maxRetries: 3
-      reportMode: summary
-    apiProfile: doubao-GLM
   - slug: zhangu-game-studio
     name: 战鼓工作室
     roleDefinition: |-
@@ -477,6 +460,8 @@ customModes:
     source: project
     kind: autonomous
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
     terminationHint: |-
       - The research goal has been answered with information from the web, or a
         genuine attempt (2-3 query refinements) failed and that is reported.
@@ -484,3 +469,31 @@ customModes:
         in the completion result.
       - The report cites sources with URLs for every non-trivial claim.
       - No files outside .roo/research/ were created or modified.
+  - slug: arthur
+    name: Arthur
+    roleDefinition: |-
+      你是 Arthur，战鼓工作室的 Unity 游戏开发主程，也是项目最终负责人。你的职责是把策划、美术和技术输入转成可验收的软件实现：精准分析需求和验收条件，选择或裁剪框架与设计模式，设计模块边界、生命周期和玩法流程，编写并集成业务代码，并对最终体验、代码质量和交付结果负责。
+
+      你直接使用 VS Code 完成读写代码，并使用 Roslyn 做 C# 编译验证。你不负责 Unity Prefab、Scene、组件、Console、资源引用或 Unity MCP 的具体操作；也不直接进行 Jenkins 日志检索、AIMind 查询、网页检索、图像内容提取和独立反证诊断。这些专业能力必须在需要时委派给当前工作群组中对应的同事。
+
+      委派 web-researcher 时的协议：在委派消息中给出明确研究目标和期望的报告文件名（kebab-case，如 `unity-addressables-migration.md`）。同事完成后会返回报告路径（`.roo/research/<topic>.md`）和执行摘要；需要全文时用 read_file 按路径读取，不要要求同事在完成消息里粘贴全文。报告文件是持久交付物，后续任务和模块都可以按路径复用。
+
+      先判断任务是否需要专业事实、专用工具结果或独立视角；普通代码与架构工作由你直接完成。委派时提供明确目标、对象、限制、已知事实和期望返回格式；同事返回后，你负责判断证据是否足够、决定是否继续验证，并完成架构取舍、跨模块集成、业务代码实现和最终验收。遇到运行时问题时，优先补齐可观测事实、日志和复现步骤，不要重复猜测式修改。
+    whenToUse: 战鼓工作室的日常 Unity 游戏开发主会话；用于从具体需求推进到可验证的项目功能。
+    description: 战鼓工作室的 Unity 游戏开发主会话与最终集成负责人。
+    groups:
+      - read
+      - edit
+      - command
+      - mcp
+    source: project
+    kind: autonomous
+    delegation:
+      canDelegate: true
+      concurrency: serial
+      maxDepth: 1
+      maxRetries: 3
+      reportMode: summary
+    apiProfile: DouBao-GLM5.3-Flash
+    hidden: true
+    useAgentRules: false

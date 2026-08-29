@@ -178,6 +178,20 @@ export const expertModeFields = {
 	 * (default: inject).
 	 */
 	useAgentRules: z.boolean().optional(),
+	/**
+	 * Per-mode project-rules opt-out. When false, this mode's system prompt
+	 * skips both the generic `.roo/rules/` rules and the mode-specific
+	 * `.roo/rules-<mode>/` rules regardless of the global setting. Undefined
+	 * inherits the global behavior (default: inject).
+	 */
+	useProjectRules: z.boolean().optional(),
+	/**
+	 * Per-mode project-memory opt-out. When false, this mode's system prompt
+	 * skips the `.roo/memory/` injection AND the PROJECT MEMORY write
+	 * instruction section regardless of the global setting. Undefined
+	 * inherits the global setting (default: inject).
+	 */
+	useProjectMemory: z.boolean().optional(),
 } as const
 
 /**

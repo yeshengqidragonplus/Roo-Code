@@ -379,6 +379,8 @@ const ModesView = () => {
 	const [newModeHidden, setNewModeHidden] = useState<boolean>(false)
 	const [newModeMaxDepth, setNewModeMaxDepth] = useState<number>(3)
 	const [newModeUseAgentRules, setNewModeUseAgentRules] = useState<boolean>(true)
+	const [newModeUseProjectRules, setNewModeUseProjectRules] = useState<boolean>(true)
+	const [newModeUseProjectMemory, setNewModeUseProjectMemory] = useState<boolean>(true)
 	const [newModeMaxRetries, setNewModeMaxRetries] = useState<number>(3)
 	const [selectedSquadMembers, setSelectedSquadMembers] = useState<string[]>([])
 	// ------------------------------------------------------------------------
@@ -409,6 +411,8 @@ const ModesView = () => {
 		setNewModeHidden(false)
 		setNewModeMaxDepth(3)
 		setNewModeUseAgentRules(true)
+		setNewModeUseProjectRules(true)
+		setNewModeUseProjectMemory(true)
 		setNewModeMaxRetries(3)
 		setSelectedSquadMembers([])
 		// Reset error states
@@ -500,6 +504,8 @@ const ModesView = () => {
 			groups: newModeGroups,
 			source,
 			...(newModeUseAgentRules ? {} : { useAgentRules: false }),
+			...(newModeUseProjectRules ? {} : { useProjectRules: false }),
+			...(newModeUseProjectMemory ? {} : { useProjectMemory: false }),
 			...categoryFields,
 		}
 
@@ -557,6 +563,8 @@ const ModesView = () => {
 		newModeHidden,
 		newModeMaxDepth,
 		newModeUseAgentRules,
+		newModeUseProjectRules,
+		newModeUseProjectMemory,
 		newModeMaxRetries,
 		selectedSquadMembers,
 		updateCustomMode,
@@ -1059,6 +1067,52 @@ const ModesView = () => {
 									辅助专家（如 web-researcher
 									等被委派的同事模式）不修改仓库代码，建议关闭以精简系统提示词。关闭后该模式的提示词不再拼接
 									AGENTS.md 内容。
+								</div>
+							</VSCodeCheckbox>
+						</div>
+					)}
+
+					{findModeBySlug(visualMode, customModes) && (
+						<div className="mb-3">
+							<VSCodeCheckbox
+								checked={findModeBySlug(visualMode, customModes)?.useProjectRules !== false}
+								onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+									const target = (e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+									const currentMode = findModeBySlug(visualMode, customModes)
+									if (currentMode) {
+										updateCustomMode(visualMode, {
+											...currentMode,
+											useProjectRules: target.checked ? undefined : false,
+										})
+									}
+								}}>
+								注入项目规则（.roo/rules）
+								<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+									关闭后该模式的提示词不再拼接 .roo/rules/ 通用规则和 .roo/rules-{mode}/
+									专属规则。辅助专家建议关闭。
+								</div>
+							</VSCodeCheckbox>
+						</div>
+					)}
+
+					{findModeBySlug(visualMode, customModes) && (
+						<div className="mb-3">
+							<VSCodeCheckbox
+								checked={findModeBySlug(visualMode, customModes)?.useProjectMemory !== false}
+								onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+									const target = (e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+									const currentMode = findModeBySlug(visualMode, customModes)
+									if (currentMode) {
+										updateCustomMode(visualMode, {
+											...currentMode,
+											useProjectMemory: target.checked ? undefined : false,
+										})
+									}
+								}}>
+								注入项目记忆（.roo/memory）
+								<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+									关闭后该模式的提示词不再拼接 .roo/memory/ 项目记忆，也不再输出 PROJECT MEMORY
+									写入指令。辅助专家建议关闭。
 								</div>
 							</VSCodeCheckbox>
 						</div>
@@ -1839,6 +1893,38 @@ const ModesView = () => {
 									<div className="text-xs text-vscode-descriptionForeground mt-0.5">
 										辅助专家（被委派的同事模式）建议关闭：不修改仓库代码时 AGENTS.md
 										内容只会污染系统提示词。
+									</div>
+								</VSCodeCheckbox>
+							</div>
+
+							<div className="mb-4">
+								<VSCodeCheckbox
+									checked={newModeUseProjectRules}
+									onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+										const target =
+											(e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+										setNewModeUseProjectRules(target.checked)
+									}}>
+									注入项目规则（.roo/rules）
+									<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+										关闭后不再拼接 .roo/rules/ 通用规则和 .roo/rules-{mode}/
+										专属规则。辅助专家建议关闭。
+									</div>
+								</VSCodeCheckbox>
+							</div>
+
+							<div className="mb-4">
+								<VSCodeCheckbox
+									checked={newModeUseProjectMemory}
+									onChange={(e: Event | React.FormEvent<HTMLElement>) => {
+										const target =
+											(e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+										setNewModeUseProjectMemory(target.checked)
+									}}>
+									注入项目记忆（.roo/memory）
+									<div className="text-xs text-vscode-descriptionForeground mt-0.5">
+										关闭后不再拼接 .roo/memory/ 项目记忆，也不再输出 PROJECT MEMORY
+										写入指令。辅助专家建议关闭。
 									</div>
 								</VSCodeCheckbox>
 							</div>

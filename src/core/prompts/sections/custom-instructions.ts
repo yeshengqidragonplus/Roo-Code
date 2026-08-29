@@ -434,6 +434,19 @@ export async function addCustomInstructions(
 		 * this to keep repo contributor-guide noise out of their system prompt.
 		 */
 		modeUseAgentRules?: boolean
+		/**
+		 * Per-mode project-rules override (`ModeConfig.useProjectRules`). `false`
+		 * skips both the generic `.roo/rules/` rules and the mode-specific
+		 * `.roo/rules-<mode>/` rules; `undefined` inherits the global behavior.
+		 */
+		modeUseProjectRules?: boolean
+		/**
+		 * Per-mode project-memory override (`ModeConfig.useProjectMemory`).
+		 * `false` skips the `.roo/memory/` injection; `undefined` inherits the
+		 * global setting. (The PROJECT MEMORY write-instruction section is gated
+		 * separately in getMemoryInstructionsSection.)
+		 */
+		modeUseProjectMemory?: boolean
 	} = {},
 ): Promise<string> {
 	const sections = []
@@ -445,7 +458,7 @@ export async function addCustomInstructions(
 	let modeRuleContent = ""
 	let usedRuleFile = ""
 
-	if (mode) {
+	if (mode && options.modeUseProjectRules !== false) {
 		const modeRules: string[] = []
 		// Use recursive discovery only if enableSubfolderRules is true
 		const rooDirectories = enableSubfolderRules
@@ -530,13 +543,16 @@ export async function addCustomInstructions(
 	}
 
 	// Add generic rules
-	const genericRuleContent = await loadRuleFiles(cwd, enableSubfolderRules)
-	if (genericRuleContent && genericRuleContent.trim()) {
-		rules.push(genericRuleContent.trim())
+	if (options.modeUseProjectRules !== false) {
+		const genericRuleContent = await loadRuleFiles(cwd, enableSubfolderRules)
+		if (genericRuleContent && genericRuleContent.trim()) {
+			rules.push(genericRuleContent.trim())
+		}
 	}
 
 	// Add project memory (.roo/memory) if enabled (default: true)
-	if (options.settings?.useProjectMemory !== false) {
+	// Per-mode override: `modeUseProjectMemory === false` wins over the global setting.
+	if (options.settings?.useProjectMemory !== false && options.modeUseProjectMemory !== false) {
 		const memoryContent = await loadMemoryFiles(cwd, enableSubfolderRules)
 		if (memoryContent && memoryContent.trim()) {
 			rules.push(memoryContent.trim())

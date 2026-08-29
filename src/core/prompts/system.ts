@@ -120,13 +120,15 @@ ${getSystemInfoSection(cwd)}
 
 ${getObjectiveSection()}
 ${terminationSection}
-${getMemoryInstructionsSection(settings)}
+${getMemoryInstructionsSection(settings, modeConfig.useProjectMemory)}
 
 ${await addCustomInstructions(baseInstructions, globalCustomInstructions || "", cwd, executionMode, {
 	language: language ?? formatLanguage(vscode.env.language),
 	rooIgnoreInstructions,
 	settings,
 	modeUseAgentRules: modeConfig.useAgentRules,
+	modeUseProjectRules: modeConfig.useProjectRules,
+	modeUseProjectMemory: modeConfig.useProjectMemory,
 })}`
 
 	return basePrompt

@@ -8,8 +8,8 @@ import type { SystemPromptSettings } from "../types"
  * This section tells the model WHEN and HOW to write a memory so the read side has
  * something useful to inject. It is only emitted when project memory is enabled.
  */
-export function getMemoryInstructionsSection(settings?: SystemPromptSettings): string {
-	if (settings?.useProjectMemory === false) {
+export function getMemoryInstructionsSection(settings?: SystemPromptSettings, modeUseProjectMemory?: boolean): string {
+	if (settings?.useProjectMemory === false || modeUseProjectMemory === false) {
 		return ""
 	}
 

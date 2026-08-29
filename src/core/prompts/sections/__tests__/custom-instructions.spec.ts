@@ -658,6 +658,220 @@ describe("addCustomInstructions", () => {
 		expect(result).toContain("Agent rules from AGENTS.md file")
 	})
 
+	it("should skip .roo/rules and .roo/rules-<mode> when mode-level useProjectRules is false", async () => {
+		// Simulate .roo/rules and .roo/rules-test-mode directories exist
+		statMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules") || pathStr.endsWith("/.roo/rules-test-mode")) {
+				return Promise.resolve({ isDirectory: () => true, isSymbolicLink: () => false })
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readdirMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules")) {
+				return Promise.resolve([
+					{ name: "rules.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			if (pathStr.endsWith("/.roo/rules-test-mode")) {
+				return Promise.resolve([
+					{ name: "mode-rule.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules/rules.md")) {
+				return Promise.resolve("generic project rule content")
+			}
+			if (pathStr.endsWith("/.roo/rules-test-mode/mode-rule.md")) {
+				return Promise.resolve("mode specific rule content")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseProjectRules: false,
+			},
+		)
+
+		expect(result).not.toContain("generic project rule content")
+		expect(result).not.toContain("mode specific rule content")
+	})
+
+	it("should load .roo/rules and .roo/rules-<mode> when mode-level useProjectRules is undefined", async () => {
+		// Simulate .roo/rules and .roo/rules-test-mode directories exist
+		statMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules") || pathStr.endsWith("/.roo/rules-test-mode")) {
+				return Promise.resolve({ isDirectory: () => true, isFile: () => false, isSymbolicLink: () => false })
+			}
+			if (pathStr.endsWith(".md")) {
+				return Promise.resolve({ isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false })
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readdirMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules")) {
+				return Promise.resolve([
+					{ name: "rules.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			if (pathStr.endsWith("/.roo/rules-test-mode")) {
+				return Promise.resolve([
+					{ name: "mode-rule.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/rules/rules.md")) {
+				return Promise.resolve("generic project rule content")
+			}
+			if (pathStr.endsWith("/.roo/rules-test-mode/mode-rule.md")) {
+				return Promise.resolve("mode specific rule content")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseProjectRules: undefined,
+			},
+		)
+
+		expect(result).toContain("generic project rule content")
+		expect(result).toContain("mode specific rule content")
+	})
+
+	it("should skip .roo/memory when mode-level useProjectMemory is false", async () => {
+		// Simulate no .roo/rules-test-mode directory
+		statMock.mockRejectedValueOnce({ code: "ENOENT" })
+
+		// Simulate .roo/memory directory exists with one memory file
+		statMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory")) {
+				return Promise.resolve({ isDirectory: () => true, isSymbolicLink: () => false })
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readdirMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory")) {
+				return Promise.resolve([
+					{ name: "auth-flow.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory/auth-flow.md")) {
+				return Promise.resolve("project memory content")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseProjectMemory: false,
+			},
+		)
+
+		expect(result).not.toContain("project memory content")
+	})
+
+	it("should load .roo/memory when mode-level useProjectMemory is undefined", async () => {
+		// Simulate no .roo/rules-test-mode directory
+		statMock.mockRejectedValueOnce({ code: "ENOENT" })
+
+		// Simulate .roo/memory directory exists with one memory file
+		statMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory")) {
+				return Promise.resolve({ isDirectory: () => true, isFile: () => false, isSymbolicLink: () => false })
+			}
+			if (pathStr.endsWith(".md")) {
+				return Promise.resolve({ isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false })
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readdirMock.mockImplementation((dirPath: PathLike) => {
+			const pathStr = dirPath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory")) {
+				return Promise.resolve([
+					{ name: "auth-flow.md", isFile: () => true, isSymbolicLink: () => false, parentPath: dirPath },
+				] as any)
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString().replace(/\\/g, "/")
+			if (pathStr.endsWith("/.roo/memory/auth-flow.md")) {
+				return Promise.resolve("project memory content")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseProjectMemory: undefined,
+			},
+		)
+
+		expect(result).toContain("project memory content")
+	})
+
 	it("should load AGENTS.md when mode-level useAgentRules is undefined (inherits global)", async () => {
 		// Simulate no .roo/rules-test-mode directory
 		statMock.mockRejectedValueOnce({ code: "ENOENT" })
