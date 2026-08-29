@@ -285,7 +285,7 @@
 	"response": "Response",
 	"arguments": "Arguments",
 	"text": {
-		"rooSaid": "Roo said"
+		"rooSaid": "QCode said"
 	},
 	"feedback": {
 		"youSaid": "You said"

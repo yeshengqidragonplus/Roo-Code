@@ -231,7 +231,7 @@
 	"response": "Antwoord",
 	"arguments": "Argumenten",
 	"text": {
-		"rooSaid": "Roo zei"
+		"rooSaid": "QCode zei"
 	},
 	"feedback": {
 		"youSaid": "Jij zei"

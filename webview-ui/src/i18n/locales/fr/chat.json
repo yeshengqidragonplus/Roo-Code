@@ -236,7 +236,7 @@
 	"response": "Réponse",
 	"arguments": "Arguments",
 	"text": {
-		"rooSaid": "Roo a dit"
+		"rooSaid": "QCode a dit"
 	},
 	"feedback": {
 		"youSaid": "Tu as dit"

@@ -236,7 +236,7 @@
 	"response": "応答",
 	"arguments": "引数",
 	"text": {
-		"rooSaid": "Rooの発言"
+		"rooSaid": "QCodeの発言"
 	},
 	"feedback": {
 		"youSaid": "あなたの発言"

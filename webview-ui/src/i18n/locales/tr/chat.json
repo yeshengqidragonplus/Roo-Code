@@ -237,7 +237,7 @@
 	"response": "Yanıt",
 	"arguments": "Argümanlar",
 	"text": {
-		"rooSaid": "Roo dedi"
+		"rooSaid": "QCode dedi"
 	},
 	"feedback": {
 		"youSaid": "Dediniz ki"
