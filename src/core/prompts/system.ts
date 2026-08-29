@@ -108,7 +108,7 @@ ${markdownFormattingSection()}
 
 ${getSharedToolUseSection()}${toolsCatalog}
 
-	${getToolUseGuidelinesSection()}
+${getToolUseGuidelinesSection()}
 
 ${getCapabilitiesSection(cwd, shouldIncludeMcp ? mcpHub : undefined)}
 
@@ -126,6 +126,7 @@ ${await addCustomInstructions(baseInstructions, globalCustomInstructions || "", 
 	language: language ?? formatLanguage(vscode.env.language),
 	rooIgnoreInstructions,
 	settings,
+	modeUseAgentRules: modeConfig.useAgentRules,
 })}`
 
 	return basePrompt

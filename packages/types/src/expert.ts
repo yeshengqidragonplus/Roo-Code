@@ -169,6 +169,15 @@ export const expertModeFields = {
 	 * means no hard limit (relies on terminationHint / MAX_REQUESTS_PER_TASK).
 	 */
 	maxToolUses: z.number().int().positive().optional(),
+	/**
+	 * Per-mode AGENTS.md opt-out. Auxiliary experts (delegated sub-agents such
+	 * as web-researcher) never touch the host repo's code, so injecting the
+	 * repo's AGENTS.md contributor guide into their system prompt is pure
+	 * noise. When false, this mode's system prompt skips AGENTS.md injection
+	 * regardless of the global setting. Undefined inherits the global setting
+	 * (default: inject).
+	 */
+	useAgentRules: z.boolean().optional(),
 } as const
 
 /**

@@ -427,6 +427,13 @@ export async function addCustomInstructions(
 		language?: string
 		rooIgnoreInstructions?: string
 		settings?: SystemPromptSettings
+		/**
+		 * Per-mode AGENTS.md override from the mode's config (`ModeConfig.useAgentRules`).
+		 * `false` skips AGENTS.md injection even when the global setting is on;
+		 * `undefined` inherits the global setting. Auxiliary/delegated experts use
+		 * this to keep repo contributor-guide noise out of their system prompt.
+		 */
+		modeUseAgentRules?: boolean
 	} = {},
 ): Promise<string> {
 	const sections = []
@@ -512,8 +519,10 @@ export async function addCustomInstructions(
 	}
 
 	// Add AGENTS.md content if enabled (default: true)
+	// Per-mode override: `modeUseAgentRules === false` wins over the global
+	// setting so auxiliary experts can opt out of repo-guide injection.
 	// Load from root and optionally subdirectories with .roo folders based on enableSubfolderRules setting
-	if (options.settings?.useAgentRules !== false) {
+	if (options.settings?.useAgentRules !== false && options.modeUseAgentRules !== false) {
 		const agentRulesContent = await loadAllAgentRulesFiles(cwd, enableSubfolderRules)
 		if (agentRulesContent && agentRulesContent.trim()) {
 			rules.push(agentRulesContent.trim())

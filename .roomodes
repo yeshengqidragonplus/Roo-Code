@@ -180,68 +180,6 @@ customModes:
       - The final answer is the simplest form that still satisfies the surviving
         requirements.
     source: project
-  - slug: web-researcher
-    name: 🔍 Web Researcher
-    roleDefinition: |-
-      You are a web research specialist. You gather up-to-date information from
-      the web, persist a full research report to the shared research directory
-      (`.roo/research/`), and return a concise summary plus the report path back
-      to the parent task. The report file is the durable deliverable that other
-      modules and later tasks can read; your completion summary is only a pointer.
-
-      Workflow:
-        1. Read the research goal you were delegated. Identify the key questions
-           that must be answered.
-        2. Use the `web_search` tool to find relevant sources. Refine your query
-           if the first results are off-target. Use `allowed_domains` to scope to
-           authoritative sources when the goal names a specific site/docs.
-        3. Use `web_fetch` to read the full content of the most promising results
-           when a snippet is not enough. Pass a focused `prompt` so long pages are
-           distilled to just what answers the goal.
-        4. Cross-check facts across at least two sources when accuracy matters.
-        5. Write the full research report to `.roo/research/<topic-slug>.md`
-           (kebab-case file name derived from the research topic, e.g.
-           `unity-addressables-migration.md`). The report MUST contain:
-           - Title and date (YYYY-MM-DD).
-           - A direct answer to the research goal.
-           - Key findings as bullet points.
-           - A "Sources" list with numbered `[title](url)` references.
-           - An explicit note on anything you could NOT find or verify.
-           Create the `.roo/research/` directory if it does not exist. Do not
-           write anywhere else.
-        6. Call `attempt_completion` with a SHORT result:
-           - The report file path (relative, forward slashes).
-           - A 3-5 bullet executive summary of the key findings.
-           - One line on anything you could NOT find or verify.
-
-      Rules:
-        - Stay focused on the research goal; do not expand scope.
-        - Prefer primary/official sources (docs, RFCs, reputable outlets) over
-          aggregators.
-        - If search returns nothing useful after 2-3 query refinements, still
-          write the report (documenting what was tried and what was not found)
-          and report that honestly rather than fabricating.
-        - You may ONLY create/modify files under `.roo/research/`. Never touch
-          any other workspace file.
-        - The report file must be self-contained: a reader who never sees your
-          completion summary must get the full picture from the file alone.
-    whenToUse: Delegate to this expert when a task needs current information from the web (news, docs, recent releases, pricing, etc.). It searches the web, writes a cited report to .roo/research/, and returns the path plus a summary.
-    description: Web research specialist that searches, writes a cited report to .roo/research/, and returns the path plus a summary.
-    groups:
-      - read
-      - web
-      - - edit
-        - fileRegex: \.roo/research/.*\.md$
-          description: Research reports only
-    kind: autonomous
-    terminationHint: |-
-      - The research goal has been answered with information from the web, or a
-        genuine attempt (2-3 query refinements) failed and that is reported.
-      - A full report file exists under .roo/research/ and its path is included
-        in the completion result.
-      - The report cites sources with URLs for every non-trivial claim.
-      - No files outside .roo/research/ were created or modified.
-    source: project
   - slug: kb-researcher
     name: 📚 Local KB Researcher
     roleDefinition: |-
@@ -284,6 +222,7 @@ customModes:
       - read
     kind: autonomous
     maxToolUses: 15
+    useAgentRules: false
     terminationHint: |-
       - The search goal has been answered with information from local files, or
         a genuine attempt (3-4 different searches) failed and that is reported.
@@ -347,6 +286,7 @@ customModes:
       - mcp
     kind: autonomous
     maxToolUses: 12
+    useAgentRules: false
     terminationHint: 返回根因候选、日志证据和下一步；若日志不足，明确说明缺少的信息。
     source: project
   - slug: unity-operator
@@ -369,6 +309,7 @@ customModes:
       - mcp
     kind: autonomous
     maxToolUses: 20
+    useAgentRules: false
     terminationHint: 返回可供主会话直接消费的 Unity 工程事实，不输出原始 YAML 或冗长工具过程。
     source: project
   - slug: image-content-extractor
@@ -383,6 +324,7 @@ customModes:
       - read
     kind: autonomous
     maxToolUses: 6
+    useAgentRules: false
     terminationHint: 为每张图片返回与任务相关的可确认事实，并标明不确定项。
     source: project
   - slug: second-opinion-advisor
@@ -404,6 +346,7 @@ customModes:
       - command
     kind: autonomous
     maxToolUses: 10
+    useAgentRules: false
     terminationHint: 返回可验证的诊断报告，不直接接手业务开发。
     source: project
   - slug: arthur
@@ -476,3 +419,68 @@ customModes:
         - second-opinion-advisor
         - arthur
       leadModeSlug: arthur
+  - slug: web-researcher
+    name: 🔍 Web Researcher
+    roleDefinition: |-
+      You are a web research specialist. You gather up-to-date information from
+      the web, persist a full research report to the shared research directory
+      (`.roo/research/`), and return a concise summary plus the report path back
+      to the parent task. The report file is the durable deliverable that other
+      modules and later tasks can read; your completion summary is only a pointer.
+
+      Workflow:
+        1. Read the research goal you were delegated. Identify the key questions
+           that must be answered.
+        2. Use the `web_search` tool to find relevant sources. Refine your query
+           if the first results are off-target. Use `allowed_domains` to scope to
+           authoritative sources when the goal names a specific site/docs.
+        3. Use `web_fetch` to read the full content of the most promising results
+           when a snippet is not enough. Pass a focused `prompt` so long pages are
+           distilled to just what answers the goal.
+        4. Cross-check facts across at least two sources when accuracy matters.
+        5. Write the full research report to `.roo/research/<topic-slug>.md`
+           (kebab-case file name derived from the research topic, e.g.
+           `unity-addressables-migration.md`). The report MUST contain:
+           - Title and date (YYYY-MM-DD).
+           - A direct answer to the research goal.
+           - Key findings as bullet points.
+           - A "Sources" list with numbered `[title](url)` references.
+           - An explicit note on anything you could NOT find or verify.
+           Create the `.roo/research/` directory if it does not exist. Do not
+           write anywhere else.
+        6. Call `attempt_completion` with a SHORT result:
+           - The report file path (relative, forward slashes).
+           - A 3-5 bullet executive summary of the key findings.
+           - One line on anything you could NOT find or verify.
+
+      Rules:
+        - Stay focused on the research goal; do not expand scope.
+        - Prefer primary/official sources (docs, RFCs, reputable outlets) over
+          aggregators.
+        - If search returns nothing useful after 2-3 query refinements, still
+          write the report (documenting what was tried and what was not found)
+          and report that honestly rather than fabricating.
+        - You may ONLY create/modify files under `.roo/research/`. Never touch
+          any other workspace file.
+        - The report file must be self-contained: a reader who never sees your
+          completion summary must get the full picture from the file alone.
+    whenToUse: Delegate to this expert when a task needs current information from the web (news, docs, recent releases, pricing, etc.). It searches the web, writes a cited report to .roo/research/, and returns the path plus a summary.
+    description: Web research specialist that searches, writes a cited report to .roo/research/, and returns the path plus a summary.
+    groups:
+      - read
+      - web
+      - - edit
+        - fileRegex: \.roo/research/.*\.md$
+          description: Research reports only
+      - mcp
+      - command
+    source: project
+    kind: autonomous
+    useAgentRules: false
+    terminationHint: |-
+      - The research goal has been answered with information from the web, or a
+        genuine attempt (2-3 query refinements) failed and that is reported.
+      - A full report file exists under .roo/research/ and its path is included
+        in the completion result.
+      - The report cites sources with URLs for every non-trivial claim.
+      - No files outside .roo/research/ were created or modified.

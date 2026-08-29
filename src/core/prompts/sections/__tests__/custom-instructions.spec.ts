@@ -585,6 +585,121 @@ describe("addCustomInstructions", () => {
 		expect(result).not.toContain("Agent rules from AGENTS.md file")
 	})
 
+	it("should skip AGENTS.md when mode-level useAgentRules is false even if global setting is on", async () => {
+		// Simulate no .roo/rules-test-mode directory
+		statMock.mockRejectedValueOnce({ code: "ENOENT" })
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString()
+			if (pathStr.endsWith("AGENTS.md")) {
+				return Promise.resolve("Agent rules from AGENTS.md file")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseAgentRules: false,
+			},
+		)
+
+		expect(result).not.toContain("# Agent Rules Standard (AGENTS.md):")
+		expect(result).not.toContain("Agent rules from AGENTS.md file")
+	})
+
+	it("should load AGENTS.md when mode-level useAgentRules is true and global setting is on", async () => {
+		// Simulate no .roo/rules-test-mode directory
+		statMock.mockRejectedValueOnce({ code: "ENOENT" })
+
+		// Mock lstat to indicate AGENTS.md is NOT a symlink
+		lstatMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString()
+			if (pathStr.endsWith("AGENTS.md")) {
+				return Promise.resolve({
+					isSymbolicLink: vi.fn().mockReturnValue(false),
+				})
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString()
+			if (pathStr.endsWith("AGENTS.md")) {
+				return Promise.resolve("Agent rules from AGENTS.md file")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseAgentRules: true,
+			},
+		)
+
+		expect(result).toContain("# Agent Rules Standard (AGENTS.md):")
+		expect(result).toContain("Agent rules from AGENTS.md file")
+	})
+
+	it("should load AGENTS.md when mode-level useAgentRules is undefined (inherits global)", async () => {
+		// Simulate no .roo/rules-test-mode directory
+		statMock.mockRejectedValueOnce({ code: "ENOENT" })
+
+		// Mock lstat to indicate AGENTS.md is NOT a symlink
+		lstatMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString()
+			if (pathStr.endsWith("AGENTS.md")) {
+				return Promise.resolve({
+					isSymbolicLink: vi.fn().mockReturnValue(false),
+				})
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		readFileMock.mockImplementation((filePath: PathLike) => {
+			const pathStr = filePath.toString()
+			if (pathStr.endsWith("AGENTS.md")) {
+				return Promise.resolve("Agent rules from AGENTS.md file")
+			}
+			return Promise.reject({ code: "ENOENT" })
+		})
+
+		const result = await addCustomInstructions(
+			"mode instructions",
+			"global instructions",
+			"/fake/path",
+			"test-mode",
+			{
+				settings: {
+					todoListEnabled: true,
+					useAgentRules: true,
+					newTaskRequireTodos: false,
+				},
+				modeUseAgentRules: undefined,
+			},
+		)
+
+		expect(result).toContain("# Agent Rules Standard (AGENTS.md):")
+		expect(result).toContain("Agent rules from AGENTS.md file")
+	})
+
 	it("should load AGENTS.md by default when settings.useAgentRules is undefined", async () => {
 		// Simulate no .roo/rules-test-mode directory
 		statMock.mockRejectedValueOnce({ code: "ENOENT" })
