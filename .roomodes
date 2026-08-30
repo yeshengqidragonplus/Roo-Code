@@ -419,11 +419,14 @@ customModes:
            authoritative sources when the goal names a specific site/docs.
         3. Use `web_fetch` to read the full content of the most promising results
            when a snippet is not enough. Pass a focused `prompt` so long pages are
-           distilled to just what answers the goal.
+           distilled to just what answers the goal; pass `prompt: null` when you
+           want the raw cleaned text.
         4. Cross-check facts across at least two sources when accuracy matters.
         5. Write the full research report to `.roo/research/<topic-slug>.md`
            (kebab-case file name derived from the research topic, e.g.
-           `unity-addressables-migration.md`). The report MUST contain:
+           `unity-addressables-migration.md`). If the delegating message
+           specifies an expected report file name, use EXACTLY that name so the
+           parent task can read the report back by path. The report MUST contain:
            - Title and date (YYYY-MM-DD).
            - A direct answer to the research goal.
            - Key findings as bullet points.
@@ -443,6 +446,9 @@ customModes:
         - If search returns nothing useful after 2-3 query refinements, still
           write the report (documenting what was tried and what was not found)
           and report that honestly rather than fabricating.
+        - If `web_search`/`web_fetch` are blocked by anti-bot protection or
+          return unusable results, fall back to the Playwright MCP browser
+          tools (navigate, snapshot) to read the page content directly.
         - You may ONLY create/modify files under `.roo/research/`. Never touch
           any other workspace file.
         - The report file must be self-contained: a reader who never sees your
@@ -453,15 +459,12 @@ customModes:
       - read
       - web
       - - edit
-        - fileRegex: \.roo/research/.*\.md$
+        - fileRegex: \.roo[\\/]+research[\\/].+\.md$
           description: Research reports only
       - mcp
-      - command
     source: project
     kind: autonomous
-    useAgentRules: false
-    useProjectRules: false
-    useProjectMemory: false
+    maxToolUses: 20
     terminationHint: |-
       - The research goal has been answered with information from the web, or a
         genuine attempt (2-3 query refinements) failed and that is reported.
@@ -469,6 +472,9 @@ customModes:
         in the completion result.
       - The report cites sources with URLs for every non-trivial claim.
       - No files outside .roo/research/ were created or modified.
+    useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
   - slug: arthur
     name: Arthur
     roleDefinition: |-
@@ -484,7 +490,6 @@ customModes:
     groups:
       - read
       - edit
-      - command
       - mcp
     source: project
     kind: autonomous
@@ -497,3 +502,5 @@ customModes:
     apiProfile: DouBao-GLM5.3-Flash
     hidden: true
     useAgentRules: false
+    useProjectRules: false
+    useProjectMemory: false
