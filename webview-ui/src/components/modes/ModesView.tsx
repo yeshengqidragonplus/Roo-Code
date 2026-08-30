@@ -10,7 +10,7 @@ import {
 import { Trans } from "react-i18next"
 import { ChevronDown, X, Upload, Download } from "lucide-react"
 
-import { ModeConfig, GroupEntry, PromptComponent, ToolGroup, modeConfigSchema } from "@roo-code/types"
+import { ModeConfig, GroupEntry, PromptComponent, ToolGroup, ToolName, modeConfigSchema } from "@roo-code/types"
 
 import {
 	Mode,
@@ -53,6 +53,33 @@ import { useEscapeKey } from "@src/hooks/useEscapeKey"
 
 // Get all available groups that should show in prompts view
 const availableGroups = (Object.keys(TOOL_GROUPS) as ToolGroup[]).filter((group) => !TOOL_GROUPS[group].alwaysAvailable)
+const nativeToolGroups = availableGroups.filter((group) => group !== "mcp")
+
+const nativeToolLabels: Partial<Record<ToolName, string>> = {
+	read_file: "读取文件",
+	search_files: "搜索文件内容",
+	list_files: "列出文件",
+	codebase_search: "代码库语义搜索",
+	apply_diff: "应用差异修改",
+	write_to_file: "写入文件",
+	generate_image: "生成图片",
+	edit: "搜索替换编辑",
+	search_replace: "单次搜索替换",
+	edit_file: "精确编辑文件",
+	apply_patch: "应用补丁",
+	execute_command: "运行命令",
+	read_command_output: "读取命令输出",
+	web_search: "网络搜索",
+	web_fetch: "读取网页",
+}
+
+function getSelectableTools(group: ToolGroup): ToolName[] {
+	return [...TOOL_GROUPS[group].tools, ...(TOOL_GROUPS[group].customTools ?? [])] as ToolName[]
+}
+
+function getLegacyNativeToolNames(groups: readonly GroupEntry[]): ToolName[] {
+	return groups.flatMap((entry) => TOOL_GROUPS[getGroupName(entry)].tools) as ToolName[]
+}
 
 type ModeSource = "global" | "project"
 
@@ -593,30 +620,52 @@ const ModesView = () => {
 		setIsCreateModeDialogOpen(true)
 	}, [generateSlug, isNameOrSlugTaken])
 
-	// Handler for group checkbox changes
-	const handleGroupChange = useCallback(
-		(group: ToolGroup, isCustomMode: boolean, customMode: ModeConfig | undefined) =>
-			(e: Event | React.FormEvent<HTMLElement>) => {
-				if (!isCustomMode) return // Prevent changes to built-in modes
+	// Exact tool selection is opt-in: existing Modes keep legacy whole-group
+	// behavior until the first edit, then persist an explicit allowlist.
+	const handleNativeToolChange = useCallback(
+		(tool: ToolName, group: ToolGroup, customMode: ModeConfig | undefined) =>
+		(e: Event | React.FormEvent<HTMLElement>) => {
+				if (!customMode) return
 				const target = (e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
 				const checked = target.checked
-				const oldGroups = customMode?.groups || []
-				let newGroups: GroupEntry[]
-				if (checked) {
-					newGroups = [...oldGroups, group]
-				} else {
-					newGroups = oldGroups.filter((g) => getGroupName(g) !== group)
-				}
-				if (customMode) {
-					const source = customMode.source || "global"
+				const selected = new Set(customMode.nativeToolNames ?? getLegacyNativeToolNames(customMode.groups))
+				if (checked) selected.add(tool)
+				else selected.delete(tool)
 
-					updateCustomMode(customMode.slug, {
-						...customMode,
-						groups: newGroups,
-						source,
-					})
-				}
+				const hasToolInGroup = getSelectableTools(group).some((item) => selected.has(item))
+				const groupExists = customMode.groups.some((entry) => getGroupName(entry) === group)
+				const groups = hasToolInGroup
+					? groupExists
+						? customMode.groups
+						: [...customMode.groups, group]
+					: customMode.groups.filter((entry) => getGroupName(entry) !== group)
+
+				updateCustomMode(customMode.slug, {
+					...customMode,
+					groups,
+					nativeToolNames: Array.from(selected),
+					source: customMode.source || "global",
+				})
 			},
+		[updateCustomMode],
+	)
+
+	const handleMcpGroupChange = useCallback(
+		(customMode: ModeConfig | undefined) => (e: Event | React.FormEvent<HTMLElement>) => {
+			if (!customMode) return
+			const target = (e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
+			const checked = target.checked
+			const groups: GroupEntry[] = checked
+				? customMode.groups.some((entry) => getGroupName(entry) === "mcp")
+					? customMode.groups
+					: [...customMode.groups, "mcp" as ToolGroup]
+				: customMode.groups.filter((entry) => getGroupName(entry) !== "mcp")
+			updateCustomMode(customMode.slug, {
+				...customMode,
+				groups,
+				source: customMode.source || "global",
+			})
+		},
 		[updateCustomMode],
 	)
 
@@ -1321,37 +1370,23 @@ const ModesView = () => {
 							</div>
 						)}
 						{isToolsEditMode && findModeBySlug(visualMode, customModes) ? (
-							<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
-								{availableGroups.map((group) => {
-									const currentMode = getCurrentMode()
-									const isCustomMode = findModeBySlug(visualMode, customModes)
-									const customMode = isCustomMode
-									const isGroupEnabled = isCustomMode
-										? customMode?.groups?.some((g) => getGroupName(g) === group)
-										: currentMode?.groups?.some((g) => getGroupName(g) === group)
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+								{nativeToolGroups.map((group) => {
+									const customMode = findModeBySlug(visualMode, customModes)!
+									const selected = new Set(customMode.nativeToolNames ?? getLegacyNativeToolNames(customMode.groups))
 
 									return (
-										<VSCodeCheckbox
-											key={group}
-											checked={isGroupEnabled}
-											onChange={handleGroupChange(group, Boolean(isCustomMode), customMode)}
-											disabled={!isCustomMode}>
-											{t(`prompts:tools.toolNames.${group}`)}
-											{group === "edit" && (
-												<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-													{t("prompts:tools.allowedFiles")}{" "}
-													{(() => {
-														const currentMode = getCurrentMode()
-														const editGroup = currentMode?.groups?.find(
-															(g) =>
-																Array.isArray(g) && g[0] === "edit" && g[1]?.fileRegex,
-														)
-														if (!Array.isArray(editGroup)) return t("prompts:allFiles")
-														return editGroup[1].description || `/${editGroup[1].fileRegex}/`
-													})()}
-												</div>
-											)}
-										</VSCodeCheckbox>
+										<div key={group} className="rounded border border-vscode-panel-border p-2">
+											<div className="font-semibold text-sm mb-1">{t(`prompts:tools.toolNames.${group}`)}</div>
+											{getSelectableTools(group).map((tool) => (
+												<VSCodeCheckbox
+													key={tool}
+													checked={selected.has(tool)}
+													onChange={handleNativeToolChange(tool, group, customMode)}>
+													{nativeToolLabels[tool] ?? tool}
+												</VSCodeCheckbox>
+											))}
+										</div>
 									)
 								})}
 							</div>
@@ -1364,6 +1399,16 @@ const ModesView = () => {
 									// If there are no enabled groups, display translated "None"
 									if (enabledGroups.length === 0) {
 										return t("prompts:tools.noTools")
+									}
+
+									if (currentMode?.nativeToolNames !== undefined) {
+										const displayTools = currentMode.nativeToolNames
+											.filter((tool) => tool !== "use_mcp_tool" && tool !== "access_mcp_resource")
+											.map((tool) => nativeToolLabels[tool] ?? tool)
+										if (enabledGroups.some((group) => getGroupName(group) === "mcp")) {
+											displayTools.push("MCP 服务")
+										}
+										return displayTools.join(", ") || t("prompts:tools.noTools")
 									}
 
 									return enabledGroups
@@ -1406,6 +1451,11 @@ const ModesView = () => {
 
 							return (
 								<>
+									<VSCodeCheckbox
+										checked={Boolean(canUseMcp)}
+										onChange={handleMcpGroupChange(findModeBySlug(visualMode, customModes))}>
+										启用 MCP 服务
+									</VSCodeCheckbox>
 									{!canUseMcp && (
 										<div className="text-sm text-vscode-descriptionForeground mb-2">
 											请先在“工具权限”中开启 MCP，才能为此 Mode 分配服务。

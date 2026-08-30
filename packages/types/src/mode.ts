@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { deprecatedToolGroups, toolGroupsSchema } from "./tool.js"
+import { deprecatedToolGroups, toolGroupsSchema, toolNamesSchema } from "./tool.js"
 import { expertModeFields } from "./expert.js"
 
 /**
@@ -102,6 +102,13 @@ export const modeConfigSchema = z.object({
 	description: z.string().optional(),
 	customInstructions: z.string().optional(),
 	groups: groupEntryArraySchema,
+	/**
+	 * Optional exact native-tool allowlist. When omitted, `groups` retains its
+	 * legacy meaning and grants all regular tools in every selected group. When
+	 * present (including an empty array), it narrows those groups to precisely
+	 * the selected native tools. MCP server assignment remains separate.
+	 */
+	nativeToolNames: z.array(toolNamesSchema).optional(),
 	source: z.enum(["global", "project"]).optional(),
 	// Expert system fields (optional; a plain mode is a default autonomous
 	// expert). Defined in expert.ts; see docs/expert-system-design.md.

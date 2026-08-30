@@ -51,6 +51,22 @@ describe("mode-validator", () => {
 		})
 
 		describe("custom modes", () => {
+			it("enforces an explicit native tool selection inside selected groups", () => {
+				const customModes: ModeConfig[] = [
+					{
+						slug: "precise-mode",
+						name: "Precise Mode",
+						roleDefinition: "test",
+						groups: ["read", "edit"],
+						nativeToolNames: ["read_file"],
+					},
+				]
+
+				expect(isToolAllowedForMode("read_file", "precise-mode", customModes)).toBe(true)
+				expect(isToolAllowedForMode("search_files", "precise-mode", customModes)).toBe(false)
+				expect(isToolAllowedForMode("write_to_file", "precise-mode", customModes)).toBe(false)
+			})
+
 			it("allows tools from custom mode configuration", () => {
 				const customModes: ModeConfig[] = [
 					{

@@ -91,6 +91,31 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 	})
 })
 
+describe("filterNativeToolsForMode - exact Mode tool selection", () => {
+	const nativeTools: OpenAI.Chat.ChatCompletionTool[] = [
+		makeTool("read_file"),
+		makeTool("search_files"),
+		makeTool("write_to_file"),
+		makeTool("execute_command"),
+		makeTool("attempt_completion"),
+	]
+
+	it("only injects explicitly selected native tools while retaining required lifecycle tools", () => {
+		const customModes = [
+			{
+				slug: "precise-mode",
+				name: "Precise Mode",
+				roleDefinition: "test",
+				groups: ["read", "edit", "command"],
+				nativeToolNames: ["read_file"],
+			},
+		] as any
+
+		const result = filterNativeToolsForMode(nativeTools, "precise-mode", customModes, undefined)
+		expect(result.map((tool) => (tool as any).function.name)).toEqual(["read_file", "attempt_completion"])
+	})
+})
+
 describe("filterMcpToolsForMode - per-server mode visibility", () => {
 	function makeMcpHub(servers: Array<{ name: string; modes?: string[] }>): McpHub {
 		return {

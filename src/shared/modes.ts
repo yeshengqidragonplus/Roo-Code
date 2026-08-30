@@ -25,14 +25,21 @@ export function getGroupName(group: GroupEntry): ToolGroup {
 }
 
 // Helper to get all tools for a mode
-export function getToolsForMode(groups: readonly GroupEntry[]): string[] {
+export function getToolsForMode(groups: readonly GroupEntry[], nativeToolNames?: readonly string[]): string[] {
 	const tools = new Set<string>()
+	const selectedTools = nativeToolNames === undefined ? undefined : new Set(nativeToolNames)
 
-	// Add tools from each group (excluding customTools which are opt-in only)
+	// Legacy modes select entire groups. A configured nativeToolNames allowlist
+	// narrows each selected group and can explicitly opt into custom tools.
 	groups.forEach((group) => {
 		const groupName = getGroupName(group)
 		const groupConfig = TOOL_GROUPS[groupName]
-		groupConfig.tools.forEach((tool: string) => tools.add(tool))
+		const groupTools = [...groupConfig.tools, ...(groupConfig.customTools ?? [])]
+		groupTools.forEach((tool: string) => {
+			if (selectedTools === undefined ? groupConfig.tools.includes(tool as any) : selectedTools.has(tool)) {
+				tools.add(tool)
+			}
+		})
 	})
 
 	// Always add required tools

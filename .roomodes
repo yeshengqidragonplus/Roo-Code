@@ -400,7 +400,6 @@ customModes:
         - unity-operator
         - image-content-extractor
         - second-opinion-advisor
-        - arthur
       leadModeSlug: arthur
   - slug: web-researcher
     name: 🔍 Web Researcher
@@ -447,8 +446,8 @@ customModes:
           write the report (documenting what was tried and what was not found)
           and report that honestly rather than fabricating.
         - If `web_search`/`web_fetch` are blocked by anti-bot protection or
-          return unusable results, fall back to the Playwright MCP browser
-          tools (navigate, snapshot) to read the page content directly.
+          return unusable results, use an assigned browser MCP only when one is
+          available; otherwise report the limitation honestly.
         - You may ONLY create/modify files under `.roo/research/`. Never touch
           any other workspace file.
         - The report file must be self-contained: a reader who never sees your
@@ -490,6 +489,7 @@ customModes:
     groups:
       - read
       - edit
+      - command
       - mcp
     source: project
     kind: autonomous
@@ -501,6 +501,3 @@ customModes:
       reportMode: summary
     apiProfile: DouBao-GLM5.3-Flash
     hidden: true
-    useAgentRules: false
-    useProjectRules: false
-    useProjectMemory: false

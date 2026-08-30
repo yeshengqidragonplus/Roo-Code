@@ -10,8 +10,9 @@ import {
 	getExecutionModeConfig,
 	getGroupName,
 	getModeSelection,
+	getToolsForMode,
 } from "../../shared/modes"
-import { DiffStrategy } from "../../shared/tools"
+import { ALWAYS_AVAILABLE_TOOLS, DiffStrategy } from "../../shared/tools"
 import { formatLanguage } from "../../shared/language"
 import { isEmpty } from "../../utils/object"
 
@@ -89,9 +90,15 @@ async function generatePrompt(
 		getModesSection(context, mode, customModeConfigs),
 		getSkillsSection(skillsManager, executionMode),
 	])
-	const hasNonMcpToolGroup = modeConfig.groups.some((groupEntry) => getGroupName(groupEntry) !== "mcp")
+	// `groups` are a legacy coarse capability declaration. A Mode that has
+	// switched to `nativeToolNames: []` still retains those group names for
+	// compatibility, but has no callable native tools. Base the TOOL USE
+	// protocol on the resolved selection so an empty allowlist stays minimal.
+	const hasAssignedNativeTool = getToolsForMode(modeConfig.groups, modeConfig.nativeToolNames).some(
+		(tool) => !ALWAYS_AVAILABLE_TOOLS.includes(tool as (typeof ALWAYS_AVAILABLE_TOOLS)[number]),
+	)
 	const shouldIncludeToolUse =
-		hasNonMcpToolGroup || shouldIncludeMcp || Boolean(skillsSection) || Boolean(modeConfig.delegation?.canDelegate)
+		hasAssignedNativeTool || shouldIncludeMcp || Boolean(skillsSection) || Boolean(modeConfig.delegation?.canDelegate)
 	const toolUseSection = shouldIncludeToolUse ? getSharedToolUseSection(modeConfig.toolUsePolicy) : ""
 
 	// Tools catalog is not included in the system prompt.

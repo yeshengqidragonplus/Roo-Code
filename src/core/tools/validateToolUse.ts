@@ -173,6 +173,16 @@ export function isToolAllowedForMode(
 		return false
 	}
 
+	// A configured exact selection narrows the legacy group permission. Keep
+	// lifecycle tools above as always available, and let MCP visibility remain
+	// governed by its dedicated per-server assignment.
+	if (!isDynamicMcpTool && mode.nativeToolNames !== undefined) {
+		const selectedTools = mode.nativeToolNames.map((name) => TOOL_ALIASES[name] ?? name)
+		if (!selectedTools.includes(resolvedTool)) {
+			return false
+		}
+	}
+
 	// Check if tool is in any of the mode's groups and respects any group options
 	for (const group of mode.groups) {
 		const groupName = getGroupName(group)
@@ -191,7 +201,8 @@ export function isToolAllowedForMode(
 
 		// Check if the tool is a custom tool that has been explicitly included
 		const isCustomTool =
-			groupConfig.customTools?.includes(resolvedTool) && resolvedIncludedTools?.includes(resolvedTool)
+			groupConfig.customTools?.includes(resolvedTool) &&
+			(resolvedIncludedTools?.includes(resolvedTool) || mode.nativeToolNames?.includes(resolvedTool as ToolName))
 
 		// If the tool isn't in regular tools and isn't an included custom tool, continue to next group
 		if (!isRegularTool && !isCustomTool) {

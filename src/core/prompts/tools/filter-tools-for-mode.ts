@@ -244,7 +244,7 @@ export function filterNativeToolsForMode(
 	}
 
 	// Get all tools for this mode (including always-available tools)
-	const allToolsForMode = getToolsForMode(modeConfig.groups)
+	const allToolsForMode = getToolsForMode(modeConfig.groups, modeConfig.nativeToolNames)
 
 	// Filter to only tools that pass permission checks
 	let allowedToolNames = new Set(
@@ -268,6 +268,18 @@ export function filterNativeToolsForMode(
 		modelInfo,
 	)
 	allowedToolNames = customizedTools
+
+	// A Mode's explicit native-tool selection is a hard upper bound. Model
+	// profile "includedTools" may restore opt-in tools within a group, but must
+	// never bypass the Mode editor's allowlist.
+	if (modeConfig.nativeToolNames !== undefined) {
+		const selectedTools = new Set(modeConfig.nativeToolNames.map(resolveToolAlias))
+		for (const tool of allowedToolNames) {
+			if (!ALWAYS_AVAILABLE_TOOLS.includes(tool as ToolName) && !selectedTools.has(tool)) {
+				allowedToolNames.delete(tool)
+			}
+		}
+	}
 
 	// Conditionally exclude codebase_search if feature is disabled or not configured
 	if (

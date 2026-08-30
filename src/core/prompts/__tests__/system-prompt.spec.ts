@@ -383,6 +383,33 @@ describe("SYSTEM_PROMPT", () => {
 		expect(customInstructionsIndex).toBeGreaterThan(userInstructionsHeader)
 	})
 
+	it("omits TOOL USE when an explicit native-tool allowlist is empty", async () => {
+		const customModes: ModeConfig[] = [
+			{
+				slug: "no-tools-mode",
+				name: "No Tools",
+				roleDefinition: "No tools role definition",
+				groups: ["read"] as const,
+				nativeToolNames: [],
+			},
+		]
+
+		const prompt = await SYSTEM_PROMPT(
+			mockContext,
+			"/test/path",
+			false,
+			undefined,
+			undefined,
+			"no-tools-mode",
+			undefined,
+			customModes,
+			undefined,
+			experiments,
+		)
+
+		expect(prompt).not.toContain("TOOL USE")
+	})
+
 	it("should inject TASK COMPLETION CRITERIA for an autonomous expert with a terminationHint", async () => {
 		const customModes: ModeConfig[] = [
 			{
