@@ -22,9 +22,18 @@ export async function getModesSection(
 	// lead's prompt defeats progressive capability expansion and misleads it into
 	// attempting invalid delegations.
 	if (runtimeMode?.workgroup) {
+		const leadModeSlug = runtimeMode.workgroup.leadModeSlug
 		const colleagueSlugs = new Set(runtimeMode.workgroup.colleagueSlugs)
-		const colleagues = allModes.filter((mode) => colleagueSlugs.has(mode.slug))
-		const leadName = runtimeMode.workgroup.leadModeSlug ?? runtimeMode.name
+		// The lead executes the workgroup itself; listing it as a colleague would
+		// invite self-delegation. Hidden modes stay delegable via new_task but are
+		// never advertised.
+		const colleagues = allModes.filter(
+			(mode) => colleagueSlugs.has(mode.slug) && mode.slug !== leadModeSlug && !mode.hidden,
+		)
+		// The lead is a replaceable placeholder: the workgroup binds whichever
+		// Mode its leadModeSlug points at, so display that Mode's name.
+		const leadMode = leadModeSlug ? allModes.find((m) => m.slug === leadModeSlug) : undefined
+		const leadName = leadMode?.name ?? leadModeSlug ?? runtimeMode.name
 		const instructions = runtimeMode.workgroup.instructions?.trim()
 
 		return `====
@@ -41,12 +50,20 @@ ${colleagues
 	.join("\n")}${instructions ? `\n\nWORKGROUP RULES\n\n${instructions}` : ""}`
 	}
 
+	// An expert mode (kind set) is a self-contained specialist: it neither knows
+	// about nor delegates to other modes, so the global MODES list is noise for
+	// it. Plain modes keep the full list for switch_mode.
+	if (runtimeMode?.kind) {
+		return ""
+	}
+
 	const modesContent = `====
 
 MODES
 
 - These are the currently available modes:
 ${allModes
+	.filter((mode: ModeConfig) => !mode.hidden)
 	.map((mode: ModeConfig) => {
 		let description: string
 		if (mode.whenToUse && mode.whenToUse.trim() !== "") {
