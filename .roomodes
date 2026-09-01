@@ -361,8 +361,7 @@ customModes:
     source: project
   - slug: zhangu-game-studio
     name: 战鼓工作室
-    roleDefinition: |-
-      "战鼓工作室"群组的执行上下文。群组运行时以主程（workgroup.leadModeSlug 指向的模式）的身份与提示词执行，本字段不直接进入系统提示词：主程定位与协作规则配置在 workgroup.instructions，组内同事介绍由 colleagueSlugs 动态拼接。
+    roleDefinition: '"战鼓工作室"群组的执行上下文。群组运行时以主程（workgroup.leadModeSlug 指向的模式）的身份与提示词执行，本字段不直接进入系统提示词：主程定位与协作规则配置在 workgroup.instructions，组内同事介绍由 colleagueSlugs 动态拼接。'
     whenToUse: 用于需要协调项目知识、网络资料、Unity 工程事实、Jenkins 日志、图片内容或第二视角诊断的 Unity 游戏开发任务。
     description: 战鼓工作室 Unity 游戏开发协调群组。
     groups:
@@ -486,6 +485,21 @@ customModes:
       - edit
       - command
       - mcp
+    nativeToolNames:
+      - read_file
+      - search_files
+      - list_files
+      - codebase_search
+      - apply_diff
+      - write_to_file
+      - generate_image
+      - execute_command
+      - read_command_output
+      - use_mcp_tool
+      - access_mcp_resource
+      - edit_file
+      - search_replace
+      - edit
     source: project
     kind: autonomous
     apiProfile: DouBao-GLM5.3-Flash
