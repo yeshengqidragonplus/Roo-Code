@@ -85,6 +85,8 @@ import { CustomModesManager } from "../config/CustomModesManager"
 import { Task } from "../task/Task"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
+import { DelegationRouter, frameDelegationRequest } from "../delegation/DelegationRouter"
+import { LineRequestQueue } from "../delegation/LineRequestQueue"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
 import { isBareFilePath, isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
 import { registerWebviewImageUri } from "../../integrations/misc/image-handler"
@@ -3036,6 +3038,10 @@ export class ClineProvider
 	 * - Persist parent delegation metadata
 	 * - Emit TaskDelegated (task-level; API forwards to provider/bridge)
 	 * - Create child as sole active and switch mode to child's mode
+	 *
+	 * When `lineMetadata` is provided the child is tagged as an expert line
+	 * session (sessionKind="expert-line") so the DelegationRouter can find and
+	 * reuse it for subsequent delegations from the same origin task.
 	 */
 	public async delegateParentAndOpenChild(params: {
 		parentTaskId: string
@@ -3043,8 +3049,9 @@ export class ClineProvider
 		initialTodos: TodoItem[]
 		mode: string
 		images?: string[]
+		lineMetadata?: { originTaskId: string; expertMode: string }
 	}): Promise<Task> {
-		const { parentTaskId, message, initialTodos, mode, images } = params
+		const { parentTaskId, message, initialTodos, mode, images, lineMetadata } = params
 
 		// Metadata-driven delegation is always enabled
 
@@ -3176,6 +3183,30 @@ export class ClineProvider
 					(err as Error)?.message ?? String(err)
 				}`,
 			)
+		}
+
+		// 5a) Tag the child as an expert line session when requested so the
+		//     DelegationRouter can find and reuse it for later delegations from
+		//     the same origin task. Written after the parent metadata (step 5)
+		//     to avoid racing the child's own history writes (startTask: false
+		//     keeps the child quiet until step 6).
+		if (lineMetadata) {
+			try {
+				const { historyItem: childHistory } = await this.getTaskWithId(child.taskId)
+				await this.updateTaskHistory({
+					...childHistory,
+					sessionKind: "expert-line",
+					lineOriginTaskId: lineMetadata.originTaskId,
+					lineExpertMode: lineMetadata.expertMode,
+					lineRequestCount: 1,
+				})
+			} catch (err) {
+				this.log(
+					`[delegateParentAndOpenChild] Failed to tag child ${child.taskId} as expert line: ${
+						(err as Error)?.message ?? String(err)
+					}`,
+				)
+			}
 		}
 
 		// 5b) Apply the child expert mode's maxToolUses hard cap (if declared)
@@ -3342,14 +3373,20 @@ export class ClineProvider
 			await this.removeClineFromStack()
 		}
 
-		// 4) Update child metadata to "completed" status.
+		// 4) Update child metadata status.
 		//    This runs after the abort so it overwrites the stale "active" status
 		//    that saveClineMessages() may have written during step 3.
+		//    Expert line sessions go to "idle" (reusable for the next delegation
+		//    from the same origin) instead of "completed" (closed).
+		let isExpertLine = false
 		try {
 			const { historyItem: childHistory } = await this.getTaskWithId(childTaskId)
+			isExpertLine = childHistory.sessionKind === "expert-line"
 			await this.updateTaskHistory({
 				...childHistory,
-				status: "completed",
+				status: isExpertLine ? "idle" : "completed",
+				// A completed request resets the consecutive-failure counter.
+				...(isExpertLine ? { lineConsecutiveFailures: 0 } : {}),
 			})
 		} catch (err) {
 			this.log(
@@ -3422,6 +3459,321 @@ export class ClineProvider
 		} catch {
 			// non-fatal
 		}
+
+		// 10) Expert line: serve the next queued request (Phase 4). The line
+		//     went idle in step 4; if its persistent queue holds requests from
+		//     other origins, resume the line for the oldest one. Best-effort —
+		//     a failure here leaves the request queued for the next drain.
+		if (isExpertLine) {
+			try {
+				await this.drainLineQueue(childTaskId)
+			} catch (err) {
+				this.log(
+					`[reopenParentFromDelegation] Failed to drain line queue for ${childTaskId} (non-fatal): ${
+						(err as Error)?.message ?? String(err)
+					}`,
+				)
+			}
+		}
+	}
+
+	/**
+	 * Serve the next queued request on an idle expert line (Phase 4).
+	 *
+	 * Loads the line's persistent queue, drops requests whose origin task no
+	 * longer exists (lazy GC), and — when a request remains — resumes the line
+	 * for it. The resumed origin is suspended exactly like a fresh delegation
+	 * (resumeLineSession handles the single-open invariant).
+	 */
+	private async drainLineQueue(lineTaskId: string): Promise<void> {
+		const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
+		const taskDir = await getTaskDirectoryPath(globalStoragePath, lineTaskId)
+		const queue = await LineRequestQueue.load(taskDir)
+
+		// Lazy GC: drop requests whose origin task was deleted.
+		for (const req of queue.all()) {
+			try {
+				await this.getTaskWithId(req.originTaskId)
+			} catch {
+				queue.removeById(req.requestId)
+				this.log(`[drainLineQueue] Dropped queued request ${req.requestId}: origin ${req.originTaskId} gone`)
+			}
+		}
+
+		if (queue.isEmpty()) {
+			await queue.save(taskDir)
+			return
+		}
+
+		const next = queue.dequeue()!
+		await queue.save(taskDir)
+
+		const { historyItem: lineHistory } = await this.getTaskWithId(lineTaskId)
+		if (lineHistory.sessionKind !== "expert-line" || lineHistory.status !== "idle") {
+			// Line was closed/rotated meanwhile — requeue so the next line
+			// created for this (origin, expert) pair can pick it up.
+			queue.enqueue({
+				requestId: next.requestId,
+				originTaskId: next.originTaskId,
+				message: next.message,
+				images: next.images,
+			})
+			await queue.save(taskDir)
+			return
+		}
+
+		this.log(
+			`[drainLineQueue] Serving queued request ${next.requestId} from ${next.originTaskId} on line ${lineTaskId}`,
+		)
+		await this.resumeLineSession({
+			originTaskId: next.originTaskId,
+			lineHistoryItem: lineHistory,
+			message: next.message,
+			...(next.images ? { images: next.images } : {}),
+		})
+	}
+
+	/**
+	 * Resume an idle expert line session and inject a new delegation request.
+	 *
+	 * The line keeps its full conversation history (context continuity within
+	 * the same origin task is the point of expert lines). The new request is
+	 * appended as a user message wrapped in a boundary marker so the expert
+	 * can tell requests apart. Per-request state (tool budget) is reset.
+	 *
+	 * Mirrors delegateParentAndOpenChild's ordering guarantees:
+	 * 1. flush origin's pending tool results (API contract)
+	 * 2. suspend the origin (single-open invariant) + persist awaitingChildId
+	 * 3. switch mode/profile to the expert's
+	 * 4. instantiate the line Task from its historyItem (startTask: false)
+	 * 5. bump lineRequestCount, set status "active"
+	 * 6. start the loop with the framed request
+	 */
+	public async resumeLineSession(params: {
+		originTaskId: string
+		lineHistoryItem: HistoryItem
+		message: string
+		images?: string[]
+	}): Promise<Task> {
+		const { originTaskId, lineHistoryItem, message, images } = params
+		const lineTaskId = lineHistoryItem.id
+		const expertMode = lineHistoryItem.lineExpertMode ?? lineHistoryItem.mode ?? defaultModeSlug
+
+		// 1) Origin must be the current task; flush pending tool results.
+		const origin = this.getCurrentTask()
+		if (!origin) {
+			throw new Error("[resumeLineSession] No current task")
+		}
+		if (origin.taskId !== originTaskId) {
+			throw new Error(`[resumeLineSession] Origin mismatch: expected ${originTaskId}, current ${origin.taskId}`)
+		}
+		try {
+			const flushSuccess = await origin.flushPendingToolResultsToHistory()
+			if (!flushSuccess) {
+				await origin.retrySaveApiConversationHistory()
+			}
+		} catch (error) {
+			this.log(
+				`[resumeLineSession] Error flushing pending tool results (non-fatal): ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
+
+		// 2) Suspend the origin (single-open invariant) and persist its
+		//    awaiting state so completion can route back to it.
+		try {
+			await this.removeClineFromStack({ skipDelegationRepair: true })
+		} catch (error) {
+			this.log(
+				`[resumeLineSession] Error during origin disposal (non-fatal): ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			)
+		}
+		try {
+			const { historyItem } = await this.getTaskWithId(originTaskId)
+			const childIds = Array.from(new Set([...(historyItem.childIds ?? []), lineTaskId]))
+			await this.updateTaskHistory({
+				...historyItem,
+				status: "delegated",
+				delegatedToId: lineTaskId,
+				awaitingChildId: lineTaskId,
+				childIds,
+			})
+		} catch (err) {
+			this.log(
+				`[resumeLineSession] Failed to persist origin metadata for ${originTaskId} -> ${lineTaskId}: ${
+					(err as Error)?.message ?? String(err)
+				}`,
+			)
+		}
+
+		// 3) Switch provider mode (and profile) to the expert's BEFORE the line
+		//    Task is instantiated, mirroring delegateParentAndOpenChild.
+		try {
+			await this.handleModeSwitch(expertMode as any)
+		} catch (e) {
+			this.log(
+				`[resumeLineSession] handleModeSwitch failed for mode '${expertMode}': ${
+					(e as Error)?.message ?? String(e)
+				}`,
+			)
+		}
+		try {
+			const state = await this.getState()
+			const expertModeConfig = getModeBySlug(expertMode, state.customModes)
+			if (expertModeConfig?.apiConfigName) {
+				await this.setProviderProfile(expertModeConfig.apiConfigName)
+			}
+		} catch (e) {
+			this.log(
+				`[resumeLineSession] Failed to switch provider profile for expert mode '${expertMode}': ${
+					(e as Error)?.message ?? String(e)
+				}`,
+			)
+		}
+
+		// 4) Instantiate the line Task from its historyItem. startTask: false —
+		//    the loop is started manually in step 6 with the framed request.
+		const { apiConfiguration, enableCheckpoints, checkpointTimeout, experiments } = await this.getState()
+		const line = new Task({
+			provider: this,
+			apiConfiguration,
+			enableCheckpoints,
+			checkpointTimeout,
+			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+			historyItem: { ...lineHistoryItem, status: "active" },
+			experiments,
+			taskNumber: lineHistoryItem.number,
+			workspacePath: lineHistoryItem.workspace,
+			onCreated: this.taskCreationCallback,
+			startTask: false,
+			initialStatus: "active",
+		})
+		await this.addClineToStack(line)
+
+		// 5) Bump the request counter and mark the line active BEFORE the loop
+		//    starts writing history.
+		const requestNumber = (lineHistoryItem.lineRequestCount ?? 1) + 1
+		try {
+			const { historyItem: freshLine } = await this.getTaskWithId(lineTaskId)
+			await this.updateTaskHistory({
+				...freshLine,
+				status: "active",
+				lineRequestCount: requestNumber,
+			})
+		} catch (err) {
+			this.log(
+				`[resumeLineSession] Failed to bump line request count for ${lineTaskId}: ${
+					(err as Error)?.message ?? String(err)
+				}`,
+			)
+		}
+
+		// 5b) Per-request tool budget: reset the counter so a reused line gets
+		//     a fresh maxToolUses budget for this request.
+		try {
+			const state = await this.getState()
+			const expertModeConfig = getModeBySlug(expertMode, state.customModes)
+			if (expertModeConfig?.maxToolUses) {
+				line.maxToolUsesLimit = expertModeConfig.maxToolUses
+			}
+		} catch (e) {
+			this.log(
+				`[resumeLineSession] Failed to read maxToolUses for expert mode '${expertMode}': ${
+					(e as Error)?.message ?? String(e)
+				}`,
+			)
+		}
+		line.toolUseCount = 0
+
+		// 6) Start the loop with the framed delegation request.
+		const framed = frameDelegationRequest(requestNumber, originTaskId, message)
+		line.startLineRequest(framed, images)
+
+		try {
+			this.emit(RooCodeEventName.TaskDelegated, originTaskId, lineTaskId)
+		} catch {
+			// non-fatal
+		}
+
+		return line
+	}
+
+	/** Lazily-created DelegationRouter (expert line session routing). */
+	private _delegationRouter?: DelegationRouter
+
+	public get delegationRouter(): DelegationRouter {
+		if (!this._delegationRouter) {
+			this._delegationRouter = new DelegationRouter({
+				getHistoryItems: () => this.taskHistoryStore.getAll(),
+				getState: () => this.getState(),
+				delegateAndOpenChild: (params) => this.delegateParentAndOpenChild(params),
+				resumeLineSession: (params) => this.resumeLineSession(params),
+				getTaskDirectoryPath: (globalStoragePath, taskId) => getTaskDirectoryPath(globalStoragePath, taskId),
+				globalStoragePath: this.contextProxy.globalStorageUri.fsPath,
+				log: (message) => this.log(message),
+			})
+		}
+		return this._delegationRouter
+	}
+
+	/**
+	 * Cancel the current request on an expert line session (user-initiated
+	 * from the line monitoring UI). The line itself survives (goes idle); only
+	 * the in-flight request is terminated. The suspended origin task is
+	 * resumed with a cancellation notice instead of a result so it never
+	 * hangs indefinitely.
+	 */
+	public async cancelLineRequest(lineTaskId: string): Promise<void> {
+		const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
+
+		// 1) Load the line's history to find its origin.
+		const { historyItem: lineHistory } = await this.getTaskWithId(lineTaskId)
+		if (lineHistory.sessionKind !== "expert-line") {
+			throw new Error(`[cancelLineRequest] Task ${lineTaskId} is not an expert line session`)
+		}
+		const originTaskId = lineHistory.lineOriginTaskId
+		if (!originTaskId) {
+			throw new Error(`[cancelLineRequest] Line ${lineTaskId} has no lineOriginTaskId`)
+		}
+
+		// 2) Abort the line's current request (it must be the active task).
+		const current = this.getCurrentTask()
+		if (current?.taskId === lineTaskId) {
+			current.abortReason = "user_cancelled"
+			current.cancelCurrentRequest()
+			current.abortTask()
+			current.abandoned = true
+			await this.removeClineFromStack({ skipDelegationRepair: true })
+		}
+
+		// 3) Mark the line idle (survives for the next delegation). A cancelled
+		//    request counts as a failure for the rotation policy.
+		try {
+			const { historyItem: freshLine } = await this.getTaskWithId(lineTaskId)
+			await this.updateTaskHistory({
+				...freshLine,
+				status: "idle",
+				lineConsecutiveFailures: (freshLine.lineConsecutiveFailures ?? 0) + 1,
+			})
+		} catch (err) {
+			this.log(
+				`[cancelLineRequest] Failed to persist line idle status for ${lineTaskId}: ${
+					(err as Error)?.message ?? String(err)
+				}`,
+			)
+		}
+
+		// 4) Resume the origin with a cancellation notice (reuse the
+		//    delegation write-back machinery with a cancellation summary).
+		const cancellationSummary = `[委派已被用户取消] The delegation request to expert line ${lineTaskId} was cancelled by the user. No result was produced.`
+		await this.reopenParentFromDelegation({
+			parentTaskId: originTaskId,
+			childTaskId: lineTaskId,
+			completionResultSummary: cancellationSummary,
+		})
 	}
 
 	/**

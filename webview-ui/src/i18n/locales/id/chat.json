@@ -467,5 +467,7 @@
 		"message": "This provider is no longer supported. Please select a different provider in your API profile settings.",
 		"openSettings": "Buka Pengaturan",
 		"rooMessage": "As part of our decision to sunset the Roo Code extension, we also ended the Roo Code Router, which only existed to support the extension. Sorry about the hassle."
-	}
+	},
+	"expertLineRespondOnly": "Jawab pertanyaan yang tertunda…",
+	"expertLineInputLocked": "Ini adalah sesi baris pakar. Input terkunci — Anda dapat memantau, membatalkan, atau menjawab pertanyaan yang tertunda."
 }

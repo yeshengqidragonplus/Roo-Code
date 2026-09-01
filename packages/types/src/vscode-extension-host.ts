@@ -571,6 +571,8 @@ export interface WebviewMessage {
 		| "closeWorkflowEditor"
 		// Task artifact messages (shared-file store)
 		| "requestTaskArtifacts"
+		// Expert line sessions: cancel the current request on a line session
+		| "cancelLineRequest"
 	text?: string
 	workflowId?: string
 	graph?: Record<string, unknown>

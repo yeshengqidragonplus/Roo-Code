@@ -24,7 +24,9 @@ export const useTaskSearch = () => {
 	}, [searchQuery, sortOption, lastNonRelevantSort])
 
 	const presentableTasks = useMemo(() => {
-		let tasks = taskHistory.filter((item) => item.ts && item.task)
+		// Expert line sessions are managed by the delegation router and shown
+		// grouped under their origin task, not as top-level history entries.
+		let tasks = taskHistory.filter((item) => item.ts && item.task && item.sessionKind !== "expert-line")
 		if (!showAllWorkspaces) {
 			tasks = tasks.filter((item) => item.workspace === cwd)
 		}

@@ -1387,6 +1387,17 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const placeholderText = task ? t("chat:typeMessage") : t("chat:typeTask")
 
+	// Expert line sessions are delegation-only: the user may monitor, cancel,
+	// and answer pending asks (approvals/follow-ups), but not type new task
+	// input. The input stays enabled only while a pending ask awaits response.
+	const isExpertLineSession = currentTaskItem?.sessionKind === "expert-line"
+	const lineInputLocked = isExpertLineSession && clineAsk === undefined
+	const effectivePlaceholderText = lineInputLocked
+		? t("chat:expertLineInputLocked")
+		: isExpertLineSession
+			? t("chat:expertLineRespondOnly")
+			: placeholderText
+
 	const switchToMode = useCallback(
 		(modeSlug: string): void => {
 			// Update local state and notify extension to sync mode change.
@@ -1816,9 +1827,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				ref={textAreaRef}
 				inputValue={inputValue}
 				setInputValue={setInputValue}
-				sendingDisabled={sendingDisabled || isProfileDisabled}
+				sendingDisabled={sendingDisabled || isProfileDisabled || lineInputLocked}
 				selectApiConfigDisabled={sendingDisabled && clineAsk !== "api_req_failed"}
-				placeholderText={placeholderText}
+				placeholderText={effectivePlaceholderText}
 				selectedImages={selectedImages}
 				setSelectedImages={setSelectedImages}
 				onSend={() => handleSendMessage(inputValue, selectedImages)}

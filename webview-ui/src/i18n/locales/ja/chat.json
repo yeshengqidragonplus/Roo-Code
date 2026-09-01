@@ -461,5 +461,7 @@
 		"message": "This provider is no longer supported. Please select a different provider in your API profile settings.",
 		"openSettings": "設定を開く",
 		"rooMessage": "As part of our decision to sunset the Roo Code extension, we also ended the Roo Code Router, which only existed to support the extension. Sorry about the hassle."
-	}
+	},
+	"expertLineRespondOnly": "保留中の質問に回答してください…",
+	"expertLineInputLocked": "これはエキスパート専用セッションです。入力はロックされています——監視、キャンセル、保留中の質問への回答が可能です。"
 }

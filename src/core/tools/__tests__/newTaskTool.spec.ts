@@ -118,6 +118,7 @@ const mockCline = {
 	enableCheckpoints: false,
 	checkpointSave: mockCheckpointSave,
 	startSubtask: mockStartSubtask,
+	getTaskMode: vi.fn(async () => "ask"),
 	providerRef: {
 		deref: vi.fn(() => ({
 			getState: vi.fn(() => ({ customModes: [], mode: "ask" })),
@@ -652,6 +653,7 @@ describe("newTaskTool delegation flow", () => {
 			enableCheckpoints: false,
 			checkpointSave: mockCheckpointSave,
 			startSubtask: localStartSubtask,
+			getTaskMode: vi.fn(async () => "ask"),
 			providerRef: {
 				deref: vi.fn(() => providerSpy),
 			},
@@ -739,6 +741,7 @@ describe("newTaskTool pic_xxxx image extraction", () => {
 			enableCheckpoints: false,
 			checkpointSave: mockCheckpointSave,
 			startSubtask: vi.fn(),
+			getTaskMode: vi.fn(async () => "ask"),
 			clineMessages: [{ type: "say", say: "user_feedback", text: "", images: imageRefs, ts: Date.now() }],
 			providerRef: {
 				deref: vi.fn(() => providerSpy),

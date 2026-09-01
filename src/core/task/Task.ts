@@ -180,7 +180,7 @@ export interface TaskOptions extends CreateTaskOptions {
 	initialTodos?: TodoItem[]
 	workspacePath?: string
 	/** Initial status for the task's history item (e.g., "active" for child tasks) */
-	initialStatus?: "active" | "delegated" | "completed"
+	initialStatus?: "active" | "delegated" | "completed" | "idle"
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -448,7 +448,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	// Cloud Sync Tracking
 	// Initial status for the task's history item (set at creation time to avoid race conditions)
-	private readonly initialStatus?: "active" | "delegated" | "completed"
+	private readonly initialStatus?: "active" | "delegated" | "completed" | "idle"
 
 	// MessageManager for high-level message operations (lazy initialized)
 	private _messageManager?: MessageManager
@@ -1978,6 +1978,58 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		if (task || images) {
 			this.startTask(task ?? undefined, images ?? undefined)
+		}
+	}
+
+	/**
+	 * Start (or continue) an expert line session with a new delegation request.
+	 *
+	 * Used by ClineProvider.resumeLineSession after the Task was instantiated
+	 * from the line's historyItem with startTask: false. Unlike start(), this
+	 * does NOT clear the conversation history — the line's prior context is
+	 * the point. The framed request is appended as a new user message.
+	 */
+	public startLineRequest(framedMessage: string, images?: string[]): void {
+		if (this._started) {
+			return
+		}
+		this._started = true
+
+		this.startLineRequestLoop(framedMessage, images).catch((error) => {
+			if (this.abandoned === true || this.abort === true || this.abortReason === "user_cancelled") {
+				return
+			}
+			console.error(`[startLineRequest] failed for task ${this.taskId}:`, error)
+		})
+	}
+
+	private async startLineRequestLoop(framedMessage: string, images?: string[]): Promise<void> {
+		try {
+			// Load the persisted conversation (clineMessages for the webview,
+			// apiConversationHistory for the API) — the line's continuity.
+			this.clineMessages = await this.getSavedClineMessages()
+			this.apiConversationHistory = await this.getSavedApiConversationHistory()
+
+			await this.providerRef.deref()?.postStateToWebviewWithoutTaskHistory()
+
+			await this.say("text", framedMessage, images)
+
+			this.isInitialized = true
+
+			const imageBlocks: Anthropic.Messages.ImageBlockParam[] = formatResponse.imageBlocks(images)
+
+			await this.initiateTaskLoop([
+				{
+					type: "text",
+					text: `<user_message>\n${framedMessage}\n</user_message>`,
+				},
+				...imageBlocks,
+			])
+		} catch (error) {
+			if (this.abandoned === true || this.abort === true || this.abortReason === "user_cancelled") {
+				return
+			}
+			throw error
 		}
 	}
 

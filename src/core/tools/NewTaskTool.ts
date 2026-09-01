@@ -199,7 +199,53 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 			// parent task's clineMessages image references so they can be forwarded to the child.
 			const images = await extractImagesFromMessage(unescapedMessage, task)
 
-			// Delegate parent and open child as sole active task
+			// Route through the DelegationRouter: expert targets get line-session
+			// routing (reuse per (origin task, expert) pair); plain modes keep the
+			// legacy one-shot child task.
+			const router = (provider as any).delegationRouter as
+				| {
+						routeDelegation: (params: {
+							originTaskId: string
+							expertMode: string
+							message: string
+							images?: string[]
+							initialTodos?: TodoItem[]
+							parentModeSlug?: string
+						}) => Promise<{
+							task: { taskId: string }
+							reused: boolean
+							queued?: boolean
+							requestId?: string
+							rotated?: boolean
+						}>
+				  }
+				| undefined
+
+			if (router) {
+				const { task: child, reused, queued, requestId, rotated } = await router.routeDelegation({
+					originTaskId: task.taskId,
+					expertMode: mode,
+					message: unescapedMessage,
+					// Only pass images when non-empty so the default (empty array) path is unchanged.
+					...(images.length > 0 ? { images } : {}),
+					initialTodos: todoItems,
+					parentModeSlug: parentMode?.slug,
+				})
+				if (queued) {
+					pushToolResult(
+						`Expert line ${child.taskId} is busy; request ${requestId} queued (will run when the line frees)`,
+					)
+				} else if (rotated) {
+					pushToolResult(`Rotated expert line; delegated to new line session ${child.taskId}`)
+				} else if (reused) {
+					pushToolResult(`Delegated to expert line session ${child.taskId} (context resumed)`)
+				} else {
+					pushToolResult(`Delegated to child task ${child.taskId}`)
+				}
+				return
+			}
+
+			// Fallback: provider without a router (older host) — legacy path.
 			const child = await (provider as any).delegateParentAndOpenChild({
 				parentTaskId: task.taskId,
 				message: unescapedMessage,

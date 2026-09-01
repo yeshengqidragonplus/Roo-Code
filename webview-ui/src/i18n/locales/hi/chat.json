@@ -461,5 +461,7 @@
 		"message": "This provider is no longer supported. Please select a different provider in your API profile settings.",
 		"openSettings": "सेटिंग्स खोलें",
 		"rooMessage": "As part of our decision to sunset the Roo Code extension, we also ended the Roo Code Router, which only existed to support the extension. Sorry about the hassle."
-	}
+	},
+	"expertLineRespondOnly": "लंबित प्रश्न का उत्तर दें…",
+	"expertLineInputLocked": "यह एक विशेषज्ञ लाइन सत्र है। इनपुट लॉक है — आप निगरानी कर सकते हैं, रद्द कर सकते हैं या लंबित प्रश्नों का उत्तर दे सकते हैं।"
 }

@@ -462,5 +462,7 @@
 		"message": "This provider is no longer supported. Please select a different provider in your API profile settings.",
 		"openSettings": "Mở cài đặt",
 		"rooMessage": "As part of our decision to sunset the Roo Code extension, we also ended the Roo Code Router, which only existed to support the extension. Sorry about the hassle."
-	}
+	},
+	"expertLineRespondOnly": "Trả lời câu hỏi đang chờ…",
+	"expertLineInputLocked": "Đây là phiên dòng chuyên gia. Đầu vào bị khóa — bạn có thể theo dõi, hủy hoặc trả lời các câu hỏi đang chờ."
 }

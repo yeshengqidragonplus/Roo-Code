@@ -798,6 +798,17 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		case "deleteTaskWithId":
 			provider.deleteTaskWithId(message.text!)
 			break
+		case "cancelLineRequest":
+			try {
+				await provider.cancelLineRequest(message.text!)
+			} catch (error) {
+				console.error(
+					`[cancelLineRequest] failed for ${message.text}: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				)
+			}
+			break
 		case "requestTaskArtifacts": {
 			// Build the "associated artifacts" view for the delete-confirmation UI.
 			const { getTaskArtifacts } = await import("../../integrations/misc/shared-file-store")
