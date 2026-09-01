@@ -3,7 +3,7 @@
 import type { Task } from "../../task/Task"
 import { ensureServerVisibleToMode } from "../mcpVisibilityGuard"
 import { useMcpToolTool } from "../UseMcpToolTool"
-import { accessMcpResourceTool } from "../accessMcpResourceTool"
+import { accessMcpResourceTool } from "../AccessMcpResourceTool"
 
 vi.mock("../../prompts/responses", () => ({
 	formatResponse: {
