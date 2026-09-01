@@ -2,7 +2,6 @@ import type { HistoryItem, TodoItem } from "@roo-code/types"
 
 import type { Task } from "../task/Task"
 import { getModeBySlug } from "../../shared/modes"
-import { LineRequestQueue } from "./LineRequestQueue"
 
 /**
  * Expert line sessions — host-enforced delegation routing.
@@ -15,14 +14,13 @@ import { LineRequestQueue } from "./LineRequestQueue"
  * from a different task S' get a physically separate line — cross-origin
  * isolation is structural, not prompt-level.
  *
- * Phase 4: busy lines queue requests (LineRequestQueue, persisted in the
- * line task's directory) instead of rejecting them; lines rotate (close +
- * recreate) after too many requests or consecutive failures.
+ * Serial delegation rejects requests to a busy line. Rotation closes and
+ * recreates a line after too many requests or consecutive failures.
  *
  * See docs/expert-line-sessions-design.md.
  */
 
-/** Rotation policy for expert lines (Phase 4). */
+/** Rotation policy for expert lines. */
 export interface LineRotationPolicy {
 	/** Close the line after this many requests served (context hygiene). */
 	maxRequestsPerLine?: number
@@ -57,10 +55,8 @@ export interface DelegationRouterDeps {
 		message: string
 		images?: string[]
 	}) => Promise<Task>
-	/** Resolve a task's directory (for the persisted request queue). */
-	getTaskDirectoryPath: (globalStoragePath: string, taskId: string) => Promise<string>
-	/** Global storage root (queue files live under each line task's dir). */
-	globalStoragePath: string
+	/** Mark a line closed before a replacement line is created. */
+	closeLine: (line: HistoryItem) => Promise<void>
 	/** Provider log sink. */
 	log: (message: string) => void
 }
@@ -90,10 +86,6 @@ export interface RouteDelegationResult {
 	task: Task
 	/** True when an existing idle line was resumed. */
 	reused: boolean
-	/** True when the request was queued on a busy line (Phase 4). */
-	queued?: boolean
-	/** Request id (set when queued; the result-routing key). */
-	requestId?: string
 	/** True when the previous line was rotated (closed) and a new one created. */
 	rotated?: boolean
 }
@@ -119,19 +111,15 @@ export class DelegationRouter {
 	 * closed and a new line must be created on the next delegation.
 	 */
 	findLine(originTaskId: string, expertMode: string): HistoryItem | undefined {
-		return this.deps.getHistoryItems().find(
-			(item) =>
-				item.sessionKind === "expert-line" &&
-				item.lineOriginTaskId === originTaskId &&
-				item.lineExpertMode === expertMode &&
-				(item.status === "active" || item.status === "idle"),
-		)
-	}
-
-	/** Load the persisted request queue for a line task. */
-	async loadQueue(lineTaskId: string): Promise<LineRequestQueue> {
-		const taskDir = await this.deps.getTaskDirectoryPath(this.deps.globalStoragePath, lineTaskId)
-		return LineRequestQueue.load(taskDir)
+		return this.deps
+			.getHistoryItems()
+			.find(
+				(item) =>
+					item.sessionKind === "expert-line" &&
+					item.lineOriginTaskId === originTaskId &&
+					item.lineExpertMode === expertMode &&
+					(item.status === "active" || item.status === "idle"),
+			)
 	}
 
 	/**
@@ -210,18 +198,11 @@ export class DelegationRouter {
 		}
 
 		if (line.status === "active") {
-			// Busy line: queue the request (Phase 4). The queue persists in the
-			// line task's directory; the origin is suspended awaiting the line,
-			// so under the single-open invariant this path stays rare, but the
-			// protocol no longer rejects concurrent delegations.
-			const queue = await this.loadQueue(line.id)
-			const entry = queue.enqueue({ originTaskId, message, images })
-			const taskDir = await this.deps.getTaskDirectoryPath(this.deps.globalStoragePath, line.id)
-			await queue.save(taskDir)
-			this.deps.log(
-				`[DelegationRouter] Line ${line.id} busy; queued request ${entry.requestId} (queue depth ${queue.size()})`,
-			)
-			return { task: { taskId: line.id } as Task, reused: false, queued: true, requestId: entry.requestId }
+			// Serial delegation has one active task, so a second request cannot be
+			// safely attached to a busy line. Do not persist a request that the
+			// current lifecycle cannot suspend and resume correctly. Queueing is
+			// deliberately deferred until parallel task ownership exists.
+			throw new Error(`[DelegationRouter] Expert line ${line.id} is busy; wait for its current request to finish`)
 		}
 
 		// Idle line: rotate (close) it when the policy says so, then create a
@@ -231,6 +212,7 @@ export class DelegationRouter {
 			this.deps.log(
 				`[DelegationRouter] Rotating line ${line.id} (${expertMode}): served=${line.lineRequestCount ?? 0} failures=${line.lineConsecutiveFailures ?? 0}`,
 			)
+			await this.deps.closeLine(line)
 			const task = await this.deps.delegateAndOpenChild({
 				parentTaskId: originTaskId,
 				message,

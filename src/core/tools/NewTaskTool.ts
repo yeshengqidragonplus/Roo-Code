@@ -175,7 +175,10 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 			// A workgroup coordinator may delegate only to colleagues explicitly
 			// configured for that group. Plain Modes retain Roo's original behavior.
 			const parentMode = getModeBySlug(await task.getTaskMode(), state?.customModes)
-			if (parentMode?.workgroup && !parentMode.workgroup.colleagueSlugs.includes(mode)) {
+			if (
+				parentMode?.workgroup &&
+				(!parentMode.workgroup.colleagueSlugs.includes(mode) || mode === parentMode.workgroup.leadModeSlug)
+			) {
 				pushToolResult(
 					formatResponse.toolError(`Mode "${mode}" is not a colleague in workgroup "${parentMode.name}"`),
 				)
@@ -214,15 +217,17 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 						}) => Promise<{
 							task: { taskId: string }
 							reused: boolean
-							queued?: boolean
-							requestId?: string
 							rotated?: boolean
 						}>
 				  }
 				| undefined
 
 			if (router) {
-				const { task: child, reused, queued, requestId, rotated } = await router.routeDelegation({
+				const {
+					task: child,
+					reused,
+					rotated,
+				} = await router.routeDelegation({
 					originTaskId: task.taskId,
 					expertMode: mode,
 					message: unescapedMessage,
@@ -231,11 +236,7 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 					initialTodos: todoItems,
 					parentModeSlug: parentMode?.slug,
 				})
-				if (queued) {
-					pushToolResult(
-						`Expert line ${child.taskId} is busy; request ${requestId} queued (will run when the line frees)`,
-					)
-				} else if (rotated) {
+				if (rotated) {
 					pushToolResult(`Rotated expert line; delegated to new line session ${child.taskId}`)
 				} else if (reused) {
 					pushToolResult(`Delegated to expert line session ${child.taskId} (context resumed)`)

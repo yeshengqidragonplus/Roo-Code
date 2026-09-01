@@ -86,7 +86,6 @@ import { Task } from "../task/Task"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { DelegationRouter, frameDelegationRequest } from "../delegation/DelegationRouter"
-import { LineRequestQueue } from "../delegation/LineRequestQueue"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
 import { isBareFilePath, isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
 import { registerWebviewImageUri } from "../../integrations/misc/image-handler"
@@ -3459,78 +3458,6 @@ export class ClineProvider
 		} catch {
 			// non-fatal
 		}
-
-		// 10) Expert line: serve the next queued request (Phase 4). The line
-		//     went idle in step 4; if its persistent queue holds requests from
-		//     other origins, resume the line for the oldest one. Best-effort —
-		//     a failure here leaves the request queued for the next drain.
-		if (isExpertLine) {
-			try {
-				await this.drainLineQueue(childTaskId)
-			} catch (err) {
-				this.log(
-					`[reopenParentFromDelegation] Failed to drain line queue for ${childTaskId} (non-fatal): ${
-						(err as Error)?.message ?? String(err)
-					}`,
-				)
-			}
-		}
-	}
-
-	/**
-	 * Serve the next queued request on an idle expert line (Phase 4).
-	 *
-	 * Loads the line's persistent queue, drops requests whose origin task no
-	 * longer exists (lazy GC), and — when a request remains — resumes the line
-	 * for it. The resumed origin is suspended exactly like a fresh delegation
-	 * (resumeLineSession handles the single-open invariant).
-	 */
-	private async drainLineQueue(lineTaskId: string): Promise<void> {
-		const globalStoragePath = this.contextProxy.globalStorageUri.fsPath
-		const taskDir = await getTaskDirectoryPath(globalStoragePath, lineTaskId)
-		const queue = await LineRequestQueue.load(taskDir)
-
-		// Lazy GC: drop requests whose origin task was deleted.
-		for (const req of queue.all()) {
-			try {
-				await this.getTaskWithId(req.originTaskId)
-			} catch {
-				queue.removeById(req.requestId)
-				this.log(`[drainLineQueue] Dropped queued request ${req.requestId}: origin ${req.originTaskId} gone`)
-			}
-		}
-
-		if (queue.isEmpty()) {
-			await queue.save(taskDir)
-			return
-		}
-
-		const next = queue.dequeue()!
-		await queue.save(taskDir)
-
-		const { historyItem: lineHistory } = await this.getTaskWithId(lineTaskId)
-		if (lineHistory.sessionKind !== "expert-line" || lineHistory.status !== "idle") {
-			// Line was closed/rotated meanwhile — requeue so the next line
-			// created for this (origin, expert) pair can pick it up.
-			queue.enqueue({
-				requestId: next.requestId,
-				originTaskId: next.originTaskId,
-				message: next.message,
-				images: next.images,
-			})
-			await queue.save(taskDir)
-			return
-		}
-
-		this.log(
-			`[drainLineQueue] Serving queued request ${next.requestId} from ${next.originTaskId} on line ${lineTaskId}`,
-		)
-		await this.resumeLineSession({
-			originTaskId: next.originTaskId,
-			lineHistoryItem: lineHistory,
-			message: next.message,
-			...(next.images ? { images: next.images } : {}),
-		})
 	}
 
 	/**
@@ -3711,8 +3638,10 @@ export class ClineProvider
 				getState: () => this.getState(),
 				delegateAndOpenChild: (params) => this.delegateParentAndOpenChild(params),
 				resumeLineSession: (params) => this.resumeLineSession(params),
-				getTaskDirectoryPath: (globalStoragePath, taskId) => getTaskDirectoryPath(globalStoragePath, taskId),
-				globalStoragePath: this.contextProxy.globalStorageUri.fsPath,
+				closeLine: async (line) => {
+					const { historyItem } = await this.getTaskWithId(line.id)
+					await this.updateTaskHistory({ ...historyItem, status: "completed" })
+				},
 				log: (message) => this.log(message),
 			})
 		}

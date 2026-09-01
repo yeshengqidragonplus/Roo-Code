@@ -1,6 +1,7 @@
 // npx vitest run core/delegation/__tests__/cancelLineRequest.spec.ts
 
 import type { HistoryItem } from "@roo-code/types"
+import { ClineProvider } from "../../webview/ClineProvider"
 
 /**
  * Tests for ClineProvider.cancelLineRequest — the user-initiated cancellation
@@ -25,10 +26,7 @@ function makeHistoryItem(overrides: Partial<HistoryItem> & { id: string }): Hist
 }
 
 describe("cancelLineRequest", () => {
-	function buildProvider(overrides?: {
-		lineHistory?: HistoryItem
-		currentTaskId?: string
-	}) {
+	function buildProvider(overrides?: { lineHistory?: HistoryItem; currentTaskId?: string }) {
 		const lineHistory =
 			overrides?.lineHistory ??
 			makeHistoryItem({
@@ -53,9 +51,7 @@ describe("cancelLineRequest", () => {
 
 		const provider: any = {
 			contextProxy: { globalStorageUri: { fsPath: "/mock/storage" } },
-			getCurrentTask: vi.fn(() =>
-				overrides?.currentTaskId === lineHistory.id ? fakeLineTask : undefined,
-			),
+			getCurrentTask: vi.fn(() => (overrides?.currentTaskId === lineHistory.id ? fakeLineTask : undefined)),
 			getTaskWithId: vi.fn(async (id: string) => {
 				if (id === lineHistory.id) {
 					// Return fresh state on subsequent reads (after idle write)
@@ -80,12 +76,9 @@ describe("cancelLineRequest", () => {
 		return { provider, fakeLineTask, updateTaskHistoryCalls, reopenCalls, removedFromStack }
 	}
 
-	// Import the method under test from the compiled module. We re-implement
-	// the call through the provider instance by binding the real method.
+	// Bind the production method to a minimal provider-shaped object.
 	async function callCancelLineRequest(provider: any, lineTaskId: string) {
-		const { ClineProvider } = await import("../../webview/ClineProvider")
-		const method = ClineProvider.prototype.cancelLineRequest
-		return method.call(provider, lineTaskId)
+		return ClineProvider.prototype.cancelLineRequest.call(provider, lineTaskId)
 	}
 
 	it("aborts the active line, marks it idle, and resumes the origin with a cancellation notice", async () => {

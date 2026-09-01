@@ -43,8 +43,7 @@ function makeDeps(overrides?: Partial<DelegationRouterDeps>): DelegationRouterDe
 		getState: vi.fn(async () => ({ customModes: [EXPERT_MODE, WORKGROUP_MODE] })),
 		delegateAndOpenChild: vi.fn(async () => ({ taskId: "child-1" }) as any),
 		resumeLineSession: vi.fn(async () => ({ taskId: "line-1" }) as any),
-		getTaskDirectoryPath: vi.fn(async () => "/mock/task/dir"),
-		globalStoragePath: "/mock/global/storage",
+		closeLine: vi.fn(async () => {}),
 		log: vi.fn(),
 		...overrides,
 	}
@@ -204,7 +203,7 @@ describe("DelegationRouter.routeDelegation", () => {
 		expect(delegateAndOpenChild).not.toHaveBeenCalled()
 	})
 
-	it("queues the request on a busy line instead of rejecting (Phase 4)", async () => {
+	it("rejects a request to a busy line while delegation is serial", async () => {
 		const line = makeHistoryItem({
 			id: "line-2-1",
 			sessionKind: "expert-line",
@@ -215,16 +214,13 @@ describe("DelegationRouter.routeDelegation", () => {
 		const resumeLineSession = vi.fn(async () => ({ taskId: "line-2-1" }) as any)
 		const router = new DelegationRouter(makeDeps({ getHistoryItems: () => [line], resumeLineSession }))
 
-		const result = await router.routeDelegation({
-			originTaskId: "task-2",
-			expertMode: "web-researcher",
-			message: "another request",
-		})
-
-		expect(result.queued).toBe(true)
-		expect(result.requestId).toBeTruthy()
-		expect(result.task.taskId).toBe("line-2-1")
-		// The line was NOT resumed for this request
+		await expect(
+			router.routeDelegation({
+				originTaskId: "task-2",
+				expertMode: "web-researcher",
+				message: "another request",
+			}),
+		).rejects.toThrow(/is busy/)
 		expect(resumeLineSession).not.toHaveBeenCalled()
 	})
 
@@ -291,7 +287,10 @@ describe("DelegationRouter rotation (Phase 4)", () => {
 		})
 		const resumeLineSession = vi.fn(async () => ({ taskId: "line-2-1" }) as any)
 		const delegateAndOpenChild = vi.fn(async () => ({ taskId: "line-2-2" }) as any)
-		const router = new DelegationRouter(makeDeps({ getHistoryItems: () => [line], resumeLineSession, delegateAndOpenChild }))
+		const closeLine = vi.fn(async () => {})
+		const router = new DelegationRouter(
+			makeDeps({ getHistoryItems: () => [line], resumeLineSession, delegateAndOpenChild, closeLine }),
+		)
 
 		const result = await router.routeDelegation({
 			originTaskId: "task-2",
@@ -303,6 +302,7 @@ describe("DelegationRouter rotation (Phase 4)", () => {
 		expect(result.reused).toBe(false)
 		// Old line NOT resumed; a fresh line created via the legacy machinery
 		expect(resumeLineSession).not.toHaveBeenCalled()
+		expect(closeLine).toHaveBeenCalledWith(line)
 		expect(delegateAndOpenChild).toHaveBeenCalledWith(
 			expect.objectContaining({ lineMetadata: { originTaskId: "task-2", expertMode: "web-researcher" } }),
 		)
@@ -320,7 +320,9 @@ describe("DelegationRouter rotation (Phase 4)", () => {
 		})
 		const resumeLineSession = vi.fn(async () => ({ taskId: "line-2-1" }) as any)
 		const delegateAndOpenChild = vi.fn(async () => ({ taskId: "line-2-2" }) as any)
-		const router = new DelegationRouter(makeDeps({ getHistoryItems: () => [line], resumeLineSession, delegateAndOpenChild }))
+		const router = new DelegationRouter(
+			makeDeps({ getHistoryItems: () => [line], resumeLineSession, delegateAndOpenChild }),
+		)
 
 		const result = await router.routeDelegation({
 			originTaskId: "task-2",

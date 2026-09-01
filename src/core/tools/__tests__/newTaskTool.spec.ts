@@ -627,6 +627,58 @@ describe("newTaskTool", () => {
 })
 
 describe("newTaskTool delegation flow", () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+		mockAskApproval.mockResolvedValue(true)
+		vi.mocked(getModeBySlug).mockReturnValue({
+			slug: "code",
+			name: "Code Mode",
+			roleDefinition: "Test role definition",
+			groups: ["command", "read", "edit"],
+		} as any)
+		vi.mocked(vscode.workspace.getConfiguration).mockReturnValue({ get: vi.fn().mockReturnValue(false) } as any)
+	})
+
+	it("rejects a workgroup lead delegating to itself", async () => {
+		const providerSpy = {
+			getState: vi.fn().mockResolvedValue({ mode: "zhangu-game-studio", customModes: [] }),
+			delegateParentAndOpenChild: vi.fn(),
+		} as any
+		const localCline = {
+			taskId: "group-task",
+			consecutiveMistakeCount: 0,
+			recordToolError: vi.fn(),
+			getTaskMode: vi.fn(async () => "zhangu-game-studio"),
+			providerRef: { deref: vi.fn(() => providerSpy) },
+		} as any
+		const workgroup = {
+			slug: "zhangu-game-studio",
+			name: "战鼓工作室",
+			roleDefinition: "group",
+			groups: ["read"],
+			workgroup: { leadModeSlug: "arthur", colleagueSlugs: ["arthur", "unity-operator"] },
+		}
+		const arthur = { slug: "arthur", name: "Arthur", roleDefinition: "lead", groups: ["read"] }
+		vi.mocked(getModeBySlug).mockImplementation((slug) =>
+			slug === workgroup.slug ? (workgroup as any) : slug === arthur.slug ? (arthur as any) : undefined,
+		)
+
+		await newTaskTool.handle(
+			localCline,
+			withNativeArgs({
+				type: "tool_use",
+				name: "new_task",
+				params: { mode: "arthur", message: "delegate to myself" },
+				partial: false,
+			}),
+			{ askApproval: mockAskApproval, handleError: mockHandleError, pushToolResult: mockPushToolResult },
+		)
+
+		expect(mockAskApproval).not.toHaveBeenCalled()
+		expect(providerSpy.delegateParentAndOpenChild).not.toHaveBeenCalled()
+		expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("not a colleague"))
+	})
+
 	it("delegates to provider and does not call legacy startSubtask", async () => {
 		// Arrange: stub provider delegation
 		const providerSpy = {

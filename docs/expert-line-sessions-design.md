@@ -1,6 +1,6 @@
 # 专家专线会话设计（Expert Line Sessions）
 
-> 状态：设计定稿（2026-09-01 与用户对齐），待实施。
+> 状态：Phase 1-3 已实施；并行队列协议保留待并行任务模型落地后实施。
 > 相关：`docs/expert-system-design.md`（专家系统总设计）、`.roo/memory/web-researcher-report-protocol.md`（公共文件协议）、`.roo/memory/shared-file-store-design.md`（共享文件库）。
 
 ## 1. 背景与目标模型
@@ -41,7 +41,7 @@
       && lineOriginTaskId=originTaskId && lineExpertMode=expertMode
       && status ∈ {active, idle}
   → 命中 idle  → 恢复该 Task + 注入新请求（user message）
-  → 命中 active → 入队（v1 single-open 下不可达，见 §10；先返回错误提示）
+  → 命中 active → 报告忙碌（v1 single-open 下不可达，见 §10）
   → 未命中     → 新建专线（复用现有 delegateParentAndOpenChild 骨架）
 ```
 
@@ -70,10 +70,10 @@ lineRequestCount?: number
 
 现有 status 联合类型（`active | delegated | completed`）增加 `idle`，专线专属语义：
 
-| 状态 | 含义 |
-|---|---|
-| `active` | 专线正忙（处理请求中） |
-| `idle` | 空闲存活，可被路由复用 |
+| 状态        | 含义                              |
+| ----------- | --------------------------------- |
+| `active`    | 专线正忙（处理请求中）            |
+| `idle`      | 空闲存活，可被路由复用            |
 | `completed` | 专线已关闭（轮换/手动），不可复用 |
 
 主会话的 `delegated`/`awaitingChildId` 语义不变（等待专线回传时挂起）。
@@ -88,17 +88,17 @@ lineRequestCount?: number
 
 ```ts
 class DelegationRouter {
-  /** 查活跃专线：v1 直接扫 taskHistoryStore（委派频率低，O(n) 可接受） */
-  findLine(originTaskId, expertMode): Promise<HistoryItem | undefined>
+	/** 查活跃专线：v1 直接扫 taskHistoryStore（委派频率低，O(n) 可接受） */
+	findLine(originTaskId, expertMode): Promise<HistoryItem | undefined>
 
-  /** 委派唯一入口：NewTaskTool 与 workflow 委派都走这里 */
-  routeDelegation(params: {
-    originTask: Task            // 发起方（当前活动任务）
-    expertMode: string
-    message: string
-    images?: string[]
-    todos?: TodoItem[]
-  }): Promise<{ lineTaskId: string; reused: boolean }>
+	/** 委派唯一入口：NewTaskTool 与 workflow 委派都走这里 */
+	routeDelegation(params: {
+		originTask: Task // 发起方（当前活动任务）
+		expertMode: string
+		message: string
+		images?: string[]
+		todos?: TodoItem[]
+	}): Promise<{ lineTaskId: string; reused: boolean }>
 }
 ```
 
@@ -210,22 +210,22 @@ webviewMessageHandler 新消息 cancelLineRequest { lineTaskId }
 
 1. **主历史列表**：`sessionKind="expert-line"` 的任务**不进**主列表（防淹没），在发起会话详情页分组展示（"专家专线：web-researcher ×1、unity-operator ×1"，显示状态徽标 busy/idle）。
 2. **专线聊天视图**：特殊模式——
-   - 消息流只读展示（含历史请求的完整执行过程，供审计）；
-   - 输入框禁用，**仅当存在 pending ask（权限审批/追问）时**开放应答输入/按钮；
-   - 工具栏：暂停、取消当前请求（§5.4）；
-   - 顶部横幅标识"这是 {专家名} 的专线 · 发起自会话 {id}"。
-3. **i18n**：新增文案进 18 个 locale（webview-ui/src/i18n/locales/*/）。
+    - 消息流只读展示（含历史请求的完整执行过程，供审计）；
+    - 输入框禁用，**仅当存在 pending ask（权限审批/追问）时**开放应答输入/按钮；
+    - 工具栏：暂停、取消当前请求（§5.4）；
+    - 顶部横幅标识"这是 {专家名} 的专线 · 发起自会话 {id}"。
+3. **i18n**：新增文案进 18 个 locale（webview-ui/src/i18n/locales/\*/）。
 
 ## 8. 实施计划
 
 ### Phase 1 — 数据模型 + 路由核心（可独立交付）
 
-| 文件 | 改动 |
-|---|---|
-| `packages/types/src/history.ts` | §3.1 字段 + `"idle"` 状态 |
-| `src/core/delegation/DelegationRouter.ts`（新） | findLine / routeDelegation / 恢复注入 |
-| `src/core/tools/NewTaskTool.ts` | 委派改走 Router（含 §8 gate） |
-| `src/core/webview/ClineProvider.ts` | delegateParentAndOpenChild 拆出可复用片段；补 resumeLineSession |
+| 文件                                            | 改动                                                            |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| `packages/types/src/history.ts`                 | §3.1 字段 + `"idle"` 状态                                       |
+| `src/core/delegation/DelegationRouter.ts`（新） | findLine / routeDelegation / 恢复注入                           |
+| `src/core/tools/NewTaskTool.ts`                 | 委派改走 Router（含 §8 gate）                                   |
+| `src/core/webview/ClineProvider.ts`             | delegateParentAndOpenChild 拆出可复用片段；补 resumeLineSession |
 
 **Gate（v1 决策）**：仅 `targetMode.kind` 存在（专家模式）或发起方是 workgroup 时走专线路由；普通 mode（code/debug 等）委派保持 legacy 每次新建。理由：不改变普通模式既有语义，风险隔离。
 
@@ -233,27 +233,27 @@ webviewMessageHandler 新消息 cancelLineRequest { lineTaskId }
 
 ### Phase 2 — 完成回传 + 取消 + 状态机
 
-| 文件 | 改动 |
-|---|---|
-| `src/core/tools/AttemptCompletionTool.ts` | 专线完成 → status=idle + 回传（复用 delegateToParent） |
-| `src/core/webview/webviewMessageHandler.ts` | `cancelLineRequest` 消息分支 |
-| `src/core/webview/ClineProvider.ts` | 取消路径：abort 专线 + 恢复发起方注入取消通知 |
+| 文件                                        | 改动                                                   |
+| ------------------------------------------- | ------------------------------------------------------ |
+| `src/core/tools/AttemptCompletionTool.ts`   | 专线完成 → status=idle + 回传（复用 delegateToParent） |
+| `src/core/webview/webviewMessageHandler.ts` | `cancelLineRequest` 消息分支                           |
+| `src/core/webview/ClineProvider.ts`         | 取消路径：abort 专线 + 恢复发起方注入取消通知          |
 
 测试：完成→idle→再委派复用（断言第二次委派后 apiConversationHistory 含第一次对话）；取消回传；级联删除含专线。
 
 ### Phase 3 — UI + i18n
 
-| 文件 | 改动 |
-|---|---|
-| `webview-ui/src/components/history/HistoryView.tsx` / `TaskItem.tsx` | 专线过滤 + 分组 + 状态徽标 |
-| `webview-ui/src/components/chat/ChatTextArea.tsx` | 专线视图输入受限（pending ask 才开放） |
-| 专线监控视图（新组件） | 横幅 + 暂停/取消按钮 |
-| 18 个 locale 文件 | 新文案 |
+| 文件                                                                 | 改动                                   |
+| -------------------------------------------------------------------- | -------------------------------------- |
+| `webview-ui/src/components/history/HistoryView.tsx` / `TaskItem.tsx` | 专线过滤 + 分组 + 状态徽标             |
+| `webview-ui/src/components/chat/ChatTextArea.tsx`                    | 专线视图输入受限（pending ask 才开放） |
+| 专线监控视图（新组件）                                               | 横幅 + 暂停/取消按钮                   |
+| 18 个 locale 文件                                                    | 新文案                                 |
 
-### Phase 4 — 队列 / 轮换（已实施 2026-09-01）
+### Phase 4 — 队列 / 轮换（部分实施）
 
-- **请求队列**：[`LineRequestQueue`](src/core/delegation/LineRequestQueue.ts)——busy 专线入队（requestId 唯一标识），持久化在专线任务目录 `line-queue.json`（随任务删除消失，无孤儿清单）；完成回传时 `drainLineQueue` 出队下一条（惰性 GC：origin 已删的请求丢弃）
-- **requestId 协议**：入队返回 `queued + requestId`，NewTaskTool 工具结果告知发起方"已排队"；结果路由仍走 awaitingChildId（single-open 下每线同时只有一个发起方在等，一对一语义够用；真正多对多关联表留给并行委派落地时）
+- **轮换**：已实施。达到请求数/连续失败阈值时，先将旧专线标记为 `completed`，再创建新专线，确保旧线不会被后续路由重新命中。
+- **请求队列**：待并行任务模型实施。`LineRequestQueue` 可作为后续持久化基础设施，但 v1 不接入路由；busy 专线明确返回忙碌错误，绝不接受后又丢失请求。
 - **显式轮换**：`shouldRotate()`——`lineRequestCount >= 20` 或 `lineConsecutiveFailures >= 3`（`LineRotationPolicy` 可配）→ 关线重建；完成重置失败计数，取消 +1 失败计数
 - **未实施**（真正放开并行委派时再做）：多发起方同时挂起、多对多 requestId 关联表、路由内存索引
 
@@ -266,4 +266,4 @@ webviewMessageHandler 新消息 cancelLineRequest { lineTaskId }
 
 ## 10. 为什么 v1 队列不可达（留档）
 
-single-open invariant 下，发起方委派后即挂起，不可能再发第二条；另一发起方（会话 20）要委派必须先成为活动任务，而切换任务会把当前活动任务（正忙的专线）挂起——走的是暂停/恢复机制而非排队。因此 v1 队列长度恒为 0，实现它没有可验证的路径。协议（requestId、队列结构）在 Phase 4 随并行一起落地。
+single-open invariant 下，发起方委派后即挂起，不可能再发第二条；另一发起方（会话 20）要委派必须先成为活动任务，而切换任务会把当前活动任务（正忙的专线）挂起——走的是暂停/恢复机制而非排队。因此 v1 队列长度恒为 0，实现它没有可验证的路径。协议（requestId、队列结构）待并行任务模型落地后再接入路由。
