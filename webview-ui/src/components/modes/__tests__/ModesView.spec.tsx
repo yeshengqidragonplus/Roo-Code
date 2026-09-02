@@ -22,6 +22,7 @@ const mockExtensionState = {
 	setEnhancementApiConfigId: vitest.fn(),
 	mode: "code",
 	customModes: [],
+	mcpServers: [],
 	customSupportPrompts: [],
 	currentApiConfigName: "",
 	customInstructions: "Initial instructions",
@@ -89,6 +90,31 @@ describe("PromptsView", () => {
 		await waitFor(() => {
 			expect(selectTrigger).toHaveAttribute("aria-expanded", "false")
 		})
+	})
+
+	it("keeps the selected configuration when a delayed workgroup state arrives", async () => {
+		const arthur = {
+			slug: "arthur",
+			name: "Arthur",
+			roleDefinition: "Lead developer",
+			groups: ["read"],
+			hidden: true,
+		}
+		const { rerender } = renderPromptsView({ customModes: [arthur] })
+		const selectTrigger = screen.getByTestId("mode-select-trigger")
+		fireEvent.click(selectTrigger)
+		fireEvent.click(await waitFor(() => screen.getByTestId("mode-option-ask")))
+
+		// A workgroup task can send an older state snapshot whose runtime mode is
+		// its hidden lead. That must not change the Mode currently being edited.
+		rerender(
+			<ExtensionStateContext.Provider
+				value={{ ...mockExtensionState, mode: "arthur", customModes: [arthur] } as any}>
+				<ModesView />
+			</ExtensionStateContext.Provider>,
+		)
+
+		expect(screen.getByTestId("mode-select-trigger")).toHaveTextContent("Ask")
 	})
 
 	it("handles prompt changes correctly", async () => {

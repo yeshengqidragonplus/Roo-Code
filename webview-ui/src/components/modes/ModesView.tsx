@@ -291,14 +291,18 @@ const ModesView = () => {
 		switchModeRef.current = switchMode
 	}, [switchMode])
 
-	// Sync visualMode with backend mode changes to prevent desync
+	// This selector chooses which Mode configuration is being edited. A running
+	// task can emit delayed state snapshots while a workgroup switches between
+	// its runtime slug and lead; those snapshots must not overwrite the user's
+	// current editor selection. Only recover when the selected configuration was
+	// removed or is no longer an ordinary Mode.
 	useEffect(() => {
-		const activeMode = customModes?.find((customMode) => customMode.slug === mode)
-		const isNonMode = activeMode?.kind === "workflow" || activeMode?.workgroup !== undefined
-		setVisualMode(
-			isNonMode ? (modes.find((item) => item.slug === defaultModeSlug)?.slug ?? modes[0]?.slug ?? mode) : mode,
-		)
-	}, [mode, customModes, modes])
+		if (!modes.some((item) => item.slug === visualMode)) {
+			setVisualMode(
+				modes.find((item) => item.slug === defaultModeSlug)?.slug ?? modes[0]?.slug ?? defaultModeSlug,
+			)
+		}
+	}, [visualMode, modes])
 
 	// Handler for popover open state change
 	const onOpenChange = useCallback((open: boolean) => {
@@ -624,7 +628,7 @@ const ModesView = () => {
 	// behavior until the first edit, then persist an explicit allowlist.
 	const handleNativeToolChange = useCallback(
 		(tool: ToolName, group: ToolGroup, customMode: ModeConfig | undefined) =>
-		(e: Event | React.FormEvent<HTMLElement>) => {
+			(e: Event | React.FormEvent<HTMLElement>) => {
 				if (!customMode) return
 				const target = (e as CustomEvent)?.detail?.target || (e.target as HTMLInputElement)
 				const checked = target.checked
@@ -1373,11 +1377,15 @@ const ModesView = () => {
 							<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
 								{nativeToolGroups.map((group) => {
 									const customMode = findModeBySlug(visualMode, customModes)!
-									const selected = new Set(customMode.nativeToolNames ?? getLegacyNativeToolNames(customMode.groups))
+									const selected = new Set(
+										customMode.nativeToolNames ?? getLegacyNativeToolNames(customMode.groups),
+									)
 
 									return (
 										<div key={group} className="rounded border border-vscode-panel-border p-2">
-											<div className="font-semibold text-sm mb-1">{t(`prompts:tools.toolNames.${group}`)}</div>
+											<div className="font-semibold text-sm mb-1">
+												{t(`prompts:tools.toolNames.${group}`)}
+											</div>
 											{getSelectableTools(group).map((tool) => (
 												<VSCodeCheckbox
 													key={tool}
@@ -1546,7 +1554,9 @@ const ModesView = () => {
 									})
 								}
 							}}>
-							<SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="on-demand">按需调用（默认）</SelectItem>
 								<SelectItem value="evidence-required">完成前必须取证</SelectItem>

@@ -23,6 +23,7 @@ const mockExtensionState = {
 	setEnhancementApiConfigId: vitest.fn(),
 	mode: "code",
 	customModes: [],
+	mcpServers: [],
 	customSupportPrompts: [],
 	currentApiConfigName: "",
 	customInstructions: "",
