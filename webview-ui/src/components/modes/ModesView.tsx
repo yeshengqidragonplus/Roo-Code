@@ -249,47 +249,34 @@ const ModesView = () => {
 		[],
 	)
 
-	const switchMode = useCallback((slug: string) => {
-		vscode.postMessage({
-			type: "mode",
-			text: slug,
-		})
-	}, [])
-
-	// Handle mode switching with explicit state initialization
-	const handleModeSwitch = useCallback(
+	// Settings selects the configuration to edit; it must never switch the
+	// currently running chat/task mode. Runtime mode changes belong solely to
+	// the chat mode picker.
+	const handleModeSelection = useCallback(
 		(modeConfig: ModeConfig) => {
 			if (modeConfig.slug === visualMode) return // Prevent unnecessary updates
 
-			// Immediately update visual state for instant feedback
+			// Immediately update the editor state for instant feedback.
 			setVisualMode(modeConfig.slug)
-
-			// Then send the mode change message to the backend
-			switchMode(modeConfig.slug)
 
 			// Exit tools edit mode when switching modes
 			setIsToolsEditMode(false)
 		},
-		[visualMode, switchMode],
+		[visualMode],
 	)
 
 	// Refs to track latest state/functions for message handler (which has no dependencies)
-	const handleModeSwitchRef = useRef(handleModeSwitch)
+	const handleModeSelectionRef = useRef(handleModeSelection)
 	const customModesRef = useRef(customModes)
-	const switchModeRef = useRef(switchMode)
 
 	// Update refs when dependencies change
 	useEffect(() => {
-		handleModeSwitchRef.current = handleModeSwitch
-	}, [handleModeSwitch])
+		handleModeSelectionRef.current = handleModeSelection
+	}, [handleModeSelection])
 
 	useEffect(() => {
 		customModesRef.current = customModes
 	}, [customModes])
-
-	useEffect(() => {
-		switchModeRef.current = switchMode
-	}, [switchMode])
 
 	// This selector chooses which Mode configuration is being edited. A running
 	// task can emit delayed state snapshots while a workgroup switches between
@@ -573,7 +560,6 @@ const ModesView = () => {
 		updateCustomMode(newModeSlug, newMode)
 		// Immediately select the newly created mode in the UI
 		setVisualMode(newModeSlug)
-		switchMode(newModeSlug)
 		setIsCreateModeDialogOpen(false)
 		resetFormState()
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -720,11 +706,10 @@ const ModesView = () => {
 						const all = getAllModes(customModesRef.current)
 						const importedMode = all.find((m) => m.slug === slug)
 						if (importedMode) {
-							handleModeSwitchRef.current(importedMode)
+							handleModeSelectionRef.current(importedMode)
 						} else {
 							// Fallback: slug not yet in state (race condition) - select default mode
 							setVisualMode(defaultModeSlug)
-							switchModeRef.current?.(defaultModeSlug)
 						}
 					}
 				} else {
@@ -755,7 +740,7 @@ const ModesView = () => {
 
 		window.addEventListener("message", handler)
 		return () => window.removeEventListener("message", handler)
-	}, [checkRulesDirectory, switchMode])
+	}, [checkRulesDirectory])
 
 	const handleAgentReset = (
 		modeSlug: string,
@@ -957,7 +942,7 @@ const ModesView = () => {
 																key={modeConfig.slug}
 																value={`${modeConfig.name} ${modeConfig.slug}`}
 																onSelect={() => {
-																	handleModeSwitch(modeConfig)
+																	handleModeSelection(modeConfig)
 																	setOpen(false)
 																}}
 																data-testid={`mode-option-${modeConfig.slug}`}>

@@ -1,10 +1,9 @@
 // npx vitest src/components/modes/__tests__/ModesView.import-switch.spec.tsx
 
-import { render, waitFor } from "@/utils/test-utils"
+import { render, screen, waitFor } from "@/utils/test-utils"
 import ModesView from "../ModesView"
 import { ExtensionStateContext } from "@src/context/ExtensionStateContext"
 import { vscode } from "@src/utils/vscode"
-import { defaultModeSlug } from "@roo/modes"
 
 // Mock vscode API
 vitest.mock("@src/utils/vscode", () => ({
@@ -40,12 +39,12 @@ const renderModesView = (props = {}) => {
 
 Element.prototype.scrollIntoView = vitest.fn()
 
-describe("ModesView Import Auto-Switch", () => {
+describe("ModesView Import Selection", () => {
 	beforeEach(() => {
 		vitest.clearAllMocks()
 	})
 
-	it("should auto-switch to imported mode when found in current state", async () => {
+	it("selects the imported mode for editing without changing the running task mode", async () => {
 		const importedModeSlug = "custom-test-mode"
 		const customModes = [
 			{
@@ -69,16 +68,14 @@ describe("ModesView Import Auto-Switch", () => {
 
 		window.dispatchEvent(new MessageEvent("message", importMessage))
 
-		// Wait for the mode switch message to be sent
+		// The import selects its configuration in the editor only.
 		await waitFor(() => {
-			expect(vscode.postMessage).toHaveBeenCalledWith({
-				type: "mode",
-				text: importedModeSlug,
-			})
+			expect(screen.getByTestId("mode-select-trigger")).toHaveTextContent("Custom Test Mode")
 		})
+		expect(vscode.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "mode" }))
 	})
 
-	it("should fallback to architect mode when imported slug not yet in state (race condition)", async () => {
+	it("falls back to the default configuration when imported slug is not yet in state", async () => {
 		const importedModeSlug = "custom-new-mode"
 
 		// Render without the imported mode in customModes (simulating race condition)
@@ -95,13 +92,11 @@ describe("ModesView Import Auto-Switch", () => {
 
 		window.dispatchEvent(new MessageEvent("message", importMessage))
 
-		// Wait for the fallback to default mode (architect)
+		// Wait for the fallback to default configuration.
 		await waitFor(() => {
-			expect(vscode.postMessage).toHaveBeenCalledWith({
-				type: "mode",
-				text: defaultModeSlug,
-			})
+			expect(screen.getByTestId("mode-select-trigger")).toHaveTextContent("Code")
 		})
+		expect(vscode.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "mode" }))
 	})
 
 	it("should not switch modes on import failure", async () => {

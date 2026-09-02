@@ -74,7 +74,7 @@ describe("PromptsView", () => {
 		})
 	})
 
-	it("selects a mode from the dropdown and sends update message", async () => {
+	it("selects a mode from the dropdown without changing the running task mode", async () => {
 		renderPromptsView()
 		const selectTrigger = screen.getByTestId("mode-select-trigger")
 		fireEvent.click(selectTrigger)
@@ -83,10 +83,11 @@ describe("PromptsView", () => {
 		fireEvent.click(askOption)
 
 		expect(mockExtensionState.setEnhancementApiConfigId).not.toHaveBeenCalled() // Ensure this is not called by mode switch
-		expect(vscode.postMessage).toHaveBeenCalledWith({
+		expect(vscode.postMessage).not.toHaveBeenCalledWith({
 			type: "mode",
 			text: "ask",
 		})
+		expect(selectTrigger).toHaveTextContent("Ask")
 		await waitFor(() => {
 			expect(selectTrigger).toHaveAttribute("aria-expanded", "false")
 		})
