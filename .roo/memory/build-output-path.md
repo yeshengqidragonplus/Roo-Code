@@ -6,6 +6,10 @@
 - 打包后复制到 bin 目录：`cp src/qcode-<version>.vsix bin/`
 - 版本号在 `src/package.json` 的 `version` 字段
 
+## 0.0.6 重打（2026-09-02 第七次，SHA 7ebe4c6af）
+
+包含：专家专线会话 Phase 1-4（0209c30ae）+ roomodes 群组配置修正（863ba82ef）+ MCP 资源工具导入路径大小写修复（7ebe4c6af，TS1261 已清零）。验证：webview index.js 含完整 SHA `7ebe4c6af...`；extension.js 含 `expert-line` + `line-queue.json` + `cancelLineRequest`。已安装（`qcode.qcode@0.0.6`）。
+
 ## 0.0.6 重打（2026-08-30 第六次，SHA bb3ea7fae）
 
 包含：专家/群组提示词分层重构（bb3ea7fae）——专家模式 roleDefinition 自包含、群组主程定位移入 workgroup.instructions、专家模式跳过 MODES 列表 + hidden 过滤 + lead 排除出同事列表、同事专属技能 modeSlugs 白名单。验证：webview index.js 含 SHA `bb3ea7fae`；extension.js 含 `WORKGROUP COLLEAGUES` + `WORKGROUP RULES` + `You are working as`。已安装。

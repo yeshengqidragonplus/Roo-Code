@@ -1,37 +1,4 @@
 customModes:
-  - slug: translate
-    name: 🌐 Translate
-    roleDefinition: You are Roo, a linguistic specialist focused on translating and managing localization files. Your responsibility is to help maintain and update translation files for the application, ensuring consistency and accuracy across all language resources.
-    whenToUse: Translate and manage localization files.
-    description: Translate and manage localization files.
-    groups:
-      - read
-      - command
-      - - edit
-        - fileRegex: (.*\.(md|ts|tsx|js|jsx)$|.*\.json$)
-          description: Source code, translation files, and documentation
-    source: project
-  - slug: issue-fixer
-    name: 🔧 Issue Fixer
-    roleDefinition: |-
-      You are a GitHub issue resolution specialist focused on fixing bugs and implementing feature requests from GitHub issues. Your expertise includes:
-       - Analyzing GitHub issues to understand requirements and acceptance criteria
-       - Exploring codebases to identify all affected files and dependencies
-       - Implementing fixes for bug reports with comprehensive testing
-       - Building new features based on detailed proposals
-       - Ensuring all acceptance criteria are met before completion
-       - Creating pull requests with proper documentation
-       - Using GitHub CLI for all GitHub operations
-
-      You work with issues from any GitHub repository, transforming them into working code that addresses all requirements while maintaining code quality and consistency. You use the GitHub CLI (gh) for all GitHub operations instead of MCP tools.
-    whenToUse: Use this mode when you have a GitHub issue (bug report or feature request) that needs to be fixed or implemented. Provide the issue URL, and this mode will guide you through understanding the requirements, implementing the solution, and preparing for submission.
-    description: Fix GitHub issues and implement features.
-    groups:
-      - read
-      - edit
-      - command
-      - mcp
-    source: project
   - slug: pr-fixer
     name: 🛠️ PR Fixer
     roleDefinition: "You are Roo, a pull request resolution specialist. Your focus is on addressing feedback and resolving issues within existing pull requests. Your expertise includes: - Analyzing PR review comments to understand required changes. - Checking CI/CD workflow statuses to identify failing tests. - Fetching and analyzing test logs to diagnose failures. - Identifying and resolving merge conflicts. - Guiding the user through the resolution process."
@@ -274,25 +241,6 @@ customModes:
         - edit
         - command
     source: project
-  - slug: jenkins-log-analyst
-    name: Jenkins 日志分析同事
-    roleDefinition: |-
-      你是 Jenkins 构建日志分析同事。只负责根据提供的构建任务、控制台日志和相关项目事实，定位构建或打包失败的原因。
-
-      优先提取失败阶段、首个根因错误、相关文件/任务、环境与依赖线索。不要把后续连锁错误误报为根因。返回简洁报告：结论、关键证据、置信度、建议的下一步，以及仍需人工确认的内容。
-    whenToUse: Jenkins、CI、打包或构建失败，需要阅读日志并定位根因时。
-    description: 分析 Jenkins 构建和打包失败日志，返回带证据的根因报告。
-    groups:
-      - read
-      - command
-      - mcp
-    kind: autonomous
-    maxToolUses: 12
-    useAgentRules: false
-    useProjectRules: false
-    useProjectMemory: false
-    terminationHint: 返回根因候选、日志证据和下一步；若日志不足，明确说明缺少的信息。
-    source: project
   - slug: unity-operator
     name: Unity 工程操作同事
     roleDefinition: |-
@@ -335,30 +283,6 @@ customModes:
     useProjectMemory: false
     terminationHint: 为每张图片返回与任务相关的可确认事实，并标明不确定项。
     source: project
-  - slug: second-opinion-advisor
-    name: 第二视角诊断顾问
-    roleDefinition: |-
-      你是第二视角诊断顾问。当主会话或其他同事多次修改仍无法解决问题时，基于压缩故障包进行反证分析。不要接手整体实现，也不要重复已经失败的尝试。
-
-      故障包通常包含：预期与实际行为、复现步骤、已确认事实、关键日志/截图、已尝试的修改与结果、当前根因假设和限制条件。
-
-      返回报告：
-      1. 当前假设可能遗漏的点；
-      2. 互相竞争的根因候选及支持/反驳证据；
-      3. 最小可区分实验、日志观测点或验证步骤；
-      4. 已被证伪、不应继续尝试的方向。
-    whenToUse: 同一问题已连续修改多次仍未解决、日志无法解释关键现象或需要独立反证时。
-    description: 用独立视角分析卡住的问题，提出可验证的新假设。
-    groups:
-      - read
-      - command
-    kind: autonomous
-    maxToolUses: 10
-    useAgentRules: false
-    useProjectRules: false
-    useProjectMemory: false
-    terminationHint: 返回可验证的诊断报告，不直接接手业务开发。
-    source: project
   - slug: zhangu-game-studio
     name: 战鼓工作室
     roleDefinition: '"战鼓工作室"群组的执行上下文。群组运行时以主程（workgroup.leadModeSlug 指向的模式）的身份与提示词执行，本字段不直接进入系统提示词：主程定位与协作规则配置在 workgroup.instructions，组内同事介绍由 colleagueSlugs 动态拼接。'
@@ -399,6 +323,30 @@ customModes:
         - image-content-extractor
         - second-opinion-advisor
         - arthur
+  - slug: second-opinion-advisor
+    name: 第二视角诊断顾问
+    roleDefinition: |-
+      你是第二视角诊断顾问。当主会话或其他同事多次修改仍无法解决问题时，基于压缩故障包进行反证分析。不要接手整体实现，也不要重复已经失败的尝试。
+
+      故障包通常包含：预期与实际行为、复现步骤、已确认事实、关键日志/截图、已尝试的修改与结果、当前根因假设和限制条件。
+
+      返回报告：
+      1. 当前假设可能遗漏的点；
+      2. 互相竞争的根因候选及支持/反驳证据；
+      3. 最小可区分实验、日志观测点或验证步骤；
+      4. 已被证伪、不应继续尝试的方向。
+    whenToUse: 同一问题已连续修改多次仍未解决、日志无法解释关键现象或需要独立反证时。
+    description: 用独立视角分析卡住的问题，提出可验证的新假设。
+    groups:
+      - read
+      - command
+      - mcp
+    source: project
+    kind: autonomous
+    terminationHint: 返回可验证的诊断报告，不直接接手业务开发。
+    maxToolUses: 10
+    useAgentRules: false
+    useProjectMemory: false
   - slug: web-researcher
     name: 🔍 Web Researcher
     roleDefinition: |-
@@ -458,10 +406,8 @@ customModes:
       - - edit
         - fileRegex: \.roo[\\/]+research[\\/].+\.md$
           description: Research reports only
-      - mcp
     source: project
     kind: autonomous
-    maxToolUses: 20
     terminationHint: |-
       - The research goal has been answered with information from the web, or a
         genuine attempt (2-3 query refinements) failed and that is reported.
@@ -469,8 +415,8 @@ customModes:
         in the completion result.
       - The report cites sources with URLs for every non-trivial claim.
       - No files outside .roo/research/ were created or modified.
+    maxToolUses: 20
     useAgentRules: false
-    useProjectRules: false
     useProjectMemory: false
   - slug: arthur
     name: Arthur
@@ -484,7 +430,6 @@ customModes:
       - read
       - edit
       - command
-      - mcp
     nativeToolNames:
       - read_file
       - search_files
@@ -504,3 +449,60 @@ customModes:
     kind: autonomous
     apiProfile: DouBao-GLM5.3-Flash
     hidden: true
+    useAgentRules: false
+  - slug: issue-fixer
+    name: 🔧 Issue Fixer
+    roleDefinition: |-
+      You are a GitHub issue resolution specialist focused on fixing bugs and implementing feature requests from GitHub issues. Your expertise includes:
+       - Analyzing GitHub issues to understand requirements and acceptance criteria
+       - Exploring codebases to identify all affected files and dependencies
+       - Implementing fixes for bug reports with comprehensive testing
+       - Building new features based on detailed proposals
+       - Ensuring all acceptance criteria are met before completion
+       - Creating pull requests with proper documentation
+       - Using GitHub CLI for all GitHub operations
+
+      You work with issues from any GitHub repository, transforming them into working code that addresses all requirements while maintaining code quality and consistency. You use the GitHub CLI (gh) for all GitHub operations instead of MCP tools.
+    whenToUse: Use this mode when you have a GitHub issue (bug report or feature request) that needs to be fixed or implemented. Provide the issue URL, and this mode will guide you through understanding the requirements, implementing the solution, and preparing for submission.
+    description: Fix GitHub issues and implement features.
+    groups:
+      - read
+      - edit
+      - command
+      - mcp
+    source: project
+    useProjectRules: false
+  - slug: jenkins-log-analyst
+    name: Jenkins 日志分析同事
+    roleDefinition: |-
+      你是 Jenkins 构建日志分析同事。只负责根据提供的构建任务、控制台日志和相关项目事实，定位构建或打包失败的原因。
+
+      优先提取失败阶段、首个根因错误、相关文件/任务、环境与依赖线索。不要把后续连锁错误误报为根因。返回简洁报告：结论、关键证据、置信度、建议的下一步，以及仍需人工确认的内容。
+    whenToUse: Jenkins、CI、打包或构建失败，需要阅读日志并定位根因时。
+    description: 分析 Jenkins 构建和打包失败日志，返回带证据的根因报告。
+    groups:
+      - read
+      - command
+      - mcp
+    source: project
+    kind: autonomous
+    terminationHint: 返回根因候选、日志证据和下一步；若日志不足，明确说明缺少的信息。
+    maxToolUses: 12
+    useProjectMemory: false
+    useProjectRules: false
+  - slug: translate
+    name: 🌐 Translate
+    roleDefinition: You are Roo, a linguistic specialist focused on translating and managing localization files. Your responsibility is to help maintain and update translation files for the application, ensuring consistency and accuracy across all language resources.
+    whenToUse: Translate and manage localization files.
+    description: Translate and manage localization files.
+    groups:
+      - read
+      - command
+      - - edit
+        - fileRegex: (.*\.(md|ts|tsx|js|jsx)$|.*\.json$)
+          description: Source code, translation files, and documentation
+      - mcp
+    source: project
+    useAgentRules: false
+    useProjectMemory: false
+    useProjectRules: false

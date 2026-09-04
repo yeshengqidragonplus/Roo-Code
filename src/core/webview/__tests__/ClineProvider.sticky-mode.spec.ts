@@ -123,6 +123,14 @@ vi.mock("../../../shared/modes", () => ({
 		roleDefinition: "You are a code assistant",
 		groups: ["read", "edit"],
 	}),
+	// handleModeSwitch resolves the execution config (workgroup lead indirection)
+	// before touching apiProfile; mirror getModeBySlug so the mock stays complete.
+	getExecutionModeConfig: vi.fn().mockReturnValue({
+		slug: "code",
+		name: "Code Mode",
+		roleDefinition: "You are a code assistant",
+		groups: ["read", "edit"],
+	}),
 	defaultModeSlug: "code",
 }))
 
@@ -953,17 +961,16 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Clear previous mock calls to isolate this test
 			vi.mocked(mockContext.globalState.update).mockClear()
 
-			// The handleModeSwitch method doesn't catch errors from emit, so it will throw
-			// The error is thrown before the task's mode is updated
-			await expect(provider.handleModeSwitch("architect")).rejects.toThrow("Emit failed")
+			// A failing emit listener must not abort the switch. Regression:
+			// the throw used to propagate before `mode` was persisted, so the
+			// webview re-synced the old mode and the selection bounced back.
+			await expect(provider.handleModeSwitch("architect")).resolves.not.toThrow()
 
-			// Since the error is thrown before updating the task's _taskMode,
-			// neither the task mode nor global state are updated
-			const modeCalls = vi.mocked(mockContext.globalState.update).mock.calls.filter((call) => call[0] === "mode")
-			expect(modeCalls.length).toBe(0)
+			// The global mode must still be persisted after the listener error.
+			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "architect")
 
-			// The task's mode should NOT have been updated since the error occurred first
-			expect(mockTask._taskMode).toBe("code")
+			// The task follows the user's selection even if bookkeeping failed.
+			expect(mockTask._taskMode).toBe("architect")
 
 			consoleErrorSpy.mockRestore()
 		})
@@ -1006,9 +1013,16 @@ describe("ClineProvider - Sticky Mode", () => {
 			// Mock console.error
 			const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
-			// The updateTaskHistory failure will cause handleModeSwitch to throw
-			// This is the actual behavior based on the test failure
-			await expect(provider.handleModeSwitch("architect")).rejects.toThrow("Update failed")
+			// Clear previous mock calls to isolate the assertion below.
+			vi.mocked(mockContext.globalState.update).mockClear()
+
+			// History persistence is best-effort: a failure must not abort the
+			// switch, otherwise the webview re-syncs the old mode and the user's
+			// selection silently bounces back.
+			await expect(provider.handleModeSwitch("architect")).resolves.not.toThrow()
+
+			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "architect")
+			expect(mockTask._taskMode).toBe("architect")
 
 			consoleErrorSpy.mockRestore()
 		})

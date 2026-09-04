@@ -134,6 +134,13 @@ vi.mock("../../../shared/modes", () => {
 		},
 	]
 
+	const getModeBySlug = vi.fn().mockReturnValue({
+		slug: "code",
+		name: "Code Mode",
+		roleDefinition: "You are a code assistant",
+		groups: ["read", "edit"],
+	})
+
 	return {
 		modes: mockModes,
 		getAllModes: vi.fn((customModes?: Array<{ slug: string }>) => {
@@ -151,12 +158,14 @@ vi.mock("../../../shared/modes", () => {
 			})
 			return allModes
 		}),
-		getModeBySlug: vi.fn().mockReturnValue({
-			slug: "code",
-			name: "Code Mode",
-			roleDefinition: "You are a code assistant",
-			groups: ["read", "edit"],
-		}),
+		getModeBySlug,
+		// handleModeSwitch resolves the execution config (workgroup lead
+		// indirection) before reading apiProfile; delegate to getModeBySlug so
+		// per-test mockReturnValue(Once) overrides stay effective.
+		getExecutionModeConfig: vi.fn((slug: string, customModes?: any) => getModeBySlug(slug, customModes)),
+		getExecutionModeSlug: vi.fn(
+			(slug: string, customModes?: any) => getModeBySlug(slug, customModes)?.slug ?? slug,
+		),
 		defaultModeSlug: "code",
 	}
 })

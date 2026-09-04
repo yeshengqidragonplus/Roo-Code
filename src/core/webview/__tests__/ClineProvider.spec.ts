@@ -214,48 +214,59 @@ vi.mock("../../../api/providers/fetchers/modelCache", () => ({
 	getModelsFromCache: vi.fn().mockReturnValue(undefined),
 }))
 
-vi.mock("../../../shared/modes", () => ({
-	modes: [
-		{
-			slug: "code",
-			name: "Code Mode",
-			roleDefinition: "You are a code assistant",
-			groups: ["read", "edit"],
-		},
-		{
-			slug: "architect",
-			name: "Architect Mode",
-			roleDefinition: "You are an architect",
-			groups: ["read", "edit"],
-		},
-		{
-			slug: "ask",
-			name: "Ask Mode",
-			roleDefinition: "You are a helpful assistant",
-			groups: ["read"],
-		},
-	],
-	getModeBySlug: vi.fn().mockReturnValue({
+vi.mock("../../../shared/modes", () => {
+	const getModeBySlug = vi.fn().mockReturnValue({
 		slug: "code",
 		name: "Code Mode",
 		roleDefinition: "You are a code assistant",
 		groups: ["read", "edit"],
-	}),
-	getGroupName: vi.fn().mockImplementation((group: string) => {
-		// Return appropriate group names for different tool groups
-		switch (group) {
-			case "read":
-				return "Read Tools"
-			case "edit":
-				return "Edit Tools"
-			case "mcp":
-				return "MCP Tools"
-			default:
-				return "General Tools"
-		}
-	}),
-	defaultModeSlug: "code",
-}))
+	})
+
+	return {
+		modes: [
+			{
+				slug: "code",
+				name: "Code Mode",
+				roleDefinition: "You are a code assistant",
+				groups: ["read", "edit"],
+			},
+			{
+				slug: "architect",
+				name: "Architect Mode",
+				roleDefinition: "You are an architect",
+				groups: ["read", "edit"],
+			},
+			{
+				slug: "ask",
+				name: "Ask Mode",
+				roleDefinition: "You are a helpful assistant",
+				groups: ["read"],
+			},
+		],
+		getModeBySlug,
+		// handleModeSwitch resolves the execution config (workgroup lead
+		// indirection) before reading apiProfile; delegate to getModeBySlug so
+		// per-test mockReturnValue(Once) overrides stay effective.
+		getExecutionModeConfig: vi.fn((slug: string, customModes?: any) => getModeBySlug(slug, customModes)),
+		getExecutionModeSlug: vi.fn(
+			(slug: string, customModes?: any) => getModeBySlug(slug, customModes)?.slug ?? slug,
+		),
+		getGroupName: vi.fn().mockImplementation((group: string) => {
+			// Return appropriate group names for different tool groups
+			switch (group) {
+				case "read":
+					return "Read Tools"
+				case "edit":
+					return "Edit Tools"
+				case "mcp":
+					return "MCP Tools"
+				default:
+					return "General Tools"
+			}
+		}),
+		defaultModeSlug: "code",
+	}
+})
 
 vi.mock("../../prompts/system", () => ({
 	SYSTEM_PROMPT: vi.fn().mockResolvedValue("mocked system prompt"),

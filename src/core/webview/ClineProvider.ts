@@ -1416,10 +1416,22 @@ export class ClineProvider
 		const task = this.getCurrentTask()
 
 		if (task) {
-			task.emit(RooCodeEventName.TaskModeSwitched, task.taskId, newMode)
+			// Update the in-memory task mode first so the running task always
+			// follows the user's selection, even if the bookkeeping below fails.
+			;(task as any)._taskMode = newMode
 
 			try {
-				// Update the task history with the new mode first.
+				task.emit(RooCodeEventName.TaskModeSwitched, task.taskId, newMode)
+			} catch (error) {
+				// A misbehaving listener must not abort the switch; the new mode
+				// is still reported to the extension API with the event payload.
+				this.log(
+					`[handleModeSwitch] TaskModeSwitched listener failed for task ${task.taskId}: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+
+			try {
+				// Update the task history with the new mode.
 				const taskHistoryItem =
 					this.taskHistoryStore.get(task.taskId) ??
 					(this.getGlobalState("taskHistory") ?? []).find((item) => item.id === task.taskId)
@@ -1427,17 +1439,13 @@ export class ClineProvider
 				if (taskHistoryItem) {
 					await this.updateTaskHistory({ ...taskHistoryItem, mode: newMode })
 				}
-
-				// Only update the task's mode after successful persistence.
-				;(task as any)._taskMode = newMode
 			} catch (error) {
-				// If persistence fails, log the error but don't update the in-memory state.
+				// Best-effort persistence only. The global `mode` written below is
+				// what the webview re-syncs from, so aborting here would make the
+				// selection bounce back to the previous mode in the UI.
 				this.log(
 					`Failed to persist mode switch for task ${task.taskId}: ${error instanceof Error ? error.message : String(error)}`,
 				)
-
-				// This ensures the in-memory state remains consistent with persisted state.
-				throw error
 			}
 		}
 
