@@ -28,6 +28,7 @@ import {
 	getSharedToolUseSection,
 	getToolUseGuidelinesSection,
 	getCapabilitiesSection,
+	getMcpServersSection,
 	getModesSection,
 	addCustomInstructions,
 	markdownFormattingSection,
@@ -113,6 +114,11 @@ async function generatePrompt(
 			? `\n====\n\nTASK COMPLETION CRITERIA\n\nThis task is considered complete when:\n${modeConfig.terminationHint}\n\nKeep working autonomously until these criteria are met; only then use attempt_completion.\n`
 			: ""
 
+	// On-demand MCP injection: name the servers assigned to this mode (same
+	// visibility source of truth as the tools-array filter) so the model is
+	// explicitly steered to use them. Empty when nothing is assigned.
+	const mcpServersSection = shouldIncludeMcp ? getMcpServersSection(mcpHub, executionMode) : ""
+
 	const basePrompt = `${roleDefinition}
 
 ${markdownFormattingSection()}
@@ -120,7 +126,7 @@ ${markdownFormattingSection()}
 ${toolUseSection}${toolsCatalog}
 
 ${getToolUseGuidelinesSection()}
-
+${mcpServersSection ? `\n${mcpServersSection}\n` : ""}
 ${getCapabilitiesSection(cwd, shouldIncludeMcp ? mcpHub : undefined)}
 
 ${modesSection}

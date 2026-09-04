@@ -1,0 +1,815 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+        - /url: "#start-of-content"
+      - banner [ref=f1e9]:
+        - heading "Navigation Menu" [level=2] [ref=f1e10]
+        - generic [ref=f1e11]:
+          - link "Homepage" [ref=f1e13] [cursor=pointer]:
+            - /url: /
+          - generic [ref=f1e16]:
+            - navigation "Global" [ref=f1e17]:
+              - list [ref=f1e18]:
+                - listitem [ref=f1e19]:
+                  - button "Platform" [ref=f1e21] [cursor=pointer]
+                - listitem [ref=f1e24]:
+                  - button "Solutions" [ref=f1e26] [cursor=pointer]
+                - listitem [ref=f1e29]:
+                  - button "Resources" [ref=f1e31] [cursor=pointer]
+                - listitem [ref=f1e34]:
+                  - button "Open Source" [ref=f1e36] [cursor=pointer]
+                - listitem [ref=f1e39]:
+                  - button "Enterprise" [ref=f1e41] [cursor=pointer]
+                - listitem [ref=f1e44]:
+                  - link "Pricing" [ref=f1e45] [cursor=pointer]:
+                    - /url: https://github.com/pricing
+            - generic [ref=f1e46]:
+              - button "Search or jump to, type / to search" [ref=f1e48] [cursor=pointer]
+              - link "Sign in" [ref=f1e55] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2FInternLM%2FMindSearch
+              - link "Sign up" [ref=f1e58] [cursor=pointer]:
+                - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=InternLM%2FMindSearch
+              - button "Appearance settings" [ref=f1e61] [cursor=pointer]
+    - main [ref=f1e68]:
+      - generic [ref=f1e69]:
+        - generic [ref=f1e70]:
+          - generic [ref=f1e72]:
+            - link "InternLM" [ref=f1e76] [cursor=pointer]:
+              - /url: /InternLM
+            - generic [ref=f1e77]: /
+            - strong [ref=f1e78]:
+              - link "MindSearch" [ref=f1e79] [cursor=pointer]:
+                - /url: /InternLM/MindSearch
+            - generic [ref=f1e80]: Public
+          - generic [ref=f1e81]:
+            - list:
+              - listitem [ref=f1e82]:
+                - link "You must be signed in to change notification settings" [ref=f1e83] [cursor=pointer]:
+                  - /url: /login?return_to=%2FInternLM%2FMindSearch
+                  - text: Notifications
+              - listitem [ref=f1e86]:
+                - link "Fork 693" [ref=f1e87] [cursor=pointer]:
+                  - /url: /login?return_to=%2FInternLM%2FMindSearch
+                  - text: Fork
+                  - generic "693" [ref=f1e90]
+              - listitem [ref=f1e91]:
+                - link "You must be signed in to star a repository" [ref=f1e93] [cursor=pointer]:
+                  - /url: /login?return_to=%2FInternLM%2FMindSearch
+                  - text: Star
+                  - generic "6919 users starred this repository" [ref=f1e96]: 6.9k
+        - navigation "Repository" [ref=f1e97]:
+          - list [ref=f1e98]:
+            - listitem [ref=f1e99]:
+              - link "Code" [ref=f1e100] [cursor=pointer]:
+                - /url: /InternLM/MindSearch
+            - listitem [ref=f1e104]:
+              - link "Issues 47" [ref=f1e105] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/issues
+                - generic [ref=f1e109]: Issues
+                - generic "47" [ref=f1e110]
+            - listitem [ref=f1e111]:
+              - link "Pull requests 10" [ref=f1e112] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/pulls
+                - generic [ref=f1e115]: Pull requests
+                - generic "10" [ref=f1e116]
+            - listitem [ref=f1e117]:
+              - link "Discussions" [ref=f1e118] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/discussions
+            - listitem [ref=f1e122]:
+              - link "Actions" [ref=f1e123] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/actions
+            - listitem [ref=f1e127]:
+              - link "Projects" [ref=f1e128] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/projects
+            - listitem [ref=f1e132]:
+              - link "Security and quality" [ref=f1e133] [cursor=pointer]:
+                - /url: /InternLM/MindSearch/security
+            - listitem [ref=f1e137]
+          - button "Additional navigation options" [ref=f1e141] [cursor=pointer]
+      - generic [ref=f1e155]:
+        - generic [ref=f1e158]:
+          - generic [ref=f1e159]:
+            - generic [ref=f1e160]:
+              - button "main branch" [ref=f1e162] [cursor=pointer]:
+                - generic [ref=f1e163]: main
+              - generic [ref=f1e167]:
+                - link "Go to Branches page" [ref=f1e168] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/branches
+                - link "Go to Tags page" [ref=f1e171] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/tags
+            - generic [ref=f1e174]:
+              - combobox "Go to file" [ref=f1e182]
+              - button "Code" [ref=f1e183] [cursor=pointer]
+          - generic [ref=f1e186]:
+            - generic [ref=f1e187]:
+              - generic [ref=f1e189]:
+                - heading "Latest commit" [level=2] [ref=f1e190]
+                - generic [ref=f1e191]:
+                  - generic [ref=f1e193]:
+                    - link [ref=f1e194] [cursor=pointer]:
+                      - /url: /aswinpradeepc
+                      - img "aswinpradeepc" [ref=f1e195]
+                    - link "commits by aswinpradeepc" [ref=f1e196] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/commits?author=aswinpradeepc
+                      - text: aswinpradeepc
+                  - generic [ref=f1e199]:
+                    - link "Enhance README logo display for light and dark mode support (" [ref=f1e200] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                    - link "#301" [ref=f1e201] [cursor=pointer]:
+                      - /url: https://github.com/InternLM/MindSearch/pull/301
+                    - link ")" [ref=f1e202] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                - generic [ref=f1e203]:
+                  - generic [ref=f1e205]:
+                    - link "Commit 7952c5f" [ref=f1e206] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                      - text: 7952c5f
+                    - text: ·
+                    - generic "Jul 4, 2025, 18:06 GMT+8" [ref=f1e207]: Jul 4, 2025last year
+                  - generic [ref=f1e208]:
+                    - heading "History" [level=2] [ref=f1e209]
+                    - link "56 Commits" [ref=f1e210] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/commits/main/
+              - heading "Folders and files" [level=2] [ref=f1e213]
+              - table "Folders and files" [ref=f1e214]:
+                - rowgroup:
+                  - row "Name Last commit message Last commit date":
+                    - columnheader "Name"
+                    - columnheader "Last commit message"
+                    - columnheader "Last commit date"
+                - rowgroup [ref=f1e215]:
+                  - row [ref=f1e216]:
+                    - cell [ref=f1e217]:
+                      - link "assets, (Directory)" [ref=f1e224] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/tree/main/assets
+                        - text: assets
+                    - cell [ref=f1e225]:
+                      - generic [ref=f1e227]:
+                        - link "Enhance README logo display for light and dark mode support (" [ref=f1e228] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                        - link "#301" [ref=f1e229] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/301
+                        - link ")" [ref=f1e230] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                    - cell "Jul 4, 2025last year" [ref=f1e231]
+                  - row [ref=f1e233]:
+                    - cell [ref=f1e234]:
+                      - link "docker, (Directory)" [ref=f1e241] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/tree/main/docker
+                        - text: docker
+                    - cell [ref=f1e242]:
+                      - generic [ref=f1e244]:
+                        - link "Optimize MSDL Search Engine Configuration System (" [ref=f1e245] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/f657d39cafd3fa1174163310e92cf262e64a8121
+                        - link "#262" [ref=f1e246] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/262
+                        - link ")" [ref=f1e247] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/f657d39cafd3fa1174163310e92cf262e64a8121
+                    - cell "Nov 22, 20242 years ago" [ref=f1e248]
+                  - row [ref=f1e250]:
+                    - cell [ref=f1e251]:
+                      - link "frontend, (Directory)" [ref=f1e258] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/tree/main/frontend
+                        - text: frontend
+                    - cell [ref=f1e259]:
+                      - generic [ref=f1e261]:
+                        - link "[Docs] Update README (" [ref=f1e262] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/4ef08b8e48a8e5785b7cf70467d3e4342f33b494
+                        - link "#237" [ref=f1e263] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/237
+                        - link ")" [ref=f1e264] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/4ef08b8e48a8e5785b7cf70467d3e4342f33b494
+                    - cell "Nov 6, 20242 years ago" [ref=f1e265]
+                  - row [ref=f1e267]:
+                    - cell [ref=f1e268]:
+                      - link "mindsearch, (Directory)" [ref=f1e275] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/tree/main/mindsearch
+                        - text: mindsearch
+                    - cell [ref=f1e276]:
+                      - generic [ref=f1e278]:
+                        - link "修正 Qwen 模型调用接口 (" [ref=f1e279] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/bfb41be176f95700bcf199be69b001096425bbbd
+                        - link "#276" [ref=f1e280] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/276
+                        - link ")" [ref=f1e281] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/bfb41be176f95700bcf199be69b001096425bbbd
+                    - cell "Jan 8, 2025last year" [ref=f1e282]
+                  - row [ref=f1e284]:
+                    - cell [ref=f1e285]:
+                      - link ".DS_Store, (File)" [ref=f1e292] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.DS_Store
+                        - text: .DS_Store
+                    - cell [ref=f1e293]:
+                      - generic [ref=f1e295]:
+                        - 'link "feat: support history (" [ref=f1e296] [cursor=pointer]':
+                          - /url: /InternLM/MindSearch/commit/d66aa86004390ac930593a69231966f95b0b3d3b
+                        - link "#139" [ref=f1e297] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/139
+                        - link ")" [ref=f1e298] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/d66aa86004390ac930593a69231966f95b0b3d3b
+                    - cell "Aug 12, 20242 years ago" [ref=f1e299]
+                  - row [ref=f1e301]:
+                    - cell [ref=f1e302]:
+                      - link ".dockerignore, (File)" [ref=f1e309] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.dockerignore
+                        - text: .dockerignore
+                    - cell [ref=f1e310]:
+                      - link "添加Docker Compose快速启动指南并优化配置 / Add Docker Compose Quick Start Guide an…" [ref=f1e313] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/commit/246063415cb79da63bea04f878924d8fcdda0303
+                    - cell "Aug 12, 20242 years ago" [ref=f1e314]
+                  - row [ref=f1e316]:
+                    - cell [ref=f1e317]:
+                      - link ".env.example, (File)" [ref=f1e324] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.env.example
+                        - text: .env.example
+                    - cell [ref=f1e325]:
+                      - 'link "Pull Request: Integrate .env File Support and Add Backend Usage Examp…" [ref=f1e328] [cursor=pointer]':
+                        - /url: /InternLM/MindSearch/commit/98fd84d566fe9e3adc5028727f72f2944098fd05
+                    - cell "Sep 9, 20242 years ago" [ref=f1e329]
+                  - row [ref=f1e331]:
+                    - cell [ref=f1e332]:
+                      - link ".gitignore, (File)" [ref=f1e339] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.gitignore
+                        - text: .gitignore
+                    - cell [ref=f1e340]:
+                      - generic [ref=f1e342]:
+                        - link "V0.2.0 (" [ref=f1e343] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                        - link "#236" [ref=f1e344] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/236
+                        - link ")" [ref=f1e345] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                    - cell "Nov 5, 20242 years ago" [ref=f1e346]
+                  - row [ref=f1e348]:
+                    - cell [ref=f1e349]:
+                      - link ".pre-commit-config.yaml, (File)" [ref=f1e356] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.pre-commit-config.yaml
+                        - text: .pre-commit-config.yaml
+                    - cell [ref=f1e357]:
+                      - generic [ref=f1e359]:
+                        - link "[Refactor] modify_directory_structure (" [ref=f1e360] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/dbe386dbd5f7b7f7a0fa83f1d03177b5df04a4f7
+                        - link "#5" [ref=f1e361] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/5
+                        - link ")" [ref=f1e362] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/dbe386dbd5f7b7f7a0fa83f1d03177b5df04a4f7
+                    - cell "Jul 29, 20242 years ago" [ref=f1e363]
+                  - row [ref=f1e365]:
+                    - cell [ref=f1e366]:
+                      - link ".pylintrc, (File)" [ref=f1e373] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/.pylintrc
+                        - text: .pylintrc
+                    - cell [ref=f1e374]:
+                      - generic [ref=f1e376]:
+                        - link "[MindSearch] The core implemention for mindsearch (" [ref=f1e377] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/9f57c63838ac16f5e2d6e12990ea1fb5af5c3255
+                        - link "#2" [ref=f1e378] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/2
+                        - link ")" [ref=f1e379] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/9f57c63838ac16f5e2d6e12990ea1fb5af5c3255
+                    - cell "Jul 29, 20242 years ago" [ref=f1e380]
+                  - row [ref=f1e382]:
+                    - cell [ref=f1e383]:
+                      - link "Dockerfile, (File)" [ref=f1e390] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/Dockerfile
+                        - text: Dockerfile
+                    - cell [ref=f1e391]:
+                      - generic [ref=f1e393]:
+                        - link "V0.2.0 (" [ref=f1e394] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                        - link "#236" [ref=f1e395] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/236
+                        - link ")" [ref=f1e396] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                    - cell "Nov 5, 20242 years ago" [ref=f1e397]
+                  - row [ref=f1e399]:
+                    - cell [ref=f1e400]:
+                      - link "LICENSE, (File)" [ref=f1e407] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/LICENSE
+                        - text: LICENSE
+                    - cell [ref=f1e408]:
+                      - link "Update LICENSE" [ref=f1e411] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/commit/135eb69b78e4b888601268b8c8dc34ca38d9b980
+                    - cell "Oct 10, 20242 years ago" [ref=f1e412]
+                  - row [ref=f1e414]:
+                    - cell [ref=f1e415]:
+                      - link "README.md, (File)" [ref=f1e422] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/README.md
+                        - text: README.md
+                    - cell [ref=f1e423]:
+                      - generic [ref=f1e425]:
+                        - link "Enhance README logo display for light and dark mode support (" [ref=f1e426] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                        - link "#301" [ref=f1e427] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/301
+                        - link ")" [ref=f1e428] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/7952c5f8a956fe6a44228a6a7d528a35340e7c87
+                    - cell "Jul 4, 2025last year" [ref=f1e429]
+                  - row [ref=f1e431]:
+                    - cell [ref=f1e432]:
+                      - link "README_zh-CN.md, (File)" [ref=f1e439] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/README_zh-CN.md
+                        - text: README_zh-CN.md
+                    - cell [ref=f1e440]:
+                      - generic [ref=f1e442]:
+                        - link "[Docs] Update README (" [ref=f1e443] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/4ef08b8e48a8e5785b7cf70467d3e4342f33b494
+                        - link "#237" [ref=f1e444] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/237
+                        - link ")" [ref=f1e445] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/4ef08b8e48a8e5785b7cf70467d3e4342f33b494
+                    - cell "Nov 6, 20242 years ago" [ref=f1e446]
+                  - row [ref=f1e448]:
+                    - cell [ref=f1e449]:
+                      - link "backend_example.py, (File)" [ref=f1e456] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/backend_example.py
+                        - text: backend_example.py
+                    - cell [ref=f1e457]:
+                      - generic [ref=f1e459]:
+                        - link "V0.2.0 (" [ref=f1e460] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                        - link "#236" [ref=f1e461] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/236
+                        - link ")" [ref=f1e462] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/5034a5958954216a4691ec44b689614a336ed636
+                    - cell "Nov 5, 20242 years ago" [ref=f1e463]
+                  - row [ref=f1e465]:
+                    - cell [ref=f1e466]:
+                      - link "requirements.txt, (File)" [ref=f1e473] [cursor=pointer]:
+                        - /url: /InternLM/MindSearch/blob/main/requirements.txt
+                        - text: requirements.txt
+                    - cell [ref=f1e474]:
+                      - generic [ref=f1e476]:
+                        - link "Update requirements.txt (" [ref=f1e477] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/ae5b0c52cdb14b5de6975ad557e43d76190adc43
+                        - link "#267" [ref=f1e478] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/MindSearch/pull/267
+                        - link ")" [ref=f1e479] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/commit/ae5b0c52cdb14b5de6975ad557e43d76190adc43
+                    - cell "Dec 5, 20242 years ago" [ref=f1e480]
+            - generic [ref=f1e483]:
+              - generic [ref=f1e484]:
+                - heading "Repository files navigation" [level=2] [ref=f1e485]
+                - navigation "Repository files" [ref=f1e486]:
+                  - list [ref=f1e487]:
+                    - listitem [ref=f1e488]:
+                      - link "README" [ref=f1e489] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=f1e491]:
+                      - link "Apache-2.0 license" [ref=f1e492] [cursor=pointer]:
+                        - /url: "#"
+                - button "Outline" [ref=f1e494] [cursor=pointer]
+              - article [ref=f1e498]:
+                - generic [ref=f1e499]:
+                  - img "Logo" [ref=f1e502]
+                  - paragraph [ref=f1e503]:
+                    - link "📃 Paper" [ref=f1e504] [cursor=pointer]:
+                      - /url: https://arxiv.org/abs/2407.20183
+                    - text: "|"
+                    - link "💻 Demo" [ref=f1e505] [cursor=pointer]:
+                      - /url: https://internlm-chat.intern-ai.org.cn/
+                  - paragraph [ref=f1e506]:
+                    - text: English |
+                    - link "简体中文" [ref=f1e507] [cursor=pointer]:
+                      - /url: /InternLM/MindSearch/blob/main/README_zh-CN.md
+                  - group [ref=f1e508]:
+                    - generic "7.30._small.mp4" [ref=f1e509] [cursor=pointer]
+                - paragraph
+                - generic [ref=f1e514]:
+                  - 'heading "✨ MindSearch: Mimicking Human Minds Elicits Deep AI Searcher" [level=2] [ref=f1e515]'
+                  - 'link "Permalink: ✨ MindSearch: Mimicking Human Minds Elicits Deep AI Searcher" [ref=f1e516] [cursor=pointer]':
+                    - /url: "#-mindsearch-mimicking-human-minds-elicits-deep-ai-searcher"
+                - generic [ref=f1e519]:
+                  - heading "📅 Changelog" [level=2] [ref=f1e520]
+                  - 'link "Permalink: 📅 Changelog" [ref=f1e521] [cursor=pointer]':
+                    - /url: "#-changelog"
+                - list [ref=f1e524]:
+                  - listitem [ref=f1e525]:
+                    - text: "2024/11/05: 🥳 MindSearch is now deployed on Puyu! 👉"
+                    - link "Try it" [ref=f1e526] [cursor=pointer]:
+                      - /url: https://internlm-chat.intern-ai.org.cn/
+                    - text: 👈
+                    - list [ref=f1e527]:
+                      - listitem [ref=f1e528]:
+                        - text: Refactored the agent module based on
+                        - link "Lagent v0.5" [ref=f1e529] [cursor=pointer]:
+                          - /url: https://github.com/InternLM/lagent
+                        - text: for better performance in concurrency.
+                      - listitem [ref=f1e530]: Improved the UI to embody the simultaneous multi-query search.
+                - generic [ref=f1e531]:
+                  - heading "⚽️ Build Your Own MindSearch" [level=2] [ref=f1e532]
+                  - 'link "Permalink: ⚽️ Build Your Own MindSearch" [ref=f1e533] [cursor=pointer]':
+                    - /url: "#️-build-your-own-mindsearch"
+                - generic [ref=f1e536]:
+                  - 'heading "Step1: Dependencies Installation" [level=3] [ref=f1e537]'
+                  - 'link "Permalink: Step1: Dependencies Installation" [ref=f1e538] [cursor=pointer]':
+                    - /url: "#step1-dependencies-installation"
+                - generic [ref=f1e541]:
+                  - generic [ref=f1e542]: git clone https://github.com/InternLM/MindSearch cd MindSearch pip install -r requirements.txt
+                  - button "Copy code to clipboard" [ref=f1e544] [cursor=pointer]
+                - generic [ref=f1e548]:
+                  - 'heading "Step2: Setup Environment Variables" [level=3] [ref=f1e549]'
+                  - 'link "Permalink: Step2: Setup Environment Variables" [ref=f1e550] [cursor=pointer]':
+                    - /url: "#step2-setup-environment-variables"
+                - paragraph [ref=f1e553]:
+                  - text: Before setting up the API, you need to configure environment variables. Rename the
+                  - code [ref=f1e554]: .env.example
+                  - text: file to
+                  - code [ref=f1e555]: .env
+                  - text: and fill in the required values.
+                - generic [ref=f1e556]:
+                  - generic [ref=f1e557]:
+                    - text: mv .env.example .env
+                    - generic [ref=f1e558]: "# Open .env and add your keys and model configurations"
+                  - button "Copy code to clipboard" [ref=f1e560] [cursor=pointer]
+                - generic [ref=f1e564]:
+                  - 'heading "Step3: Setup MindSearch API" [level=3] [ref=f1e565]'
+                  - 'link "Permalink: Step3: Setup MindSearch API" [ref=f1e566] [cursor=pointer]':
+                    - /url: "#step3-setup-mindsearch-api"
+                - paragraph [ref=f1e569]: Setup FastAPI Server.
+                - generic [ref=f1e570]:
+                  - generic [ref=f1e571]: python -m mindsearch.app --lang en --model_format internlm_server --search_engine DuckDuckGoSearch --asy
+                  - button "Copy code to clipboard" [ref=f1e573] [cursor=pointer]
+                - list [ref=f1e577]:
+                  - listitem [ref=f1e578]:
+                    - paragraph [ref=f1e579]:
+                      - code [ref=f1e580]: "--lang"
+                      - text: ": language of the model,"
+                      - code [ref=f1e581]: en
+                      - text: for English and
+                      - code [ref=f1e582]: cn
+                      - text: for Chinese.
+                  - listitem [ref=f1e583]:
+                    - paragraph [ref=f1e584]:
+                      - code [ref=f1e585]: "--model_format"
+                      - text: ": format of the model."
+                    - list [ref=f1e586]:
+                      - listitem [ref=f1e587]:
+                        - code [ref=f1e588]: internlm_server
+                        - text: for InternLM2.5-7b-chat with local server. (InternLM2.5-7b-chat has been better optimized for Chinese.)
+                      - listitem [ref=f1e589]:
+                        - code [ref=f1e590]: gpt4
+                        - text: for GPT4. if you want to use other models, please modify
+                        - link "models" [ref=f1e591] [cursor=pointer]:
+                          - /url: /InternLM/MindSearch/blob/main/mindsearch/agent/models.py
+                  - listitem [ref=f1e592]:
+                    - paragraph [ref=f1e593]:
+                      - code [ref=f1e594]: "--search_engine"
+                      - text: ": Search engine."
+                    - list [ref=f1e595]:
+                      - listitem [ref=f1e596]:
+                        - code [ref=f1e597]: DuckDuckGoSearch
+                        - text: for search engine for DuckDuckGo.
+                      - listitem [ref=f1e598]:
+                        - code [ref=f1e599]: BingSearch
+                        - text: for Bing search engine.
+                      - listitem [ref=f1e600]:
+                        - code [ref=f1e601]: BraveSearch
+                        - text: for Brave search web api engine.
+                      - listitem [ref=f1e602]:
+                        - code [ref=f1e603]: GoogleSearch
+                        - text: for Google Serper web search api engine.
+                      - listitem [ref=f1e604]:
+                        - code [ref=f1e605]: TencentSearch
+                        - text: for Tencent search api engine.
+                    - paragraph [ref=f1e606]:
+                      - text: Please set your Web Search engine API key as the
+                      - code [ref=f1e607]: WEB_SEARCH_API_KEY
+                      - text: environment variable unless you are using
+                      - code [ref=f1e608]: DuckDuckGo
+                      - text: ", or"
+                      - code [ref=f1e609]: TencentSearch
+                      - text: that requires secret id as
+                      - code [ref=f1e610]: TENCENT_SEARCH_SECRET_ID
+                      - text: and secret key as
+                      - code [ref=f1e611]: TENCENT_SEARCH_SECRET_KEY
+                      - text: .
+                  - listitem [ref=f1e612]:
+                    - paragraph [ref=f1e613]:
+                      - code [ref=f1e614]: "--asy"
+                      - text: ": deploy asynchronous agents."
+                - generic [ref=f1e615]:
+                  - 'heading "Step4: Setup MindSearch Frontend" [level=3] [ref=f1e616]'
+                  - 'link "Permalink: Step4: Setup MindSearch Frontend" [ref=f1e617] [cursor=pointer]':
+                    - /url: "#step4-setup-mindsearch-frontend"
+                - paragraph [ref=f1e620]: Providing following frontend interfaces,
+                - list [ref=f1e621]:
+                  - listitem [ref=f1e622]: React
+                - paragraph [ref=f1e623]: First configurate the backend URL for Vite proxy.
+                - generic [ref=f1e624]:
+                  - generic [ref=f1e625]:
+                    - text: HOST=
+                    - generic [ref=f1e626]: "\"127.0.0.1\""
+                    - generic [ref=f1e627]: "# modify as you need"
+                    - text: PORT=8002 sed -i -r
+                    - generic [ref=f1e628]: "\"s/target:\\s*\\\"\\\"/target: \\\"${HOST}:${PORT}\\\"/\""
+                    - text: frontend/React/vite.config.ts
+                  - button "Copy code to clipboard" [ref=f1e630] [cursor=pointer]
+                - generic [ref=f1e634]:
+                  - generic [ref=f1e635]:
+                    - generic [ref=f1e636]: "# Install Node.js and npm"
+                    - generic [ref=f1e637]: "# for Ubuntu"
+                    - text: sudo apt install nodejs npm
+                    - generic [ref=f1e638]: "# for windows"
+                    - generic [ref=f1e639]: "# download from https://nodejs.org/zh-cn/download/prebuilt-installer"
+                    - generic [ref=f1e640]: "# Install dependencies"
+                    - text: cd frontend/React npm install npm start
+                  - button "Copy code to clipboard" [ref=f1e642] [cursor=pointer]
+                - paragraph [ref=f1e646]:
+                  - text: Details can be found in
+                  - link "React" [ref=f1e647] [cursor=pointer]:
+                    - /url: /InternLM/MindSearch/blob/main/frontend/React/README.md
+                - list [ref=f1e648]:
+                  - listitem [ref=f1e649]: Gradio
+                - generic [ref=f1e650]:
+                  - generic [ref=f1e651]: python frontend/mindsearch_gradio.py
+                  - button "Copy code to clipboard" [ref=f1e653] [cursor=pointer]
+                - list [ref=f1e657]:
+                  - listitem [ref=f1e658]: Streamlit
+                - generic [ref=f1e659]:
+                  - generic [ref=f1e660]: streamlit run frontend/mindsearch_streamlit.py
+                  - button "Copy code to clipboard" [ref=f1e662] [cursor=pointer]
+                - generic [ref=f1e666]:
+                  - heading "🌐 Change Web Search API" [level=2] [ref=f1e667]
+                  - 'link "Permalink: 🌐 Change Web Search API" [ref=f1e668] [cursor=pointer]':
+                    - /url: "#-change-web-search-api"
+                - paragraph [ref=f1e671]:
+                  - text: To use a different type of web search API, modify the
+                  - code [ref=f1e672]: searcher_type
+                  - text: attribute in the
+                  - code [ref=f1e673]: searcher_cfg
+                  - text: located in
+                  - code [ref=f1e674]: mindsearch/agent/__init__.py
+                  - text: ". Currently supported web search APIs include:"
+                - list [ref=f1e675]:
+                  - listitem [ref=f1e676]:
+                    - code [ref=f1e677]: GoogleSearch
+                  - listitem [ref=f1e678]:
+                    - code [ref=f1e679]: DuckDuckGoSearch
+                  - listitem [ref=f1e680]:
+                    - code [ref=f1e681]: BraveSearch
+                  - listitem [ref=f1e682]:
+                    - code [ref=f1e683]: BingSearch
+                  - listitem [ref=f1e684]:
+                    - code [ref=f1e685]: TencentSearch
+                - paragraph [ref=f1e686]: "For example, to change to the Brave Search API, you would configure it as follows:"
+                - generic [ref=f1e687]:
+                  - generic [ref=f1e688]: BingBrowser( searcher_type='BraveSearch', topk=2, api_key=os.environ.get('BRAVE_API_KEY', 'YOUR BRAVE API') )
+                  - button "Copy code to clipboard" [ref=f1e690] [cursor=pointer]
+                - generic [ref=f1e694]:
+                  - heading "🐞 Using the Backend Without Frontend" [level=2] [ref=f1e695]
+                  - 'link "Permalink: 🐞 Using the Backend Without Frontend" [ref=f1e696] [cursor=pointer]':
+                    - /url: "#-using-the-backend-without-frontend"
+                - paragraph [ref=f1e699]:
+                  - text: For users who prefer to interact with the backend directly, use the
+                  - code [ref=f1e700]: backend_example.py
+                  - text: script. This script demonstrates how to send a query to the backend and process the response.
+                - generic [ref=f1e701]:
+                  - generic [ref=f1e702]: python backend_example.py
+                  - button "Copy code to clipboard" [ref=f1e704] [cursor=pointer]
+                - paragraph [ref=f1e708]: Make sure you have set up the environment variables and the backend is running before executing the script.
+                - generic [ref=f1e709]:
+                  - heading "🐞 Debug Locally" [level=2] [ref=f1e710]
+                  - 'link "Permalink: 🐞 Debug Locally" [ref=f1e711] [cursor=pointer]':
+                    - /url: "#-debug-locally"
+                - generic [ref=f1e714]:
+                  - generic [ref=f1e715]: python -m mindsearch.terminal
+                  - button "Copy code to clipboard" [ref=f1e717] [cursor=pointer]
+                - generic [ref=f1e721]:
+                  - heading "📝 License" [level=2] [ref=f1e722]
+                  - 'link "Permalink: 📝 License" [ref=f1e723] [cursor=pointer]':
+                    - /url: "#-license"
+                - paragraph [ref=f1e726]:
+                  - text: This project is released under the
+                  - link "Apache 2.0 license" [ref=f1e727] [cursor=pointer]:
+                    - /url: /InternLM/MindSearch/blob/main/LICENSE
+                  - text: .
+                - generic [ref=f1e728]:
+                  - heading "Citation" [level=2] [ref=f1e729]
+                  - 'link "Permalink: Citation" [ref=f1e730] [cursor=pointer]':
+                    - /url: "#citation"
+                - paragraph [ref=f1e733]: "If you find this project useful in your research, please consider cite:"
+                - generic [ref=f1e734]:
+                  - code [ref=f1e736]: "@article{chen2024mindsearch, title={MindSearch: Mimicking Human Minds Elicits Deep AI Searcher}, author={Chen, Zehui and Liu, Kuikun and Wang, Qiuchen and Liu, Jiangning and Zhang, Wenwei and Chen, Kai and Zhao, Feng}, journal={arXiv preprint arXiv:2407.20183}, year={2024} }"
+                  - button "Copy code to clipboard" [ref=f1e738] [cursor=pointer]
+                - generic [ref=f1e742]:
+                  - heading "Our Projects" [level=2] [ref=f1e743]
+                  - 'link "Permalink: Our Projects" [ref=f1e744] [cursor=pointer]':
+                    - /url: "#our-projects"
+                - paragraph [ref=f1e747]: Explore our additional research on large language models, focusing on LLM agents.
+                - list [ref=f1e748]:
+                  - listitem [ref=f1e749]:
+                    - link "Lagent" [ref=f1e750] [cursor=pointer]:
+                      - /url: https://github.com/InternLM/lagent
+                    - text: ": A lightweight framework for building LLM-based agents"
+                  - listitem [ref=f1e751]:
+                    - link "AgentFLAN" [ref=f1e752] [cursor=pointer]:
+                      - /url: https://github.com/InternLM/Agent-FLAN
+                    - text: ": An innovative approach for constructing and training with high-quality agent datasets (ACL 2024 Findings)"
+                  - listitem [ref=f1e753]:
+                    - link "T-Eval" [ref=f1e754] [cursor=pointer]:
+                      - /url: https://github.com/open-compass/T-Eval
+                    - text: ": A Fine-grained tool utilization evaluation benchmark (ACL 2024)"
+        - generic [ref=f1e757]:
+          - generic [ref=f1e758]:
+            - heading "About" [level=2] [ref=f1e759]
+            - paragraph [ref=f1e760]: 🔍 An LLM-based Multi-agent Framework of Web Search Engine (like Perplexity.ai Pro and SearchGPT)
+            - heading "Topics" [level=3] [ref=f1e761]
+            - generic [ref=f1e762]:
+              - link "ai-search-engine" [ref=f1e763] [cursor=pointer]:
+                - /url: /topics/ai-search-engine
+              - link "gpt" [ref=f1e764] [cursor=pointer]:
+                - /url: /topics/gpt
+              - link "llm" [ref=f1e765] [cursor=pointer]:
+                - /url: /topics/llm
+              - link "llms" [ref=f1e766] [cursor=pointer]:
+                - /url: /topics/llms
+              - link "multi-agent-systems" [ref=f1e767] [cursor=pointer]:
+                - /url: /topics/multi-agent-systems
+              - link "perplexity-ai" [ref=f1e768] [cursor=pointer]:
+                - /url: /topics/perplexity-ai
+              - link "search" [ref=f1e769] [cursor=pointer]:
+                - /url: /topics/search
+              - link "searchgpt" [ref=f1e770] [cursor=pointer]:
+                - /url: /topics/searchgpt
+              - link "transformer" [ref=f1e771] [cursor=pointer]:
+                - /url: /topics/transformer
+              - link "web-search" [ref=f1e772] [cursor=pointer]:
+                - /url: /topics/web-search
+            - heading "Resources" [level=3] [ref=f1e773]
+            - link "Readme" [ref=f1e775] [cursor=pointer]:
+              - /url: "#readme-ov-file"
+            - link "Apache-2.0 license" [ref=f1e779] [cursor=pointer]:
+              - /url: "#Apache-2.0-1-ov-file"
+            - link "Activity" [ref=f1e783] [cursor=pointer]:
+              - /url: /InternLM/MindSearch/activity
+            - link "Custom properties" [ref=f1e787] [cursor=pointer]:
+              - /url: /InternLM/MindSearch/custom-properties
+            - heading "Stars" [level=3] [ref=f1e790]
+            - generic [ref=f1e792]:
+              - strong [ref=f1e795]: 6.9k
+              - text: stars
+            - heading "Watchers" [level=3] [ref=f1e796]
+            - generic [ref=f1e798]:
+              - strong [ref=f1e801]: "48"
+              - text: watching
+            - heading "Forks" [level=3] [ref=f1e802]
+            - link [ref=f1e804] [cursor=pointer]:
+              - /url: /InternLM/MindSearch/forks
+              - strong [ref=f1e808]: "693"
+              - text: forks
+            - link "Report repository" [ref=f1e810] [cursor=pointer]:
+              - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2FInternLM%2FMindSearch&report=InternLM+%28user%29
+          - generic [ref=f1e811]:
+            - heading "Releases (1)" [level=2] [ref=f1e812]:
+              - generic [ref=f1e813]:
+                - link "Releases" [ref=f1e814] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/releases
+                - generic [ref=f1e815]: "1"
+                - generic [ref=f1e816]: (1)
+            - link "v0.1.0 Latest Nov 5, 20242 years ago" [ref=f1e817] [cursor=pointer]:
+              - /url: /InternLM/MindSearch/releases/tag/v0.1.0
+              - generic [ref=f1e820]:
+                - generic [ref=f1e821]:
+                  - generic "v0.1.0" [ref=f1e822]
+                  - generic [ref=f1e823]: Latest
+                - generic [ref=f1e824]: Nov 5, 20242 years ago
+          - generic [ref=f1e825]:
+            - heading "Contributors (21)" [level=2] [ref=f1e826]:
+              - generic [ref=f1e827]:
+                - link "Contributors" [ref=f1e828] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/graphs/contributors
+                - generic [ref=f1e829]: "21"
+                - generic [ref=f1e830]: (21)
+            - list [ref=f1e831]:
+              - listitem [ref=f1e832]:
+                - link [ref=f1e833] [cursor=pointer]:
+                  - /url: /liujiangning30
+                  - img "@liujiangning30" [ref=f1e834]
+              - listitem [ref=f1e835]:
+                - link [ref=f1e836] [cursor=pointer]:
+                  - /url: /Harold-lkk
+                  - img "@Harold-lkk" [ref=f1e837]
+              - listitem [ref=f1e838]:
+                - link [ref=f1e839] [cursor=pointer]:
+                  - /url: /lcolok
+                  - img "@lcolok" [ref=f1e840]
+              - listitem [ref=f1e841]:
+                - link [ref=f1e842] [cursor=pointer]:
+                  - /url: /BetterSnail
+                  - img "@BetterSnail" [ref=f1e843]
+              - listitem [ref=f1e844]:
+                - link [ref=f1e845] [cursor=pointer]:
+                  - /url: /braisedpork1964
+                  - img "@braisedpork1964" [ref=f1e846]
+              - listitem [ref=f1e847]:
+                - link [ref=f1e848] [cursor=pointer]:
+                  - /url: /zehuichen123
+                  - img "@zehuichen123" [ref=f1e849]
+              - listitem [ref=f1e850]:
+                - link [ref=f1e851] [cursor=pointer]:
+                  - /url: /wangr0031
+                  - img "@wangr0031" [ref=f1e852]
+              - listitem [ref=f1e853]:
+                - link [ref=f1e854] [cursor=pointer]:
+                  - /url: /tackhwa
+                  - img "@tackhwa" [ref=f1e855]
+              - listitem [ref=f1e856]:
+                - link [ref=f1e857] [cursor=pointer]:
+                  - /url: /LCorleone
+                  - img "@LCorleone" [ref=f1e858]
+              - listitem [ref=f1e859]:
+                - link [ref=f1e860] [cursor=pointer]:
+                  - /url: /wojiaoyishang
+                  - img "@wojiaoyishang" [ref=f1e861]
+              - listitem [ref=f1e862]:
+                - link [ref=f1e863] [cursor=pointer]:
+                  - /url: /gelina10011001
+                  - img "@gelina10011001" [ref=f1e864]
+              - listitem [ref=f1e865]:
+                - link [ref=f1e866] [cursor=pointer]:
+                  - /url: /ArtificialZeng
+                  - img "@ArtificialZeng" [ref=f1e867]
+              - listitem [ref=f1e868]:
+                - link [ref=f1e869] [cursor=pointer]:
+                  - /url: /ZwwWayne
+                  - img "@ZwwWayne" [ref=f1e870]
+            - link "+ 7 contributors" [ref=f1e872] [cursor=pointer]:
+              - /url: /InternLM/MindSearch/graphs/contributors
+          - generic [ref=f1e873]:
+            - heading "Languages" [level=2] [ref=f1e874]
+            - generic [ref=f1e876]:
+              - 'progressbar "JavaScript: 74.6%" [ref=f1e877]'
+              - 'progressbar "Python: 15.5%" [ref=f1e878]'
+              - 'progressbar "TypeScript: 5.6%" [ref=f1e879]'
+              - 'progressbar "Less: 3.8%" [ref=f1e880]'
+              - 'progressbar "Dockerfile: 0.3%" [ref=f1e881]'
+              - 'progressbar "CSS: 0.2%" [ref=f1e882]'
+            - list [ref=f1e883]:
+              - listitem [ref=f1e884]:
+                - link "JavaScript 74.6%" [ref=f1e885] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=javascript
+                  - generic [ref=f1e887]: JavaScript
+                  - generic [ref=f1e888]: 74.6%
+              - listitem [ref=f1e889]:
+                - link "Python 15.5%" [ref=f1e890] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=python
+                  - generic [ref=f1e892]: Python
+                  - generic [ref=f1e893]: 15.5%
+              - listitem [ref=f1e894]:
+                - link "TypeScript 5.6%" [ref=f1e895] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=typescript
+                  - generic [ref=f1e897]: TypeScript
+                  - generic [ref=f1e898]: 5.6%
+              - listitem [ref=f1e899]:
+                - link "Less 3.8%" [ref=f1e900] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=less
+                  - generic [ref=f1e902]: Less
+                  - generic [ref=f1e903]: 3.8%
+              - listitem [ref=f1e904]:
+                - link "Dockerfile 0.3%" [ref=f1e905] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=dockerfile
+                  - generic [ref=f1e907]: Dockerfile
+                  - generic [ref=f1e908]: 0.3%
+              - listitem [ref=f1e909]:
+                - link "CSS 0.2%" [ref=f1e910] [cursor=pointer]:
+                  - /url: /InternLM/MindSearch/search?l=css
+                  - generic [ref=f1e912]: CSS
+                  - generic [ref=f1e913]: 0.2%
+    - contentinfo [ref=f1e915]:
+      - heading "Footer" [level=2] [ref=f1e916]
+      - generic [ref=f1e917]:
+        - generic [ref=f1e918]:
+          - link "GitHub Homepage" [ref=f1e919] [cursor=pointer]:
+            - /url: https://github.com
+          - generic [ref=f1e922]: © 2026 GitHub, Inc.
+        - navigation "Footer" [ref=f1e923]:
+          - heading "Footer navigation" [level=3] [ref=f1e924]
+          - list "Footer navigation" [ref=f1e925]:
+            - listitem [ref=f1e926]:
+              - link "Terms" [ref=f1e927] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+            - listitem [ref=f1e928]:
+              - link "Privacy" [ref=f1e929] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+            - listitem [ref=f1e930]:
+              - link "Security" [ref=f1e931] [cursor=pointer]:
+                - /url: https://github.com/security
+            - listitem [ref=f1e932]:
+              - link "Status" [ref=f1e933] [cursor=pointer]:
+                - /url: https://www.githubstatus.com/
+            - listitem [ref=f1e934]:
+              - link "Community" [ref=f1e935] [cursor=pointer]:
+                - /url: https://github.community/
+            - listitem [ref=f1e936]:
+              - link "Docs" [ref=f1e937] [cursor=pointer]:
+                - /url: https://docs.github.com/
+            - listitem [ref=f1e938]:
+              - link "Contact" [ref=f1e939] [cursor=pointer]:
+                - /url: https://support.github.com?tags=dotcom-footer
+            - listitem [ref=f1e940]:
+              - button "Manage cookies" [ref=f1e942] [cursor=pointer]
+            - listitem [ref=f1e943]:
+              - button "Do not share my personal information" [ref=f1e945] [cursor=pointer]
+  - alert [ref=f1e948]

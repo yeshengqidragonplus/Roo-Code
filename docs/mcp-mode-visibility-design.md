@@ -156,6 +156,8 @@ Gemini 的 `includeAllToolsWithRestrictions` 路径无需单改：`allowedFuncti
 
 `system.ts` 的 MCP 相关段落（capabilities 等）按同一过滤给出服务器列表（实现时核实该段是否逐服务器列名；若只有泛述则不动）。
 
+**已实现（2026-09-04）**：`sections/mcp-servers.ts` 的 `getMcpServersSection(mcpHub, modeSlug)` 复用 `isServerVisibleToMode()` 按同一过滤逐服务器列名，并给出原生可调用名 `mcp--{server}--{tool}`、工具描述与资源列表；在 `system.ts` 中位于 Tool Use Guidelines 与 CAPABILITIES 之间，mode 含 mcp 组且存在可见 server 时拼接，否则空串（按需注入，与「已分配 MCP」UI 承诺一致）。背景：上游曾在 #10895 整体移除该段（native 协议下 schema 走 API `tools` 数组），但实测专家模式缺少提示词点名时不会主动使用已分配 MCP，故按本设计补齐提示词层。
+
 ### 4.4 零影响保证
 
 未使用新字段时（A：服务器无 `modes`；B：`mcp` 组无 `servers` 选项），注入与执行行为**逐字不变**。照 `checkAutoApproval` 叠加层的纪律，用 zero-impact 测试组锁定（见 §6）。

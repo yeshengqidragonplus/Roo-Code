@@ -6,6 +6,10 @@
 - 打包后复制到 bin 目录：`cp src/qcode-<version>.vsix bin/`
 - 版本号在 `src/package.json` 的 `version` 字段
 
+## 0.0.6 重打（2026-09-04 第八次，SHA 7b53d0365）
+
+包含：模式切换解耦修复（7b53d0365——handleModeSwitch 先落内存 `_taskMode` 再持久化，事件监听/落盘失败不再回弹 UI）+ 此前 7ebe4c6af 全部内容。验证：webview index.js 含完整 SHA `7b53d0365...`；extension.js 含 `TaskModeSwitched listener failed`。已安装（`qcode.qcode@0.0.6`）。
+
 ## 0.0.6 重打（2026-09-02 第七次，SHA 7ebe4c6af）
 
 包含：专家专线会话 Phase 1-4（0209c30ae）+ roomodes 群组配置修正（863ba82ef）+ MCP 资源工具导入路径大小写修复（7ebe4c6af，TS1261 已清零）。验证：webview index.js 含完整 SHA `7ebe4c6af...`；extension.js 含 `expert-line` + `line-queue.json` + `cancelLineRequest`。已安装（`qcode.qcode@0.0.6`）。

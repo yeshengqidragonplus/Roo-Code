@@ -1,0 +1,958 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "Skip to content" [ref=e4] [cursor=pointer]:
+        - /url: "#start-of-content"
+      - banner [ref=e9]:
+        - heading "Navigation Menu" [level=2] [ref=e10]
+        - generic [ref=e11]:
+          - link "Homepage" [ref=e13] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e16]:
+            - navigation "Global" [ref=e17]:
+              - list [ref=e18]:
+                - listitem [ref=e19]:
+                  - button "Platform" [ref=e21] [cursor=pointer]
+                - listitem [ref=e24]:
+                  - button "Solutions" [ref=e26] [cursor=pointer]
+                - listitem [ref=e29]:
+                  - button "Resources" [ref=e31] [cursor=pointer]
+                - listitem [ref=e34]:
+                  - button "Open Source" [ref=e36] [cursor=pointer]
+                - listitem [ref=e39]:
+                  - button "Enterprise" [ref=e41] [cursor=pointer]
+                - listitem [ref=e44]:
+                  - link "Pricing" [ref=e45] [cursor=pointer]:
+                    - /url: https://github.com/pricing
+            - generic [ref=e46]:
+              - button "Search or jump to, type / to search" [ref=e48] [cursor=pointer]
+              - link "Sign in" [ref=e55] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fplaywright-mcp
+              - link "Sign up" [ref=e58] [cursor=pointer]:
+                - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=microsoft%2Fplaywright-mcp
+              - button "Appearance settings" [ref=e61] [cursor=pointer]
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - link "microsoft" [ref=e76] [cursor=pointer]:
+              - /url: /microsoft
+            - generic [ref=e77]: /
+            - strong [ref=e78]:
+              - link "playwright-mcp" [ref=e79] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp
+            - generic [ref=e80]: Public
+          - generic [ref=e81]:
+            - list:
+              - listitem [ref=e82]:
+                - link "You must be signed in to change notification settings" [ref=e83] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fmicrosoft%2Fplaywright-mcp
+                  - text: Notifications
+              - listitem [ref=e86]:
+                - link "Fork 3.1k" [ref=e87] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fmicrosoft%2Fplaywright-mcp
+                  - text: Fork
+                  - generic "3,069" [ref=e90]: 3.1k
+              - listitem [ref=e91]:
+                - link "You must be signed in to star a repository" [ref=e93] [cursor=pointer]:
+                  - /url: /login?return_to=%2Fmicrosoft%2Fplaywright-mcp
+                  - text: Star
+                  - generic "36556 users starred this repository" [ref=e96]: 36.6k
+        - navigation "Repository" [ref=e97]:
+          - list [ref=e98]:
+            - listitem [ref=e99]:
+              - link "Code" [ref=e100] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp
+            - listitem [ref=e104]:
+              - link "Issues 3" [ref=e105] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp/issues
+                - generic [ref=e109]: Issues
+                - generic "3" [ref=e110]
+            - listitem [ref=e111]:
+              - link "Pull requests 1" [ref=e112] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp/pulls
+                - generic [ref=e115]: Pull requests
+                - generic "1" [ref=e116]
+            - listitem [ref=e117]:
+              - link "Actions" [ref=e118] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp/actions
+            - listitem [ref=e122]:
+              - link "Security and quality" [ref=e123] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp/security
+            - listitem [ref=e127]:
+              - link "Insights" [ref=e128] [cursor=pointer]:
+                - /url: /microsoft/playwright-mcp/pulse
+      - generic [ref=e145]:
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - button "main branch" [ref=e152] [cursor=pointer]:
+                - generic [ref=e153]: main
+              - generic [ref=e157]:
+                - link "Go to Branches page" [ref=e158] [cursor=pointer]:
+                  - /url: /microsoft/playwright-mcp/branches
+                - link "Go to Tags page" [ref=e161] [cursor=pointer]:
+                  - /url: /microsoft/playwright-mcp/tags
+            - generic [ref=e164]:
+              - combobox "Go to file" [ref=e172]
+              - button "Code" [ref=e173] [cursor=pointer]
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - generic [ref=e179]:
+                - heading "Latest commit" [level=2] [ref=e180]
+                - generic [ref=e183]:
+                  - heading "History" [level=2] [ref=e184]
+                  - link "575 Commits" [ref=e185] [cursor=pointer]:
+                    - /url: /microsoft/playwright-mcp/commits/main/
+              - heading "Folders and files" [level=2] [ref=e188]
+              - table "Folders and files" [ref=e189]:
+                - rowgroup:
+                  - row "Name Last commit message Last commit date":
+                    - columnheader "Name"
+                    - columnheader "Last commit message"
+                    - columnheader "Last commit date"
+                - rowgroup [ref=e190]:
+                  - row ".azure-pipelines, (Directory)" [ref=e191]:
+                    - cell [ref=e192]:
+                      - link ".azure-pipelines, (Directory)" [ref=e199] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/.azure-pipelines
+                        - text: .azure-pipelines
+                    - cell [ref=e200]
+                    - cell [ref=e202]
+                  - row ".claude/skills, (Directory)" [ref=e205]:
+                    - cell [ref=e206]:
+                      - link ".claude/skills, (Directory)" [ref=e213] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/.claude/skills
+                        - text: .claude/skills
+                    - cell [ref=e214]
+                    - cell [ref=e216]
+                  - row ".devcontainer, (Directory)" [ref=e219]:
+                    - cell [ref=e220]:
+                      - link ".devcontainer, (Directory)" [ref=e227] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/.devcontainer
+                        - text: .devcontainer
+                    - cell [ref=e228]
+                    - cell [ref=e230]
+                  - row ".github, (Directory)" [ref=e233]:
+                    - cell [ref=e234]:
+                      - link ".github, (Directory)" [ref=e241] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/.github
+                        - text: .github
+                    - cell [ref=e242]
+                    - cell [ref=e244]
+                  - row "src, (Directory)" [ref=e247]:
+                    - cell [ref=e248]:
+                      - link "src, (Directory)" [ref=e255] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/src
+                        - text: src
+                    - cell [ref=e256]
+                    - cell [ref=e258]
+                  - row "tests, (Directory)" [ref=e261]:
+                    - cell [ref=e262]:
+                      - link "tests, (Directory)" [ref=e269] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/tree/main/tests
+                        - text: tests
+                    - cell [ref=e270]
+                    - cell [ref=e272]
+                  - row ".gitignore, (File)" [ref=e275]:
+                    - cell [ref=e276]:
+                      - link ".gitignore, (File)" [ref=e283] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/.gitignore
+                        - text: .gitignore
+                    - cell [ref=e284]
+                    - cell [ref=e286]
+                  - row ".npmignore, (File)" [ref=e289]:
+                    - cell [ref=e290]:
+                      - link ".npmignore, (File)" [ref=e297] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/.npmignore
+                        - text: .npmignore
+                    - cell [ref=e298]
+                    - cell [ref=e300]
+                  - row "CLAUDE.md, (File)" [ref=e303]:
+                    - cell [ref=e304]:
+                      - link "CLAUDE.md, (File)" [ref=e311] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/CLAUDE.md
+                        - text: CLAUDE.md
+                    - cell [ref=e312]
+                    - cell [ref=e314]
+                  - row "CONTRIBUTING.md, (File)" [ref=e317]:
+                    - cell [ref=e318]:
+                      - link "CONTRIBUTING.md, (File)" [ref=e325] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/CONTRIBUTING.md
+                        - text: CONTRIBUTING.md
+                    - cell [ref=e326]
+                    - cell [ref=e328]
+                  - row "Dockerfile, (File)" [ref=e331]:
+                    - cell [ref=e332]:
+                      - link "Dockerfile, (File)" [ref=e339] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/Dockerfile
+                        - text: Dockerfile
+                    - cell [ref=e340]
+                    - cell [ref=e342]
+                  - row "LICENSE, (File)" [ref=e345]:
+                    - cell [ref=e346]:
+                      - link "LICENSE, (File)" [ref=e353] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/LICENSE
+                        - text: LICENSE
+                    - cell [ref=e354]
+                    - cell [ref=e356]
+                  - row "README.md, (File)" [ref=e359]:
+                    - cell [ref=e360]:
+                      - link "README.md, (File)" [ref=e367] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/README.md
+                        - text: README.md
+                    - cell [ref=e368]
+                    - cell [ref=e370]
+                  - row "SECURITY.md, (File)" [ref=e373]:
+                    - cell [ref=e374]:
+                      - link "SECURITY.md, (File)" [ref=e381] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/SECURITY.md
+                        - text: SECURITY.md
+                    - cell [ref=e382]
+                    - cell [ref=e384]
+                  - row "cli.js, (File)" [ref=e387]:
+                    - cell [ref=e388]:
+                      - link "cli.js, (File)" [ref=e395] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/cli.js
+                        - text: cli.js
+                    - cell [ref=e396]
+                    - cell [ref=e398]
+                  - row "config.d.ts, (File)" [ref=e401]:
+                    - cell [ref=e402]:
+                      - link "config.d.ts, (File)" [ref=e409] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/config.d.ts
+                        - text: config.d.ts
+                    - cell [ref=e410]
+                    - cell [ref=e412]
+                  - row "index.d.ts, (File)" [ref=e415]:
+                    - cell [ref=e416]:
+                      - link "index.d.ts, (File)" [ref=e423] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/index.d.ts
+                        - text: index.d.ts
+                    - cell [ref=e424]
+                    - cell [ref=e426]
+                  - row "index.js, (File)" [ref=e429]:
+                    - cell [ref=e430]:
+                      - link "index.js, (File)" [ref=e437] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/index.js
+                        - text: index.js
+                    - cell [ref=e438]
+                    - cell [ref=e440]
+                  - row "package-lock.json, (File)" [ref=e443]:
+                    - cell [ref=e444]:
+                      - link "package-lock.json, (File)" [ref=e451] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/package-lock.json
+                        - text: package-lock.json
+                    - cell [ref=e452]
+                    - cell [ref=e454]
+                  - row "package.json, (File)" [ref=e457]:
+                    - cell [ref=e458]:
+                      - link "package.json, (File)" [ref=e465] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/package.json
+                        - text: package.json
+                    - cell [ref=e466]
+                    - cell [ref=e468]
+                  - row "playwright.config.ts, (File)" [ref=e471]:
+                    - cell [ref=e472]:
+                      - link "playwright.config.ts, (File)" [ref=e479] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/playwright.config.ts
+                        - text: playwright.config.ts
+                    - cell [ref=e480]
+                    - cell [ref=e482]
+                  - row "roll.js, (File)" [ref=e485]:
+                    - cell [ref=e486]:
+                      - link "roll.js, (File)" [ref=e493] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/roll.js
+                        - text: roll.js
+                    - cell [ref=e494]
+                    - cell [ref=e496]
+                  - row "server.json, (File)" [ref=e499]:
+                    - cell [ref=e500]:
+                      - link "server.json, (File)" [ref=e507] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/server.json
+                        - text: server.json
+                    - cell [ref=e508]
+                    - cell [ref=e510]
+                  - row "update-readme.js, (File)" [ref=e513]:
+                    - cell [ref=e514]:
+                      - link "update-readme.js, (File)" [ref=e521] [cursor=pointer]:
+                        - /url: /microsoft/playwright-mcp/blob/main/update-readme.js
+                        - text: update-readme.js
+                    - cell [ref=e522]
+                    - cell [ref=e524]
+            - generic [ref=e528]:
+              - generic [ref=e529]:
+                - heading "Repository files navigation" [level=2] [ref=e530]
+                - navigation "Repository files" [ref=e531]:
+                  - list [ref=e532]:
+                    - listitem [ref=e533]:
+                      - link "README" [ref=e534] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e536]:
+                      - link "Code of conduct" [ref=e537] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e539]:
+                      - link "Contributing" [ref=e540] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e542]:
+                      - link "Apache-2.0 license" [ref=e543] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e545]:
+                      - link "Security" [ref=e546] [cursor=pointer]:
+                        - /url: "#"
+                - button "Outline" [ref=e548] [cursor=pointer]
+              - article [ref=e552]:
+                - generic [ref=e553]:
+                  - heading "Playwright MCP" [level=2] [ref=e554]
+                  - 'link "Permalink: Playwright MCP" [ref=e555] [cursor=pointer]':
+                    - /url: "#playwright-mcp"
+                - paragraph [ref=e558]:
+                  - text: A Model Context Protocol (MCP) server that provides browser automation capabilities using
+                  - link "Playwright" [ref=e559] [cursor=pointer]:
+                    - /url: https://playwright.dev
+                  - text: . This server enables LLMs to interact with web pages through structured accessibility snapshots, bypassing the need for screenshots or visually-tuned models.
+                - generic [ref=e560]:
+                  - heading "Playwright MCP vs Playwright CLI" [level=3] [ref=e561]
+                  - 'link "Permalink: Playwright MCP vs Playwright CLI" [ref=e562] [cursor=pointer]':
+                    - /url: "#playwright-mcp-vs-playwright-cli"
+                - paragraph [ref=e565]:
+                  - text: This package provides MCP interface into Playwright. If you are using a
+                  - strong [ref=e566]: coding agent
+                  - text: ", you might benefit from using the"
+                  - link "CLI+SKILLS" [ref=e567] [cursor=pointer]:
+                    - /url: https://github.com/microsoft/playwright-cli
+                  - text: instead.
+                - list [ref=e568]:
+                  - listitem [ref=e569]:
+                    - paragraph [ref=e570]:
+                      - strong [ref=e571]: CLI
+                      - text: ": Modern"
+                      - strong [ref=e572]: coding agents
+                      - text: "increasingly favor CLI–based workflows exposed as SKILLs over MCP because CLI invocations are more token-efficient: they avoid loading large tool schemas and verbose accessibility trees into the model context, allowing agents to act through concise, purpose-built commands. This makes CLI + SKILLs better suited for high-throughput coding agents that must balance browser automation with large codebases, tests, and reasoning within limited context windows."
+                      - strong [ref=e573]:
+                        - text: Learn more about
+                        - link "Playwright CLI with SKILLS" [ref=e574] [cursor=pointer]:
+                          - /url: https://github.com/microsoft/playwright-cli
+                      - text: .
+                  - listitem [ref=e575]:
+                    - paragraph [ref=e576]:
+                      - strong [ref=e577]: MCP
+                      - text: ": MCP remains relevant for specialized agentic loops that benefit from persistent state, rich introspection, and iterative reasoning over page structure, such as exploratory automation, self-healing tests, or long-running autonomous workflows where maintaining continuous browser context outweighs token cost concerns."
+                - generic [ref=e578]:
+                  - heading "Key Features" [level=3] [ref=e579]
+                  - 'link "Permalink: Key Features" [ref=e580] [cursor=pointer]':
+                    - /url: "#key-features"
+                - list [ref=e583]:
+                  - listitem [ref=e584]:
+                    - strong [ref=e585]: Fast and lightweight
+                    - text: . Uses Playwright's accessibility tree, not pixel-based input.
+                  - listitem [ref=e586]:
+                    - strong [ref=e587]: LLM-friendly
+                    - text: . No vision models needed, operates purely on structured data.
+                  - listitem [ref=e588]:
+                    - strong [ref=e589]: Deterministic tool application
+                    - text: . Avoids ambiguity common with screenshot-based approaches.
+                - generic [ref=e590]:
+                  - heading "Requirements" [level=3] [ref=e591]
+                  - 'link "Permalink: Requirements" [ref=e592] [cursor=pointer]':
+                    - /url: "#requirements"
+                - list [ref=e595]:
+                  - listitem [ref=e596]: Node.js 18 or newer
+                  - listitem [ref=e597]: VS Code, Cursor, Windsurf, Claude Desktop, Goose, Grok, Junie or any other MCP client
+                - generic [ref=e598]:
+                  - heading "Getting started" [level=3] [ref=e599]
+                  - 'link "Permalink: Getting started" [ref=e600] [cursor=pointer]':
+                    - /url: "#getting-started"
+                - paragraph [ref=e603]: First, install the Playwright MCP server with your client.
+                - paragraph [ref=e604]:
+                  - strong [ref=e605]: Standard config
+                  - text: "works in most of the tools:"
+                - generic [ref=e606]:
+                  - generic [ref=e607]: "{ \"mcpServers\": { \"playwright\": { \"command\": \"npx\", \"args\": [ \"@playwright/mcp@latest\" ] } } }"
+                  - button "Copy code to clipboard" [ref=e609] [cursor=pointer]
+                - paragraph [ref=e613]:
+                  - link [ref=e614] [cursor=pointer]:
+                    - /url: https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522playwright%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522%2540playwright%252Fmcp%2540latest%2522%255D%257D
+                    - img "Install in VS Code" [ref=e615]
+                  - link [ref=e616] [cursor=pointer]:
+                    - /url: https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522playwright%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522%2540playwright%252Fmcp%2540latest%2522%255D%257D
+                    - img "Install in VS Code Insiders" [ref=e617]
+                - group [ref=e618]:
+                  - generic "Amp" [ref=e619] [cursor=pointer]
+                - group [ref=e620]:
+                  - generic "Antigravity" [ref=e621] [cursor=pointer]
+                - group [ref=e622]:
+                  - generic "Claude Code" [ref=e623] [cursor=pointer]
+                - group [ref=e624]:
+                  - generic "Claude Desktop" [ref=e625] [cursor=pointer]
+                - group [ref=e626]:
+                  - generic "Cline" [ref=e627] [cursor=pointer]
+                - group [ref=e628]:
+                  - generic "Codex" [ref=e629] [cursor=pointer]
+                - group [ref=e630]:
+                  - generic "Copilot" [ref=e631] [cursor=pointer]
+                - group [ref=e632]:
+                  - generic "Cursor" [ref=e633] [cursor=pointer]
+                - group [ref=e634]:
+                  - generic "Factory" [ref=e635] [cursor=pointer]
+                - group [ref=e636]:
+                  - generic "Gemini CLI" [ref=e637] [cursor=pointer]
+                - group [ref=e638]:
+                  - generic "Goose" [ref=e639] [cursor=pointer]
+                - group [ref=e640]:
+                  - generic "Grok" [ref=e641] [cursor=pointer]
+                - group [ref=e642]:
+                  - generic "Junie" [ref=e643] [cursor=pointer]
+                - group [ref=e644]:
+                  - generic "Kiro" [ref=e645] [cursor=pointer]
+                - group [ref=e646]:
+                  - generic "LM Studio" [ref=e647] [cursor=pointer]
+                - group [ref=e648]:
+                  - generic "opencode" [ref=e649] [cursor=pointer]
+                - group [ref=e650]:
+                  - generic "Qodo Gen" [ref=e651] [cursor=pointer]
+                - group [ref=e652]:
+                  - generic "VS Code" [ref=e653] [cursor=pointer]
+                - group [ref=e654]:
+                  - generic "Warp" [ref=e655] [cursor=pointer]
+                - group [ref=e656]:
+                  - generic "Windsurf" [ref=e657] [cursor=pointer]
+                - generic [ref=e658]:
+                  - heading "Configuration" [level=3] [ref=e659]
+                  - 'link "Permalink: Configuration" [ref=e660] [cursor=pointer]':
+                    - /url: "#configuration"
+                - paragraph [ref=e663]:
+                  - text: Playwright MCP server supports following arguments. They can be provided in the JSON configuration above, as a part of the
+                  - code [ref=e664]: "\"args\""
+                  - text: "list:"
+                - table [ref=e666]:
+                  - rowgroup [ref=e667]:
+                    - row [ref=e668]:
+                      - columnheader "Option" [ref=e669]
+                      - columnheader "Description" [ref=e670]
+                  - rowgroup [ref=e671]:
+                    - row [ref=e672]:
+                      - cell "--allowed-hosts <hosts...>" [ref=e673]
+                      - cell [ref=e674]:
+                        - text: comma-separated list of hosts this server is allowed to serve from. Defaults to the host the server is bound to. Pass '*' to disable the host check.
+                        - emphasis [ref=e675]: env
+                        - code [ref=e676]: PLAYWRIGHT_MCP_ALLOWED_HOSTS
+                    - row [ref=e677]:
+                      - cell "--allowed-origins" [ref=e678]
+                      - cell [ref=e679]:
+                        - text: "semicolon-separated list of TRUSTED origins to allow the browser to request. Default is to allow all. Important:"
+                        - emphasis [ref=e680]: does not
+                        - text: serve as a security boundary and
+                        - emphasis [ref=e681]: does not
+                        - text: affect redirects.
+                        - emphasis [ref=e682]: env
+                        - code [ref=e683]: PLAYWRIGHT_MCP_ALLOWED_ORIGINS
+                    - row [ref=e684]:
+                      - cell "--allow-unrestricted-file-access" [ref=e685]
+                      - cell [ref=e686]:
+                        - text: allow access to files outside of the workspace roots. Also allows unrestricted access to file:// URLs. By default access to file system is restricted to workspace root directories (or cwd if no roots are configured) only, and navigation to file:// URLs is blocked.
+                        - emphasis [ref=e687]: env
+                        - code [ref=e688]: PLAYWRIGHT_MCP_ALLOW_UNRESTRICTED_FILE_ACCESS
+                    - row [ref=e689]:
+                      - cell "--blocked-origins" [ref=e690]
+                      - cell [ref=e691]:
+                        - text: "semicolon-separated list of origins to block the browser from requesting. Blocklist is evaluated before allowlist. If used without the allowlist, requests not matching the blocklist are still allowed. Important:"
+                        - emphasis [ref=e692]: does not
+                        - text: serve as a security boundary and
+                        - emphasis [ref=e693]: does not
+                        - text: affect redirects.
+                        - emphasis [ref=e694]: env
+                        - code [ref=e695]: PLAYWRIGHT_MCP_BLOCKED_ORIGINS
+                    - row [ref=e696]:
+                      - cell "--block-service-workers" [ref=e697]
+                      - cell [ref=e698]:
+                        - text: block service workers
+                        - emphasis [ref=e699]: env
+                        - code [ref=e700]: PLAYWRIGHT_MCP_BLOCK_SERVICE_WORKERS
+                    - row [ref=e701]:
+                      - cell "--browser" [ref=e702]
+                      - cell [ref=e703]:
+                        - text: "browser or chrome channel to use, possible values: chrome, firefox, webkit, msedge."
+                        - emphasis [ref=e704]: env
+                        - code [ref=e705]: PLAYWRIGHT_MCP_BROWSER
+                    - row [ref=e706]:
+                      - cell "--caps" [ref=e707]
+                      - cell [ref=e708]:
+                        - text: "comma-separated list of additional capabilities to enable, possible values: vision, pdf, devtools."
+                        - emphasis [ref=e709]: env
+                        - code [ref=e710]: PLAYWRIGHT_MCP_CAPS
+                    - row [ref=e711]:
+                      - cell "--cdp-endpoint" [ref=e712]
+                      - cell [ref=e713]:
+                        - text: CDP endpoint to connect to.
+                        - emphasis [ref=e714]: env
+                        - code [ref=e715]: PLAYWRIGHT_MCP_CDP_ENDPOINT
+                    - row [ref=e716]:
+                      - cell "--cdp-header <headers...>" [ref=e717]
+                      - cell [ref=e718]:
+                        - text: CDP headers to send with the connect request, multiple can be specified.
+                        - emphasis [ref=e719]: env
+                        - code [ref=e720]: PLAYWRIGHT_MCP_CDP_HEADERS
+                    - row [ref=e721]:
+                      - cell "--cdp-timeout" [ref=e722]
+                      - cell [ref=e723]:
+                        - text: timeout in milliseconds for connecting to CDP endpoint, defaults to 30000ms
+                        - emphasis [ref=e724]: env
+                        - code [ref=e725]: PLAYWRIGHT_MCP_CDP_TIMEOUT
+                    - row [ref=e726]:
+                      - cell "--codegen" [ref=e727]
+                      - cell [ref=e728]:
+                        - text: "specify the language to use for code generation, possible values: \"typescript\", \"python\", \"java\", \"csharp\", \"none\". Default is \"typescript\"."
+                        - emphasis [ref=e729]: env
+                        - code [ref=e730]: PLAYWRIGHT_MCP_CODEGEN
+                    - row [ref=e731]:
+                      - cell "--config" [ref=e732]
+                      - cell [ref=e733]:
+                        - text: path to the configuration file.
+                        - emphasis [ref=e734]: env
+                        - code [ref=e735]: PLAYWRIGHT_MCP_CONFIG
+                    - row [ref=e736]:
+                      - cell "--console-level" [ref=e737]
+                      - cell [ref=e738]:
+                        - text: "level of console messages to return: \"error\", \"warning\", \"info\", \"debug\". Each level includes the messages of more severe levels."
+                        - emphasis [ref=e739]: env
+                        - code [ref=e740]: PLAYWRIGHT_MCP_CONSOLE_LEVEL
+                    - row [ref=e741]:
+                      - cell "--device" [ref=e742]
+                      - cell [ref=e743]:
+                        - text: "device to emulate, for example: \"iPhone 15\""
+                        - emphasis [ref=e744]: env
+                        - code [ref=e745]: PLAYWRIGHT_MCP_DEVICE
+                    - row [ref=e746]:
+                      - cell "--mobile" [ref=e747]
+                      - cell [ref=e748]:
+                        - text: emulate a generic mobile device (Pixel 10 for Chromium, iPhone 17 for WebKit). Mobile pages are usually lighter, which saves tokens. Cannot be combined with --device.
+                        - emphasis [ref=e749]: env
+                        - code [ref=e750]: PLAYWRIGHT_MCP_MOBILE
+                    - row [ref=e751]:
+                      - cell "--executable-path" [ref=e752]
+                      - cell [ref=e753]:
+                        - text: path to the browser executable.
+                        - emphasis [ref=e754]: env
+                        - code [ref=e755]: PLAYWRIGHT_MCP_EXECUTABLE_PATH
+                    - row [ref=e756]:
+                      - cell "--extension" [ref=e757]
+                      - cell [ref=e758]:
+                        - text: Connect to a running browser instance (Edge/Chrome only). Requires the "Playwright Extension" to be installed.
+                        - emphasis [ref=e759]: env
+                        - code [ref=e760]: PLAYWRIGHT_MCP_EXTENSION
+                    - row [ref=e761]:
+                      - cell "--endpoint" [ref=e762]
+                      - cell [ref=e763]:
+                        - text: Bound browser endpoint to connect to.
+                        - emphasis [ref=e764]: env
+                        - code [ref=e765]: PLAYWRIGHT_MCP_ENDPOINT
+                    - row [ref=e766]:
+                      - cell "--grant-permissions <permissions...>" [ref=e767]
+                      - cell [ref=e768]:
+                        - text: List of permissions to grant to the browser context, for example "geolocation", "clipboard-read", "clipboard-write".
+                        - emphasis [ref=e769]: env
+                        - code [ref=e770]: PLAYWRIGHT_MCP_GRANT_PERMISSIONS
+                    - row [ref=e771]:
+                      - cell "--headless" [ref=e772]
+                      - cell [ref=e773]:
+                        - text: run browser in headless mode, headed by default
+                        - emphasis [ref=e774]: env
+                        - code [ref=e775]: PLAYWRIGHT_MCP_HEADLESS
+                    - row [ref=e776]:
+                      - cell "--host" [ref=e777]
+                      - cell [ref=e778]:
+                        - text: host to bind server to. Default is localhost. Use 0.0.0.0 to bind to all interfaces.
+                        - emphasis [ref=e779]: env
+                        - code [ref=e780]: PLAYWRIGHT_MCP_HOST
+                    - row [ref=e781]:
+                      - cell "--ignore-https-errors" [ref=e782]
+                      - cell [ref=e783]:
+                        - text: ignore https errors
+                        - emphasis [ref=e784]: env
+                        - code [ref=e785]: PLAYWRIGHT_MCP_IGNORE_HTTPS_ERRORS
+                    - row [ref=e786]:
+                      - cell "--init-page <path...>" [ref=e787]
+                      - cell [ref=e788]:
+                        - text: path to TypeScript file to evaluate on Playwright page object
+                        - emphasis [ref=e789]: env
+                        - code [ref=e790]: PLAYWRIGHT_MCP_INIT_PAGE
+                    - row [ref=e791]:
+                      - cell "--init-script <path...>" [ref=e792]
+                      - cell [ref=e793]:
+                        - text: path to JavaScript file to add as an initialization script. The script will be evaluated in every page before any of the page's scripts. Can be specified multiple times.
+                        - emphasis [ref=e794]: env
+                        - code [ref=e795]: PLAYWRIGHT_MCP_INIT_SCRIPT
+                    - row [ref=e796]:
+                      - cell "--isolated" [ref=e797]
+                      - cell [ref=e798]:
+                        - text: keep the browser profile in memory, do not save it to disk.
+                        - emphasis [ref=e799]: env
+                        - code [ref=e800]: PLAYWRIGHT_MCP_ISOLATED
+                    - row [ref=e801]:
+                      - cell "--image-responses" [ref=e802]
+                      - cell [ref=e803]:
+                        - text: whether to send image responses to the client. Can be "allow" or "omit", Defaults to "allow".
+                        - emphasis [ref=e804]: env
+                        - code [ref=e805]: PLAYWRIGHT_MCP_IMAGE_RESPONSES
+                    - row [ref=e806]:
+                      - cell "--no-sandbox" [ref=e807]
+                      - cell [ref=e808]:
+                        - text: disable the sandbox for all process types that are normally sandboxed.
+                        - emphasis [ref=e809]: env
+                        - code [ref=e810]: PLAYWRIGHT_MCP_NO_SANDBOX
+                    - row [ref=e811]:
+                      - cell "--output-dir" [ref=e812]
+                      - cell [ref=e813]:
+                        - text: path to the directory for output files.
+                        - emphasis [ref=e814]: env
+                        - code [ref=e815]: PLAYWRIGHT_MCP_OUTPUT_DIR
+                    - row [ref=e816]:
+                      - cell "--output-max-size" [ref=e817]
+                      - cell [ref=e818]:
+                        - text: Threshold for evicting old output files, in bytes.
+                        - emphasis [ref=e819]: env
+                        - code [ref=e820]: PLAYWRIGHT_MCP_OUTPUT_MAX_SIZE
+                    - row [ref=e821]:
+                      - cell "--port" [ref=e822]
+                      - cell [ref=e823]:
+                        - text: port to listen on for SSE transport.
+                        - emphasis [ref=e824]: env
+                        - code [ref=e825]: PLAYWRIGHT_MCP_PORT
+                    - row [ref=e826]:
+                      - cell "--proxy-bypass" [ref=e827]
+                      - cell [ref=e828]:
+                        - text: comma-separated domains to bypass proxy, for example ".com,chromium.org,.domain.com"
+                        - emphasis [ref=e829]: env
+                        - code [ref=e830]: PLAYWRIGHT_MCP_PROXY_BYPASS
+                    - row [ref=e831]:
+                      - cell "--proxy-server" [ref=e832]
+                      - cell [ref=e833]:
+                        - text: specify proxy server, for example "
+                        - link "http://myproxy:3128" [ref=e834] [cursor=pointer]:
+                          - /url: http://myproxy:3128
+                        - text: "\" or \"socks5://myproxy:8080\""
+                        - emphasis [ref=e835]: env
+                        - code [ref=e836]: PLAYWRIGHT_MCP_PROXY_SERVER
+                    - row [ref=e837]:
+                      - cell "--sandbox" [ref=e838]
+                      - cell [ref=e839]:
+                        - text: enable the sandbox for all process types that are normally not sandboxed.
+                        - emphasis [ref=e840]: env
+                        - code [ref=e841]: PLAYWRIGHT_MCP_SANDBOX
+                    - row [ref=e842]:
+                      - cell "--save-session" [ref=e843]
+                      - cell [ref=e844]:
+                        - text: Whether to save the Playwright MCP session into the output directory.
+                        - emphasis [ref=e845]: env
+                        - code [ref=e846]: PLAYWRIGHT_MCP_SAVE_SESSION
+                    - row [ref=e847]:
+                      - cell "--secrets" [ref=e848]
+                      - cell [ref=e849]:
+                        - text: path to a file containing secrets in the dotenv format
+                        - emphasis [ref=e850]: env
+                        - code [ref=e851]: PLAYWRIGHT_MCP_SECRETS_FILE
+                    - row [ref=e852]:
+                      - cell "--shared-browser-context" [ref=e853]
+                      - cell [ref=e854]:
+                        - text: reuse the same browser context between all connected HTTP clients.
+                        - emphasis [ref=e855]: env
+                        - code [ref=e856]: PLAYWRIGHT_MCP_SHARED_BROWSER_CONTEXT
+                    - row [ref=e857]:
+                      - cell "--snapshot-boxes" [ref=e858]
+                      - cell [ref=e859]:
+                        - text: include each element's bounding box as [box=x,y,width,height] in snapshots. Coordinates are viewport-relative, in CSS pixels.
+                        - emphasis [ref=e860]: env
+                        - code [ref=e861]: PLAYWRIGHT_MCP_SNAPSHOT_BOXES
+                    - row [ref=e862]:
+                      - cell "--snapshot-mode" [ref=e863]
+                      - cell [ref=e864]:
+                        - text: when taking snapshots for responses, specifies the mode to use. Can be "full" or "none". Default is "full".
+                        - emphasis [ref=e865]: env
+                        - code [ref=e866]: PLAYWRIGHT_MCP_SNAPSHOT_MODE
+                    - row [ref=e867]:
+                      - cell "--storage-state" [ref=e868]
+                      - cell [ref=e869]:
+                        - text: path to the storage state file for isolated sessions.
+                        - emphasis [ref=e870]: env
+                        - code [ref=e871]: PLAYWRIGHT_MCP_STORAGE_STATE
+                    - row [ref=e872]:
+                      - cell "--test-id-attribute" [ref=e873]
+                      - cell [ref=e874]:
+                        - text: specify the attribute to use for test ids, defaults to "data-testid"
+                        - emphasis [ref=e875]: env
+                        - code [ref=e876]: PLAYWRIGHT_MCP_TEST_ID_ATTRIBUTE
+                    - row [ref=e877]:
+                      - cell "--timeout-action" [ref=e878]
+                      - cell [ref=e879]:
+                        - text: specify action timeout in milliseconds, defaults to 5000ms
+                        - emphasis [ref=e880]: env
+                        - code [ref=e881]: PLAYWRIGHT_MCP_TIMEOUT_ACTION
+                    - row [ref=e882]:
+                      - cell "--timeout-navigation" [ref=e883]
+                      - cell [ref=e884]:
+                        - text: specify navigation timeout in milliseconds, defaults to 60000ms
+                        - emphasis [ref=e885]: env
+                        - code [ref=e886]: PLAYWRIGHT_MCP_TIMEOUT_NAVIGATION
+                    - row [ref=e887]:
+                      - cell "--timeout-settle" [ref=e888]
+                      - cell [ref=e889]:
+                        - text: how long to wait after each action for triggered work to settle, in milliseconds, defaults to 500ms
+                        - emphasis [ref=e890]: env
+                        - code [ref=e891]: PLAYWRIGHT_MCP_TIMEOUT_SETTLE
+                    - row [ref=e892]:
+                      - cell "--user-agent" [ref=e893]
+                      - cell [ref=e894]:
+                        - text: specify user agent string
+                        - emphasis [ref=e895]: env
+                        - code [ref=e896]: PLAYWRIGHT_MCP_USER_AGENT
+                    - row [ref=e897]:
+                      - cell "--user-data-dir" [ref=e898]
+                      - cell [ref=e899]:
+                        - text: path to the user data directory. If not specified, a temporary directory will be created.
+                        - emphasis [ref=e900]: env
+                        - code [ref=e901]: PLAYWRIGHT_MCP_USER_DATA_DIR
+                    - row [ref=e902]:
+                      - cell "--viewport-size" [ref=e903]
+                      - cell [ref=e904]:
+                        - text: specify browser viewport size in pixels, for example "1280x720"
+                        - emphasis [ref=e905]: env
+                        - code [ref=e906]: PLAYWRIGHT_MCP_VIEWPORT_SIZE
+                - generic [ref=e907]:
+                  - heading "User profile" [level=3] [ref=e908]
+                  - 'link "Permalink: User profile" [ref=e909] [cursor=pointer]':
+                    - /url: "#user-profile"
+                - paragraph [ref=e912]: You can run Playwright MCP with persistent profile like a regular browser (default), in isolated contexts for testing sessions, or connect to your existing browser using the browser extension.
+                - paragraph [ref=e913]:
+                  - strong [ref=e914]: Persistent profile
+                - paragraph [ref=e915]:
+                  - text: All the logged in information will be stored in the persistent profile, you can delete it between sessions if you'd like to clear the offline state. Persistent profile is located at the following locations and you can override it with the
+                  - code [ref=e916]: "--user-data-dir"
+                  - text: argument.
+                - generic [ref=e917]:
+                  - generic [ref=e918]:
+                    - generic [ref=e919]: "# Windows"
+                    - text: "%USERPROFILE%\\AppData\\Local\\ms-playwright\\mcp-{channel}-{workspace-hash}"
+                    - generic [ref=e920]: "# macOS"
+                    - text: "- ~/Library/Caches/ms-playwright/mcp-{channel}-{workspace-hash}"
+                    - generic [ref=e921]: "# Linux"
+                    - text: "- ~/.cache/ms-playwright/mcp-{channel}-{workspace-hash}"
+                  - button "Copy code to clipboard" [ref=e923] [cursor=pointer]
+                - paragraph [ref=e927]:
+                  - code [ref=e928]: "{workspace-hash}"
+                  - text: is derived from the MCP client's workspace root, so different projects get separate profiles automatically.
+                - generic [ref=e929]:
+                  - paragraph [ref=e930]: Important
+                  - paragraph [ref=e933]:
+                    - text: A persistent profile can only be used by one browser instance at a time, so concurrent MCP clients sharing the same workspace will conflict. To run several clients in parallel, start each additional client with
+                    - code [ref=e934]: "--isolated"
+                    - text: or point it at a distinct
+                    - code [ref=e935]: "--user-data-dir"
+                    - text: .
+                - paragraph [ref=e936]:
+                  - strong [ref=e937]: Isolated
+                - paragraph [ref=e938]:
+                  - text: In the isolated mode, each session is started in the isolated profile. Every time you ask MCP to close the browser, the session is closed and all the storage state for this session is lost. You can provide initial storage state to the browser via the config's
+                  - code [ref=e939]: contextOptions
+                  - text: or via the
+                  - code [ref=e940]: "--storage-state"
+                  - text: argument. Learn more about the storage state
+                  - link "here" [ref=e941] [cursor=pointer]:
+                    - /url: https://playwright.dev/docs/auth
+                  - text: .
+                - generic [ref=e942]:
+                  - generic [ref=e943]: "{ \"mcpServers\": { \"playwright\": { \"command\": \"npx\", \"args\": [ \"@playwright/mcp@latest\", \"--isolated\", \"--storage-state={path/to/storage.json}\" ] } } }"
+                  - button "Copy code to clipboard" [ref=e945] [cursor=pointer]
+                - paragraph [ref=e949]:
+                  - strong [ref=e950]: Browser Extension
+                - paragraph [ref=e951]:
+                  - text: The Playwright MCP Chrome Extension allows you to connect to existing browser tabs and leverage your logged-in sessions and browser state. See
+                  - link "microsoft/playwright › packages/extension" [ref=e952] [cursor=pointer]:
+                    - /url: https://github.com/microsoft/playwright/tree/main/packages/extension#readme
+                  - text: for installation and setup instructions.
+                - generic [ref=e953]:
+                  - heading "Initial state" [level=3] [ref=e954]
+                  - 'link "Permalink: Initial state" [ref=e955] [cursor=pointer]':
+                    - /url: "#initial-state"
+                - paragraph [ref=e958]: There are multiple ways to provide the initial state to the browser context or a page.
+                - paragraph [ref=e959]: "For the storage state, you can either:"
+                - list [ref=e960]:
+                  - listitem [ref=e961]:
+                    - text: Start with a user data directory using the
+                    - code [ref=e962]: "--user-data-dir"
+                    - text: argument. This will persist all browser data between the sessions.
+                  - listitem [ref=e963]:
+                    - text: Start with a storage state file using the
+                    - code [ref=e964]: "--storage-state"
+                    - text: argument. This will load cookies and local storage from the file into an isolated browser context.
+                - paragraph [ref=e965]: "For the page state, you can use:"
+                - list [ref=e966]:
+                  - listitem [ref=e967]:
+                    - code [ref=e968]: "--init-page"
+                    - text: to point to a TypeScript file that will be evaluated on the Playwright page object. This allows you to run arbitrary code to set up the page.
+                - generic [ref=e969]:
+                  - generic [ref=e970]: "// init-page.ts export default async ({ page }) => { await page.context().grantPermissions(['geolocation']); await page.context().setGeolocation({ latitude: 37.7749, longitude: -122.4194 }); await page.setViewportSize({ width: 1280, height: 720 }); };"
+                  - button "Copy code to clipboard" [ref=e972] [cursor=pointer]
+                - list [ref=e976]:
+                  - listitem [ref=e977]:
+                    - code [ref=e978]: "--init-script"
+                    - text: to point to a JavaScript file that will be added as an initialization script. The script will be evaluated in every page before any of the page's scripts. This is useful for overriding browser APIs or setting up the environment.
+                - generic [ref=e979]:
+                  - generic [ref=e980]: // init-script.js window.isPlaywrightMCP = true;
+                  - button "Copy code to clipboard" [ref=e982] [cursor=pointer]
+                - generic [ref=e986]:
+                  - heading "Configuration file" [level=3] [ref=e987]
+                  - 'link "Permalink: Configuration file" [ref=e988] [cursor=pointer]':
+                    - /url: "#configuration-file"
+                - paragraph [ref=e991]:
+                  - text: The Playwright MCP server can be configured using a JSON configuration file. You can specify the configuration file using the
+                  - code [ref=e992]: "--config"
+                  - text: "command line option:"
+                - generic [ref=e993]:
+                  - generic [ref=e994]: npx @playwright/mcp@latest --config path/to/config.json
+                  - button "Copy code to clipboard" [ref=e996] [cursor=pointer]
+                - group [ref=e1000]:
+                  - generic "Configuration file schema" [ref=e1001] [cursor=pointer]
+                - generic [ref=e1002]:
+                  - heading "Standalone MCP server" [level=3] [ref=e1003]
+                  - 'link "Permalink: Standalone MCP server" [ref=e1004] [cursor=pointer]':
+                    - /url: "#standalone-mcp-server"
+                - paragraph [ref=e1007]:
+                  - text: When running headed browser on system w/o display or from worker processes of the IDEs, run the MCP server from environment with the DISPLAY and pass the
+                  - code [ref=e1008]: "--port"
+                  - text: flag to enable HTTP transport.
+                - generic [ref=e1009]:
+                  - generic [ref=e1010]: npx @playwright/mcp@latest --port 8931
+                  - button "Copy code to clipboard" [ref=e1012] [cursor=pointer]
+                - paragraph [ref=e1016]:
+                  - text: And then in MCP client config, set the
+                  - code [ref=e1017]: url
+                  - text: "to the HTTP endpoint:"
+                - generic [ref=e1018]:
+                  - generic [ref=e1019]: "{ \"mcpServers\": { \"playwright\": { \"url\": \"http://localhost:8931/mcp\" } } }"
+                  - button "Copy code to clipboard" [ref=e1021] [cursor=pointer]
+                - generic [ref=e1025]:
+                  - heading "Security" [level=2] [ref=e1026]
+                  - 'link "Permalink: Security" [ref=e1027] [cursor=pointer]':
+                    - /url: "#security"
+                - paragraph [ref=e1030]:
+                  - text: Playwright MCP is
+                  - strong [ref=e1031]: not
+                  - text: a security boundary. See
+                  - link "MCP Security Best Practices" [ref=e1032] [cursor=pointer]:
+                    - /url: https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices
+                  - text: for guidance on securing your deployment.
+                - group [ref=e1033]:
+                  - generic "Docker" [ref=e1034] [cursor=pointer]
+                - group [ref=e1035]:
+                  - generic "Programmatic usage" [ref=e1036] [cursor=pointer]
+                - generic [ref=e1037]:
+                  - heading "Tools" [level=3] [ref=e1038]
+                  - 'link "Permalink: Tools" [ref=e1039] [cursor=pointer]':
+                    - /url: "#tools"
+                - group [ref=e1042]:
+                  - generic "Core automation" [ref=e1043] [cursor=pointer]
+                - group [ref=e1044]:
+                  - generic "Tab management" [ref=e1045] [cursor=pointer]
+                - group [ref=e1046]:
+                  - generic "Browser installation" [ref=e1047] [cursor=pointer]
+                - group [ref=e1048]:
+                  - generic "Configuration (opt-in via --caps=config)" [ref=e1049] [cursor=pointer]
+                - group [ref=e1050]:
+                  - generic "Network (opt-in via --caps=network)" [ref=e1051] [cursor=pointer]
+                - group [ref=e1052]:
+                  - generic "Storage (opt-in via --caps=storage)" [ref=e1053] [cursor=pointer]
+                - group [ref=e1054]:
+                  - generic "DevTools (opt-in via --caps=devtools)" [ref=e1055] [cursor=pointer]
+                - group [ref=e1056]:
+                  - generic "Coordinate-based (opt-in via --caps=vision)" [ref=e1057] [cursor=pointer]
+                - group [ref=e1058]:
+                  - generic "PDF generation (opt-in via --caps=pdf)" [ref=e1059] [cursor=pointer]
+                - group [ref=e1060]:
+                  - generic "Test assertions (opt-in via --caps=testing)" [ref=e1061] [cursor=pointer]
+        - generic [ref=e1064]:
+          - generic [ref=e1065]:
+            - heading "About" [level=2] [ref=e1066]
+            - paragraph [ref=e1067]: Playwright MCP server
+            - generic "https://www.npmjs.com/package/@playwright/mcp" [ref=e1071]:
+              - link "www.npmjs.com/package/@playwright/mcp" [ref=e1072] [cursor=pointer]:
+                - /url: https://www.npmjs.com/package/@playwright/mcp
+            - heading "Topics" [level=3] [ref=e1073]
+            - generic [ref=e1074]:
+              - link "mcp" [ref=e1075] [cursor=pointer]:
+                - /url: /topics/mcp
+              - link "playwright" [ref=e1076] [cursor=pointer]:
+                - /url: /topics/playwright
+            - heading "Resources" [level=3] [ref=e1077]
+            - link "Readme" [ref=e1079] [cursor=pointer]:
+              - /url: "#readme-ov-file"
+            - link "Apache-2.0 license" [ref=e1083] [cursor=pointer]:
+              - /url: "#Apache-2.0-1-ov-file"
+            - heading "Code of conduct" [level=3] [ref=e1086]
+            - link "Code of conduct" [ref=e1088] [cursor=pointer]:
+              - /url: /microsoft/playwright-mcp#coc-ov-file
+            - heading "Contributing" [level=3] [ref=e1091]
+            - link "Contributing" [ref=e1093] [cursor=pointer]:
+              - /url: "#contributing-ov-file"
+            - heading "Security policy" [level=3] [ref=e1096]
+            - link "Security policy" [ref=e1098] [cursor=pointer]:
+              - /url: "#security-ov-file"
+            - link "Activity" [ref=e1102] [cursor=pointer]:
+              - /url: /microsoft/playwright-mcp/activity
+            - link "Custom properties" [ref=e1106] [cursor=pointer]:
+              - /url: /microsoft/playwright-mcp/custom-properties
+            - heading "Stars" [level=3] [ref=e1109]
+            - generic [ref=e1111]:
+              - strong [ref=e1114]: 36.6k
+              - text: stars
+            - heading "Watchers" [level=3] [ref=e1115]
+            - generic [ref=e1117]:
+              - strong [ref=e1120]: "144"
+              - text: watching
+            - heading "Forks" [level=3] [ref=e1121]
+            - link [ref=e1123] [cursor=pointer]:
+              - /url: /microsoft/playwright-mcp/forks
+              - strong [ref=e1127]: 3.1k
+              - text: forks
+            - link "Report repository" [ref=e1129] [cursor=pointer]:
+              - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fplaywright-mcp&report=microsoft+%28user%29
+          - heading "Releases" [level=2] [ref=e1131]
+          - heading "Used by" [level=2] [ref=e1135]
+          - heading "Contributors" [level=2] [ref=e1138]
+          - heading "Languages" [level=2] [ref=e1141]
+    - contentinfo [ref=e1144]:
+      - heading "Footer" [level=2] [ref=e1145]
+      - generic [ref=e1146]:
+        - generic [ref=e1147]:
+          - link "GitHub Homepage" [ref=e1148] [cursor=pointer]:
+            - /url: https://github.com
+          - generic [ref=e1151]: © 2026 GitHub, Inc.
+        - navigation "Footer" [ref=e1152]:
+          - heading "Footer navigation" [level=3] [ref=e1153]
+          - list "Footer navigation" [ref=e1154]:
+            - listitem [ref=e1155]:
+              - link "Terms" [ref=e1156] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+            - listitem [ref=e1157]:
+              - link "Privacy" [ref=e1158] [cursor=pointer]:
+                - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+            - listitem [ref=e1159]:
+              - link "Security" [ref=e1160] [cursor=pointer]:
+                - /url: https://github.com/security
+            - listitem [ref=e1161]:
+              - link "Status" [ref=e1162] [cursor=pointer]:
+                - /url: https://www.githubstatus.com/
+            - listitem [ref=e1163]:
+              - link "Community" [ref=e1164] [cursor=pointer]:
+                - /url: https://github.community/
+            - listitem [ref=e1165]:
+              - link "Docs" [ref=e1166] [cursor=pointer]:
+                - /url: https://docs.github.com/
+            - listitem [ref=e1167]:
+              - link "Contact" [ref=e1168] [cursor=pointer]:
+                - /url: https://support.github.com?tags=dotcom-footer
+            - listitem [ref=e1169]:
+              - button "Manage cookies" [ref=e1171] [cursor=pointer]
+            - listitem [ref=e1172]:
+              - button "Do not share my personal information" [ref=e1174] [cursor=pointer]
+  - alert [ref=e1177]

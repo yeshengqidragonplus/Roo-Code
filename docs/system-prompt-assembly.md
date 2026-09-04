@@ -34,13 +34,14 @@
 | 3   | 工具使用说明 TOOL USE       | 🔒          | `sections/tool-use.ts`                                      | 工具需审批；鼓励一次回复批量调用多个工具                       |
 | 4   | 工具目录                    | 🔄          | `system.ts`（`toolsCatalog`，当前为占位）                   | 预留：每个工具的说明书                                         |
 | 5   | 工具使用准则                | 🔒          | `sections/tool-use-guidelines.ts`                           | 迭代式判断"先取什么信息、用哪个工具"                           |
-| 6   | 能力说明 CAPABILITIES       | 🔒          | `sections/capabilities.ts`                                  | 能访问 CLI、列文件、看代码、用 MCP 等                          |
-| 7   | 模式列表 MODES              | 🔄          | `sections/modes.ts`                                         | 列出所有可用 mode 及各自 `whenToUse`                           |
-| 8   | 技能列表 AVAILABLE SKILLS   | 🔄          | `sections/skills.ts`                                        | 列出当前 mode 可用 skill（仅名字 + 描述 + 路径，正文按需加载） |
-| 9   | 规则 RULES                  | 🔒          | `sections/rules.ts`                                         | 项目根目录、路径约定、命令拼接、模式文件限制、代码规范等       |
-| 10  | 系统信息 SYSTEM INFORMATION | 🔄          | `sections/system-info.ts`                                   | 自动探测：OS、默认 shell、home 目录、工作目录                  |
-| 11  | 目标 OBJECTIVE              | 🔒          | `sections/objective.ts`                                     | 任务拆解协议、attempt_completion 流程                          |
-| 12  | **用户自定义指令**          | 📝 用户可写 | `sections/custom-instructions.ts` `addCustomInstructions()` | 见第四节，这是用户主要的定制入口                               |
+| 6   | MCP 服务器列表 MCP SERVERS  | 🔄 条件     | `sections/mcp-servers.ts`                                   | 按需注入：mode 含 mcp 组且有可见 server 时，按 mode 可见性列出 server 及 `mcp--server--tool` 可调用名；否则空串 |
+| 7   | 能力说明 CAPABILITIES       | 🔒          | `sections/capabilities.ts`                                  | 能访问 CLI、列文件、看代码、用 MCP 等                          |
+| 8   | 模式列表 MODES              | 🔄          | `sections/modes.ts`                                         | 列出所有可用 mode 及各自 `whenToUse`                           |
+| 9   | 技能列表 AVAILABLE SKILLS   | 🔄          | `sections/skills.ts`                                        | 列出当前 mode 可用 skill（仅名字 + 描述 + 路径，正文按需加载） |
+| 10  | 规则 RULES                  | 🔒          | `sections/rules.ts`                                         | 项目根目录、路径约定、命令拼接、模式文件限制、代码规范等       |
+| 11  | 系统信息 SYSTEM INFORMATION | 🔄          | `sections/system-info.ts`                                   | 自动探测：OS、默认 shell、home 目录、工作目录                  |
+| 12  | 目标 OBJECTIVE              | 🔒          | `sections/objective.ts`                                     | 任务拆解协议、attempt_completion 流程                          |
+| 13  | **用户自定义指令**          | 📝 用户可写 | `sections/custom-instructions.ts` `addCustomInstructions()` | 见第四节，这是用户主要的定制入口                               |
 
 > 实际拼接代码（`system.ts` 约 85–107 行）：
 >
@@ -52,7 +53,7 @@
 > ${getSharedToolUseSection()}${toolsCatalog}
 >
 > ${getToolUseGuidelinesSection()}
->
+> ${mcpServersSection ? `\n${mcpServersSection}\n` : ""}
 > ${getCapabilitiesSection(cwd, shouldIncludeMcp ? mcpHub : undefined)}
 >
 > ${modesSection}
@@ -68,16 +69,16 @@
 
 ## 三、关键认知：绝大部分是内置脚手架
 
-**第 2–11 段（约占 system prompt 90% 以上）都是 RooCode 自带的，不是用户写的。** 它们定义了"怎么用工具、能干什么、要守什么规矩、当前环境、任务怎么推进"——是让 agent 能正常工作的基础设施，每个任务自动注入。
+**第 2–12 段（约占 system prompt 90% 以上）都是 RooCode 自带的，不是用户写的。** 它们定义了"怎么用工具、能干什么、要守什么规矩、当前环境、任务怎么推进"——是让 agent 能正常工作的基础设施，每个任务自动注入。
 
 用户能影响的只有两处：
 
 - **第 1 段 roleDefinition** —— 由当前 mode 决定
-- **第 12 段 自定义指令** —— 由规则文件决定
+- **第 13 段 自定义指令** —— 由规则文件决定
 
 这解释了"我没写过却有一大堆内容"：那一大堆是脚手架，不是用户产物。
 
-## 四、第 12 段：用户自定义指令的来源
+## 四、第 13 段：用户自定义指令的来源
 
 `addCustomInstructions()`（`sections/custom-instructions.ts`，约 382–507 行）按以下顺序拼接，**所有文件都是自动发现并注入的，用户无需显式引用**：
 

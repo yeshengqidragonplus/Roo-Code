@@ -1,0 +1,250 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - button "跳至内容" [ref=e3] [cursor=pointer]
+    - button "辅助功能反馈" [ref=e6] [cursor=pointer]
+    - generic [ref=e9]:
+      - link [ref=e10] [cursor=pointer]:
+        - /url: /?FORM=Z9FD1
+        - heading "返回到必应搜索" [level=1] [ref=e11]
+      - search [ref=e12]:
+        - button "搜索" [ref=e15] [cursor=pointer]
+        - searchbox "在此处输入你的搜索 — 输入时会显示搜索建议" [ref=e16]: unity webgl memory leak profiling
+        - generic [ref=e17] [cursor=pointer]
+        - button "使用图像搜索" [ref=e22] [cursor=pointer]
+    - complementary "帐户奖励和偏好设置" [ref=e24]:
+      - button "Microsoft Rewards" [ref=e25] [cursor=pointer]
+      - link "登录" [ref=e26] [cursor=pointer]:
+        - /url: javascript:void(0)
+    - navigation "主菜单" [ref=e28]:
+      - list [ref=e29]:
+        - listitem [ref=e30]:
+          - link "全部" [ref=e31] [cursor=pointer]:
+            - /url: /?scope=web&FORM=HDRSC1
+        - listitem [ref=e32]:
+          - link "搜索" [ref=e33] [cursor=pointer]:
+            - /url: /copilotsearch?q=unity+webgl+memory+leak+profiling&FORM=CSSCOP
+        - listitem [ref=e36]:
+          - link "视频" [ref=e37] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=3a75c5fcc2b36870d839a166bbd9e075e79c78743d2ff9f3e688f6e0536b46ceJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L3ZpZGVvcy9zZWFyY2g_cT11bml0eSt3ZWJnbCttZW1vcnkrbGVhaytwcm9maWxpbmcmRk9STT1IRFJTQzQ&ntb=1
+        - listitem [ref=e38]:
+          - link "图片" [ref=e39] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=6389bd4a33aae6b7b2c37924fb667da9678b3d8ee41779d5682796504b365fc9JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L2ltYWdlcy9zZWFyY2g_cT11bml0eSt3ZWJnbCttZW1vcnkrbGVhaytwcm9maWxpbmcmRk9STT1IRFJTQzM&ntb=1
+        - listitem [ref=e40]:
+          - link "地图" [ref=e41] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=8eb65214622b4245507b542c9d462ff3a8f7038aecf7a8505674453a27a0f8e0JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L21hcHM_cT11bml0eSt3ZWJnbCttZW1vcnkrbGVhaytwcm9maWxpbmcmRk9STT1IRFJTQzY&ntb=1
+        - listitem [ref=e42]:
+          - link "资讯" [ref=e43] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=595bc481f8ffb9913e2af9ad6359decd7051ae90684777c378e412b600a45166JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L25ld3Mvc2VhcmNoP3E9dW5pdHkrd2ViZ2wrbWVtb3J5K2xlYWsrcHJvZmlsaW5nJkZPUk09SERSU0M3&ntb=1
+        - listitem [ref=e44]:
+          - link "购物" [ref=e45] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=5c169ca44ac51dfedafdfd976cbb8371507a3bc1e832f296abedaf4dd886ba05JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L3Nob3AvdG9waWNzP3E9dW5pdHkrd2ViZ2wrbWVtb3J5K2xlYWsrcHJvZmlsaW5nJkZPUk09U0hPUFRC&ntb=1
+        - listitem [ref=e46]:
+          - button [ref=e47] [cursor=pointer]
+  - generic [ref=e51]:
+    - main "搜索结果" [ref=e52]:
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - generic [ref=e56] [cursor=pointer]
+          - generic [ref=e59] [cursor=pointer]
+          - generic [ref=e62] [cursor=pointer]
+        - text: 约 1,060 个结果
+      - list [ref=e65]:
+        - listitem [ref=e66]:
+          - link "CSDN博客" [ref=e68] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=672b605eb27b239244a1b5f74950498aeb05a18329d0fb005d5ced632d5e8359JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl8yOTAxMTIzOS9hcnRpY2xlL2RldGFpbHMvMTYzMzgyMjg3&ntb=1
+            - generic [ref=e73]:
+              - generic [ref=e74]: CSDN博客
+              - generic [ref=e75]: https://blog.csdn.net › article › details › ...
+          - heading [level=2] [ref=e78]:
+            - link "Unity WebGL内存优化实战：利用Profiler精准定位与解决内存 ..." [ref=e79] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=672b605eb27b239244a1b5f74950498aeb05a18329d0fb005d5ced632d5e8359JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl8yOTAxMTIzOS9hcnRpY2xlL2RldGFpbHMvMTYzMzgyMjg3&ntb=1
+          - paragraph [ref=e81]: 2026年7月31日 · 在WebGL开发中，由于浏览器沙盒限制与Unity托管内存的交互，内存问题常以溢出的形式凸显技术价值。 针对纹理 …
+        - listitem [ref=e82]:
+          - link "CSDN博客" [ref=e84] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=e4db6e943b339a443ecbaba5d8f3ca7174b712ba60ed8d6811d8c67f1ccfdc31JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl8zMjk0Mzg1Ny9hcnRpY2xlL2RldGFpbHMvMTYzNDA2MzMz&ntb=1
+            - generic [ref=e89]:
+              - generic [ref=e90]: CSDN博客
+              - generic [ref=e91]: https://blog.csdn.net › article › details › ...
+          - heading [level=2] [ref=e94]:
+            - link "Unity WebGL内存优化实战：用Profiler精准定位与解决内存 ..." [ref=e95] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=e4db6e943b339a443ecbaba5d8f3ca7174b712ba60ed8d6811d8c67f1ccfdc31JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl8zMjk0Mzg1Ny9hcnRpY2xlL2RldGFpbHMvMTYzNDA2MzMz&ntb=1
+          - paragraph [ref=e97]: 2026年8月1日 · 对于基于Unity引擎的WebGL应用，内存优化具有极高的技术价值，因为浏览器环境的内存限制更为严格，直接影响用 …
+        - listitem [ref=e98]:
+          - link "CSDN文库" [ref=e100] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=aa1be292ae708878bacf41760ec08080167a5dee7b50f25358f3ba6a022a0bcbJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly93ZW5rdS5jc2RuLm5ldC9jb2x1bW4vc3gzMW9keHNjems&ntb=1
+            - generic [ref=e105]:
+              - generic [ref=e106]: CSDN文库
+              - generic [ref=e107]: https://wenku.csdn.net › column
+          - heading [level=2] [ref=e110]:
+            - link "Unity WebGL打包后爆内存？别慌，用Profiler揪出Texture和 ..." [ref=e111] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=aa1be292ae708878bacf41760ec08080167a5dee7b50f25358f3ba6a022a0bcbJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly93ZW5rdS5jc2RuLm5ldC9jb2x1bW4vc3gzMW9keHNjems&ntb=1
+          - paragraph [ref=e113]: 2026年5月15日 · Unity WebGL内存优化实战：精准定位Texture与Mesh的高效排查法 当Unity项目在WebGL平台遭遇内存溢出时，开 …
+        - listitem [ref=e114]:
+          - generic [ref=e116]:
+            - heading [level=2] [ref=e118]:
+              - link "Unity WebGL Memory Leak Profiling 的视频" [ref=e119] [cursor=pointer]:
+                - /url: https://www.bing.com/ck/a?!&&p=81461b42f8cb69f7d6d4091bb4adc9ed7a5283fdca244b073f77207505f896e7JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L3ZpZGVvcy9zZWFyY2g_cT11bml0eStXZWJHTCttZW1vcnkrbGVhaytwcm9maWxpbmcmcXB2dD11bml0eSt3ZWJnbCttZW1vcnkrbGVhaytwcm9maWxpbmcmRk9STT1WRFJF&ntb=1
+            - generic [ref=e125]:
+              - 'link "How to find memory leaks with the Memory Profiler | Unite 2025来源: YouTube · 时长: 34 分钟12 秒 · 已浏览 2537 次 · 上传时间: 8 个月之前 · 上传人: Unity · 单击以播放。 · Understand and resolve common causes of memory leaks in code and memory fragmentation by using the Unity Memory Profiler. #Unity #Unite2025 #UnityEngine" [ref=e128] [cursor=pointer]':
+                - /url: https://www.bing.com/ck/a?!&&p=00c7ff41b2ad39f0a4b5f6561c3b142a0d416d2ec1f15da185bfb9ffa173a24bJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L3ZpZGVvcy9yaXZlcnZpZXcvcmVsYXRlZHZpZGVvP3E9dW5pdHkrd2ViZ2wrbWVtb3J5K2xlYWsrcHJvZmlsaW5nJm1pZD03MzFBQTlDRTUyRjJDRDlFMUEyOTczMUFBOUNFNTJGMkNEOUUxQTI5JmNodXJsPWh0dHBzJTNhJTJmJTJmd3d3LnlvdXR1YmUuY29tJTJmY2hhbm5lbCUyZlVDRzA4RXFPQVhKa19ZWFBEc0F2UmVTZyZGT1JNPVZJUkU&ntb=1
+                - generic [ref=e129]:
+                  - generic [ref=e130]:
+                    - img "How to find memory leaks with the Memory Profiler | Unite 2025" [ref=e132]
+                    - generic [ref=e135]: 34:12
+                  - generic [ref=e139]:
+                    - generic "How to find memory leaks with the Memory Profiler | Unite 2025" [ref=e140]:
+                      - text: How to find
+                      - strong [ref=e141]: memory
+                      - text: leaks with the
+                      - strong [ref=e142]: Memory
+                      - text: Profiler | Unite 2025
+                    - generic [ref=e143]:
+                      - generic [ref=e144]:
+                        - img "视频源网站" [ref=e145]
+                        - text: YouTube · Unity
+                      - generic [ref=e146]: 已浏览 2537 次 · 8 个月之前
+              - 'link "Memory Profiler Walkthrough & Tutorial | Unity来源: YouTube · 时长: 13 分钟51 秒 · 已浏览 1.9万 次 · 上传时间: 2024年3月15日 · 上传人: Unity · 单击以播放。 · In this video, we look at the Memory Profiler package in Unity 2022 LTS. You’ll learn more about capturing snapshots in the Editor and standalone builds, and reading and comparing memory usage data. The Memory Profiler takes a snapshot of the memory usage of a specific point in the game and gives a detailed statistical breakdown of how the ..." [ref=e149] [cursor=pointer]':
+                - /url: https://www.bing.com/ck/a?!&&p=f7c5963f531a6e8d529ac03d99d1af468fe56087999e1d49eec15195146edc2bJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1L3ZpZGVvcy9yaXZlcnZpZXcvcmVsYXRlZHZpZGVvP3E9dW5pdHkrd2ViZ2wrbWVtb3J5K2xlYWsrcHJvZmlsaW5nJm1pZD0yQUJCNEI0ODFBQzM1MzU5QzMwNTJBQkI0QjQ4MUFDMzUzNTlDMzA1JmNodXJsPWh0dHBzJTNhJTJmJTJmd3d3LnlvdXR1YmUuY29tJTJmY2hhbm5lbCUyZlVDRzA4RXFPQVhKa19ZWFBEc0F2UmVTZyZGT1JNPVZJUkU&ntb=1
+                - generic [ref=e150]:
+                  - generic [ref=e151]:
+                    - img "Memory Profiler Walkthrough & Tutorial | Unity" [ref=e153]
+                    - generic [ref=e156]: 13:51
+                  - generic [ref=e160]:
+                    - generic "Memory Profiler Walkthrough & Tutorial | Unity" [ref=e161]:
+                      - strong [ref=e162]: Memory
+                      - text: Profiler Walkthrough & Tutorial |
+                      - strong [ref=e163]: Unity
+                    - generic [ref=e164]:
+                      - generic [ref=e165]:
+                        - img "视频源网站" [ref=e166]
+                        - text: YouTube · Unity
+                      - generic [ref=e167]: 已浏览 1.9万 次 · 2024年3月15日
+              - 'link "How to detect memory leaks in Unity? Memory Profiler and Leaked Managed Shells来源: YouTube · 时长: 9 分钟23 秒 · 已浏览 1.8万 次 · 上传时间: 2023年6月5日 · 上传人: Unity Japan · 单击以播放。 · 基本的に Unity ではメモリは自動的に管理されていますが、一部の特殊な仕様によってメモリリークのような現象が起きてしまうことがあります。この動画では、その一例である \"Leaked Managed Shell\" について解説しつつ、Memory Profiler を使ってそれを調べる方法 ..." [ref=e170] [cursor=pointer]':
+                - /url: https://www.bing.com/ck/a?!&&p=587d402867c425400b0df1ab84661d35b7e1f613243f48109cac5bcce5e82a78JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g_dj1VSXdRbXBRVHRBNA&ntb=1
+                - generic [ref=e171]:
+                  - generic [ref=e172]:
+                    - img "How to detect memory leaks in Unity? Memory Profiler and Leaked Managed Shells" [ref=e174]
+                    - generic [ref=e177]: 9:23
+                  - generic [ref=e181]:
+                    - generic "How to detect memory leaks in Unity? Memory Profiler and Leaked Managed Shells" [ref=e182]:
+                      - text: How to detect
+                      - strong [ref=e183]: memory
+                      - text: leaks in
+                      - strong [ref=e184]: Unity
+                      - text: "?"
+                      - strong [ref=e185]: Memory
+                      - text: Profiler and Leaked Managed Shells
+                    - generic [ref=e186]:
+                      - generic [ref=e187]:
+                        - img "视频源网站" [ref=e188]
+                        - text: YouTube · Unity Japan
+                      - generic [ref=e189]: 已浏览 1.8万 次 · 2023年6月5日
+        - listitem [ref=e190]:
+          - link "Unity Discussions" [ref=e192] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=5cfa7079729c30c1eff61fe7d3b051d25e1a72424288d41f75c3949ebfd1a1e3JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kaXNjdXNzaW9ucy51bml0eS5jb20vdC9ob3ctZG8teW91LXByb2ZpbGUtbWVtb3J5LWZvci1hLXN0YW5kYWxvbmUtd2ViZ2wtYXBwbGljYXRpb24vODc3ODk1&ntb=1
+            - generic [ref=e197]:
+              - generic [ref=e198]: Unity Discussions
+              - generic [ref=e200]:
+                - generic [ref=e201]: https://discussions.unity.com › how-do-you-profile...
+                - generic [ref=e202]: 翻译此结果
+          - heading [level=2] [ref=e203]:
+            - link "How do you profile memory for a standalone WebGL application?" [ref=e204] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=5cfa7079729c30c1eff61fe7d3b051d25e1a72424288d41f75c3949ebfd1a1e3JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kaXNjdXNzaW9ucy51bml0eS5jb20vdC9ob3ctZG8teW91LXByb2ZpbGUtbWVtb3J5LWZvci1hLXN0YW5kYWxvbmUtd2ViZ2wtYXBwbGljYXRpb24vODc3ODk1&ntb=1
+          - paragraph [ref=e206]: 2022年4月11日 · We have a big project, and there is a massive memory leak. This behavior can’t be reproduced in the Editor, so we …
+        - listitem [ref=e207]:
+          - link "TapTap" [ref=e209] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=f1895c5fd1dfbe5118cdf04a393bab28205d0519478f957bf7e0b88178725cc2JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kZXZlbG9wZXIudGFwdGFwLmNuL21pbmlnYW1lYXBpZG9jL2Rldi90dXRvcmlhbC9wZXJmb3JtYW5jZS9ydW50aW1lL3VuaXR5LXdlYkdMLW1lbW9yeS8&ntb=1
+            - generic [ref=e214]:
+              - generic [ref=e215]: TapTap
+              - generic [ref=e216]: https://developer.taptap.cn › ... › runtime › unity-webGL-memory
+          - heading [level=2] [ref=e219]:
+            - link "优化Unity WebGL的内存 | 小游戏开发者文档" [ref=e220] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=f1895c5fd1dfbe5118cdf04a393bab28205d0519478f957bf7e0b88178725cc2JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kZXZlbG9wZXIudGFwdGFwLmNuL21pbmlnYW1lYXBpZG9jL2Rldi90dXRvcmlhbC9wZXJmb3JtYW5jZS9ydW50aW1lL3VuaXR5LXdlYkdMLW1lbW9yeS8&ntb=1
+          - paragraph [ref=e222]: 2025年2月25日 · 由于Unity WebGL在单帧内无法GC，单帧内瞬间的内存使用非常容易造成crash。 同时，Heap是只增不减且存在内 …
+        - listitem [ref=e223]:
+          - link "Unity" [ref=e225] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=b5d7c5220d7c9b70d1831406322172d77449058517630a48b6c60b5119820b7aJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly91bml0eS5jb20vamEvaG93LXRvL3VzZS1tZW1vcnktcHJvZmlsaW5nLXVuaXR5&ntb=1
+            - generic [ref=e230]:
+              - generic [ref=e231]: Unity
+              - generic [ref=e233]:
+                - generic [ref=e234]: https://unity.com › ja › how-to › use-memory-profiling-unity
+                - generic [ref=e235]: 翻译此结果
+          - heading [level=2] [ref=e236]:
+            - link "Unity のメモリプロファイリングツールの使用方法 | Unity" [ref=e237] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=b5d7c5220d7c9b70d1831406322172d77449058517630a48b6c60b5119820b7aJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly91bml0eS5jb20vamEvaG93LXRvL3VzZS1tZW1vcnktcHJvZmlsaW5nLXVuaXR5&ntb=1
+          - paragraph [ref=e239]: このページでは、Unity のアプリケーションのメモリ使用状況を分析するための 2 つのツール、ビルトイン Memory Profiler モ …
+        - listitem [ref=e240]:
+          - link "Unity Discussions" [ref=e242] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=cf816f7d04f2d9511f30aa3fa68d95a77b2ac80e19b420cf6bd4094dcf37c789JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kaXNjdXNzaW9ucy51bml0eS5jb20vdC93ZWJnbC1tZW1vcnktcHJvZmlsaW5nLzE1MDMyODI&ntb=1
+            - generic [ref=e247]:
+              - generic [ref=e248]: Unity Discussions
+              - generic [ref=e250]:
+                - generic [ref=e251]: https://discussions.unity.com › webgl-memory-profiling › ...
+                - generic [ref=e252]: 翻译此结果
+          - heading [level=2] [ref=e253]:
+            - link "Webgl Memory Profiling - Unity Engine - Unity Discussions" [ref=e254] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=cf816f7d04f2d9511f30aa3fa68d95a77b2ac80e19b420cf6bd4094dcf37c789JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kaXNjdXNzaW9ucy51bml0eS5jb20vdC93ZWJnbC1tZW1vcnktcHJvZmlsaW5nLzE1MDMyODI&ntb=1
+          - paragraph [ref=e256]: "2024年8月14日 · there are two limitations at play with Memory Management on the Web platform: The garbage collector can only run …"
+        - listitem [ref=e257]:
+          - link "drcodes.com" [ref=e259] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=0ac5d0408ac5198fabcf2528e2a53b3e7d1f946d076432fd67b14ff03bb6ac5fJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kcmNvZGVzLmNvbS9wb3N0cy9maXgtdW5pdHktbWVtb3J5LWxlYWtzLWNvbXBsZXRlLXByb2ZpbGVyLWdhbWVvYmplY3QtZ3VpZGU&ntb=1
+            - generic [ref=e264]:
+              - generic [ref=e265]: drcodes.com
+              - generic [ref=e267]:
+                - generic [ref=e268]: https://drcodes.com › posts › fix-unity-memory-leaks...
+                - generic [ref=e269]: 翻译此结果
+          - heading [level=2] [ref=e270]:
+            - 'link "Fix Unity Memory Leaks: Complete Profiler & GameObject Guide" [ref=e271] [cursor=pointer]':
+              - /url: https://www.bing.com/ck/a?!&&p=0ac5d0408ac5198fabcf2528e2a53b3e7d1f946d076432fd67b14ff03bb6ac5fJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9kcmNvZGVzLmNvbS9wb3N0cy9maXgtdW5pdHktbWVtb3J5LWxlYWtzLWNvbXBsZXRlLXByb2ZpbGVyLWdhbWVvYmplY3QtZ3VpZGU&ntb=1
+          - paragraph [ref=e273]: 2025年9月25日 · Open Unity's built-in Profiler through Window > Analysis > Profiler. Enable the Memory module immediately. Set …
+        - listitem [ref=e274]:
+          - link "Qiita" [ref=e276] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=10778dd7e308477f055039ca7e2e80edf54e1229f374ab705d69ceab2b2e8c0bJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9xaWl0YS5jb20vX0VvckYvaXRlbXMvYzc0MjFiYWJiMDYwZDNkZDMxZjc&ntb=1
+            - generic [ref=e281]:
+              - generic [ref=e282]: Qiita
+              - generic [ref=e284]:
+                - generic [ref=e285]: https://qiita.com › _EorF › items
+                - generic [ref=e286]: 翻译此结果
+          - heading [level=2] [ref=e287]:
+            - link "【Unity】MemoryProfilerでメモリ蓄積を調査する手順 - Qiita" [ref=e288] [cursor=pointer]:
+              - /url: https://www.bing.com/ck/a?!&&p=10778dd7e308477f055039ca7e2e80edf54e1229f374ab705d69ceab2b2e8c0bJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly9xaWl0YS5jb20vX0VvckYvaXRlbXMvYzc0MjFiYWJiMDYwZDNkZDMxZjc&ntb=1
+          - paragraph [ref=e290]: 2025年12月10日 · この記事は Unity Advent Calendar 2025 の10日目の記事です。 経緯 Android 実機で突然アプリクラッシュした経 …
+        - listitem [ref=e291]:
+          - link "知乎专栏" [ref=e293] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=1bb5262f1f95b4ebbe8b746df28202b6d48f4cfde10b2e0c04cda69e48109c4cJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC8xODkzOTY4OTY1MzU4ODI1NjA3&ntb=1
+            - generic [ref=e298]:
+              - generic [ref=e299]: 知乎专栏
+              - generic [ref=e300]: https://zhuanlan.zhihu.com
+          - heading "Unity IL2CPP内存泄漏追踪方案（基于Memory Profiler）技术 ..." [level=2] [ref=e303]:
+            - link "Unity IL2CPP内存泄漏追踪方案（基于Memory Profiler）技术 ...":
+              - /url: https://www.bing.com/ck/a?!&&p=1bb5262f1f95b4ebbe8b746df28202b6d48f4cfde10b2e0c04cda69e48109c4cJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC8xODkzOTY4OTY1MzU4ODI1NjA3&ntb=1
+          - paragraph [ref=e305]: 建议将 内存分析 纳入每日构建流程，结合自动化测试框架实现内存使用基线管理，确保项目内存健康度持续达标。 一、IL2CPP内存 …
+        - listitem [ref=e306]:
+          - link "某些结果已被删除" [ref=e308] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=7a61057b08176058bc6dc9dc1ee55ab7faf7c4169e8e614634616a4a4ea1e28dJmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cDovL2dvLm1pY3Jvc29mdC5jb20vZndsaW5rLz9MaW5rSUQ9NjE3MzUw&ntb=1
+        - listitem [ref=e309]:
+          - navigation "unity webgl memory leak profiling 的更多搜索结果":
+            - list:
+              - listitem [ref=e310]:
+                - generic "第 1 页" [ref=e311]: "1"
+              - listitem [ref=e312]:
+                - link "第 2 页" [ref=e313] [cursor=pointer]:
+                  - /url: /search?q=unity+webgl+memory+leak+profiling&FPIG=660A1AA74EA349F09D7F88D1421B6542&first=11&FORM=PERE
+                  - text: "2"
+              - listitem [ref=e314]:
+                - link "第 3 页" [ref=e315] [cursor=pointer]:
+                  - /url: /search?q=unity+webgl+memory+leak+profiling&FPIG=660A1AA74EA349F09D7F88D1421B6542&first=21&FORM=PERE1
+                  - text: "3"
+              - listitem [ref=e316]:
+                - link "下一页" [ref=e317] [cursor=pointer]:
+                  - /url: /search?q=unity+webgl+memory+leak+profiling&FPIG=660A1AA74EA349F09D7F88D1421B6542&first=11&FORM=PORE
+    - complementary "更多结果"
+  - contentinfo [ref=e318]:
+    - generic [ref=e319]:
+      - list:
+        - listitem [ref=e320]:
+          - link "隐私" [ref=e321] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=382510dde592e4ba6203172e1ae14db16dec33c1b1741e701a6c6d2cc47eb419JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cDovL2dvLm1pY3Jvc29mdC5jb20vZndsaW5rLz9MaW5rSWQ9NTIxODM5&ntb=1
+        - listitem [ref=e322]:
+          - link "条款" [ref=e323] [cursor=pointer]:
+            - /url: https://www.bing.com/ck/a?!&&p=f4185dfb7151673adc7643cc9ffacd23226493338662bb4926de8163d6377a17JmltdHM9MTc4Nzc4ODgwMA&ptn=3&ver=2&hsh=4&fclid=10a35872-050a-6eeb-3b50-4fb104586fda&u=a1aHR0cDovL2dvLm1pY3Jvc29mdC5jb20vZndsaW5rLz9MaW5rSUQ9MjQ2MzM4&ntb=1
