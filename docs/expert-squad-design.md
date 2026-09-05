@@ -337,6 +337,8 @@ Skills 与 MCP 一样需要按专家收窄，但其权限语义不同：MCP 是�
 
 旧 `SKILL.md` frontmatter 中的 `modeSlugs` 仅保留为兼容旧配置，不再决定新系统的提示词注入或用户斜杠可用性。Skill 创建页不再配置 Mode；在专家 Mode 设置页的“主动可用 Skills”多选菜单中完成分配。
 
+多选菜单的整条条目都是可点击区域：点击复选框、Skill 名称或说明都必须切换同一项。事件处理以复选框组件自身的状态为准，不能依赖被点击的内部文字节点；每次切换只写入当前 Mode 的 `injectedSkillNames`，不影响其他 Mode。
+
 ### 5.6 与 MCP 配置的边界
 
 | 项目         | MCP                                               | Skill                                         |

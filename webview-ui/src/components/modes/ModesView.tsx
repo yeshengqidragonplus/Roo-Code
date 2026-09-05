@@ -1466,8 +1466,11 @@ const ModesView = () => {
 															key={`${skill.name}-${skill.source}`}
 															checked={assigned}
 															onChange={(event) => {
-																const checked = (event.target as HTMLInputElement)
-																	.checked
+																// The click can originate from the slotted name/description span;
+																// currentTarget is always the VSCodeCheckbox itself.
+																const checked = (
+																	event.currentTarget as HTMLInputElement
+																).checked
 																const injectedSkillNames = checked
 																	? [...new Set([...assignedSkillNames, skill.name])]
 																	: assignedSkillNames.filter(
