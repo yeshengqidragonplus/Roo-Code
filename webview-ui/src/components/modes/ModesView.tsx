@@ -142,12 +142,19 @@ const ModesView = () => {
 		setCustomInstructions,
 		customModes,
 		mcpServers,
+		skills,
 		workflows,
 	} = useExtensionState()
 
 	// Request the available workflows once so the expert workflow dropdown can populate.
 	useEffect(() => {
 		vscode.postMessage({ type: "requestWorkflows" })
+	}, [])
+
+	// Skill assignments are configured here, so load the global/project catalog
+	// even when the user has not visited the dedicated Skills settings page.
+	useEffect(() => {
+		vscode.postMessage({ type: "requestSkills" })
 	}, [])
 
 	// Use a local state to track the visually active mode
@@ -169,6 +176,7 @@ const ModesView = () => {
 	const [selectedPromptTitle, setSelectedPromptTitle] = useState("")
 	const [isToolsEditMode, setIsToolsEditMode] = useState(false)
 	const [isMcpAssignmentOpen, setIsMcpAssignmentOpen] = useState(false)
+	const [isSkillAssignmentOpen, setIsSkillAssignmentOpen] = useState(false)
 	const [showConfigMenu, setShowConfigMenu] = useState(false)
 	const [isCreateModeDialogOpen, setIsCreateModeDialogOpen] = useState(false)
 	const [isExporting, setIsExporting] = useState(false)
@@ -1423,6 +1431,69 @@ const ModesView = () => {
 
 				{/* MCP assignment: servers remain globally visible in MCP Settings,
 				    while this list controls which server tools enter this Mode's prompt. */}
+				{findModeBySlug(visualMode, customModes) && (
+					<div className="mb-4">
+						<div className="font-bold mb-1">主动可用 Skills</div>
+						<div className="text-sm text-vscode-descriptionForeground mb-2">
+							勾选后，Skill 的简介会进入当前 Mode 的系统提示词，模型可按需加载完整说明。未勾选的 Skill
+							仍可由用户在任何 Mode 中通过斜杠命令直接执行。
+						</div>
+						{(() => {
+							const currentMode = findModeBySlug(visualMode, customModes)
+							const availableSkills = Array.from(
+								new Map((skills ?? []).map((skill) => [skill.name, skill])).values(),
+							)
+							const assignedSkillNames = currentMode?.injectedSkillNames ?? []
+
+							return (
+								<Popover open={isSkillAssignmentOpen} onOpenChange={setIsSkillAssignmentOpen}>
+									<PopoverTrigger asChild>
+										<Button variant="secondary" disabled={availableSkills.length === 0}>
+											选择 Skills（{assignedSkillNames.length}/{availableSkills.length}）
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-80 max-h-80 overflow-y-auto">
+										{availableSkills.length === 0 ? (
+											<div className="text-sm text-vscode-descriptionForeground">
+												暂无可分配 Skill。
+											</div>
+										) : (
+											<div className="flex flex-col gap-2">
+												{availableSkills.map((skill) => {
+													const assigned = assignedSkillNames.includes(skill.name)
+													return (
+														<VSCodeCheckbox
+															key={`${skill.name}-${skill.source}`}
+															checked={assigned}
+															onChange={(event) => {
+																const checked = (event.target as HTMLInputElement)
+																	.checked
+																const injectedSkillNames = checked
+																	? [...new Set([...assignedSkillNames, skill.name])]
+																	: assignedSkillNames.filter(
+																			(name) => name !== skill.name,
+																		)
+																updateCustomMode(visualMode, {
+																	...currentMode!,
+																	injectedSkillNames,
+																})
+															}}>
+															<span>{skill.name}</span>
+															<span className="block text-xs text-vscode-descriptionForeground mt-0.5">
+																{skill.description}
+															</span>
+														</VSCodeCheckbox>
+													)
+												})}
+											</div>
+										)}
+									</PopoverContent>
+								</Popover>
+							)
+						})()}
+					</div>
+				)}
+
 				{findModeBySlug(visualMode, customModes) && (
 					<div className="mb-4">
 						<div className="font-bold mb-1">已分配 MCP</div>

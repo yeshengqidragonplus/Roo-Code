@@ -17,7 +17,11 @@ import { FileContextTracker } from "../context-tracking/FileContextTracker"
 
 import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { getCommand, type Command } from "../../services/command/commands"
-import { buildSkillResult, resolveSkillContentForMode, type SkillLookup } from "../../services/skills/skillInvocation"
+import {
+	buildSkillResult,
+	resolveSkillContentForSlashCommand,
+	type SkillLookup,
+} from "../../services/skills/skillInvocation"
 import type { SkillContent } from "../../shared/skills"
 
 export async function openMention(cwd: string, mention?: string): Promise<void> {
@@ -125,7 +129,7 @@ export async function parseMentions(
 					return { commandName, command, skillContent: null }
 				}
 
-				const skillContent = await resolveSkillContentForMode(skillsManager, commandName, currentMode)
+				const skillContent = await resolveSkillContentForSlashCommand(skillsManager, commandName)
 				return { commandName, command: undefined, skillContent }
 			} catch (error) {
 				// If there's an error checking command existence, treat it as non-existent

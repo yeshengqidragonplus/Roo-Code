@@ -3,7 +3,7 @@ import { getSkillsSection } from "../skills"
 describe("getSkillsSection", () => {
 	it("should emit <available_skills> XML with name, description, and location", async () => {
 		const mockSkillsManager = {
-			getSkillsForMode: vi.fn().mockReturnValue([
+			getSkillsByNames: vi.fn().mockReturnValue([
 				{
 					name: "pdf-processing",
 					description: "Extracts text & tables from PDFs",
@@ -13,7 +13,7 @@ describe("getSkillsSection", () => {
 			]),
 		}
 
-		const result = await getSkillsSection(mockSkillsManager, "code")
+		const result = await getSkillsSection(mockSkillsManager, ["pdf-processing"])
 
 		expect(result).toContain("<available_skills>")
 		expect(result).toContain("</available_skills>")
@@ -25,8 +25,9 @@ describe("getSkillsSection", () => {
 		expect(result).toContain("<location>/abs/path/pdf-processing/SKILL.md</location>")
 	})
 
-	it("should return empty string when skillsManager or currentMode is missing", async () => {
-		await expect(getSkillsSection(undefined, "code")).resolves.toBe("")
-		await expect(getSkillsSection({ getSkillsForMode: vi.fn() }, undefined)).resolves.toBe("")
+	it("should return empty string when skillsManager or assigned Skill names are missing", async () => {
+		await expect(getSkillsSection(undefined, ["pdf-processing"])).resolves.toBe("")
+		await expect(getSkillsSection({ getSkillsByNames: vi.fn() }, undefined)).resolves.toBe("")
+		await expect(getSkillsSection({ getSkillsByNames: vi.fn() }, [])).resolves.toBe("")
 	})
 })

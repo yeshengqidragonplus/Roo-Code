@@ -1,6 +1,6 @@
 import type { SkillsManager } from "../../../services/skills/SkillsManager"
 
-type SkillsManagerLike = Pick<SkillsManager, "getSkillsForMode">
+type SkillsManagerLike = Pick<SkillsManager, "getSkillsByNames">
 
 function escapeXml(value: string): string {
 	return value
@@ -13,20 +13,20 @@ function escapeXml(value: string): string {
 
 /**
  * Generate the skills section for the system prompt.
- * Only includes skills relevant to the current mode.
+ * Only includes Skills explicitly assigned for autonomous discovery by the
+ * current Mode. Explicit user slash commands are intentionally not listed.
  * Format matches the modes section style.
  *
  * @param skillsManager - The SkillsManager instance
- * @param currentMode - The current mode slug (e.g., 'code', 'architect')
+ * @param injectedSkillNames - Mode-owned Skill names to expose to the model
  */
 export async function getSkillsSection(
 	skillsManager: SkillsManagerLike | undefined,
-	currentMode: string | undefined,
+	injectedSkillNames: readonly string[] | undefined,
 ): Promise<string> {
-	if (!skillsManager || !currentMode) return ""
+	if (!skillsManager || !injectedSkillNames?.length) return ""
 
-	// Get skills filtered by current mode (with override resolution)
-	const skills = skillsManager.getSkillsForMode(currentMode)
+	const skills = skillsManager.getSkillsByNames(injectedSkillNames)
 	if (skills.length === 0) return ""
 
 	const skillsXml = skills
@@ -58,12 +58,12 @@ Step 1: Skill Evaluation
 Step 2: Branching Decision
 
 <if_skill_applies>
-- Select EXACTLY ONE skill.
-- Prefer the most specific skill when multiple skills match.
-- Use the skill tool to load the skill by name.
+- Select the most specific Skill to load first when multiple Skills match.
+- Use the skill tool to load that Skill by name.
 - Load the skill's instructions fully into context BEFORE continuing.
 - Follow the skill instructions precisely.
-- Do NOT respond outside the skill-defined flow.
+- Re-evaluate whether another available Skill is needed after completing the loaded Skill's relevant steps.
+- Do NOT respond outside the applicable skill-defined flow.
 </if_skill_applies>
 
 <if_no_skill_applies>
@@ -90,8 +90,8 @@ CONSTRAINTS:
 </linked_file_handling>
 
 <context_notes>
-- The skill list is already filtered for the current mode: "${currentMode}".
-- Mode-specific skills may come from skills-${currentMode}/ with project-level overrides taking precedence over global skills.
+- This list is the complete set of Skills this Mode may load autonomously.
+- A Skill unavailable here may still be explicitly invoked by the user through a slash command.
 </context_notes>
 
 <internal_verification>

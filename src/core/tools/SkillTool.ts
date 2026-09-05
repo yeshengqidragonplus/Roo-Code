@@ -2,6 +2,7 @@ import { Task } from "../task/Task"
 import { formatResponse } from "../prompts/responses"
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 import type { ToolUse } from "../../shared/tools"
+import { getExecutionModeConfig } from "../../shared/modes"
 import {
 	buildSkillApprovalMessage,
 	buildSkillResult,
@@ -46,13 +47,16 @@ export class SkillTool extends BaseTool<"skill"> {
 			// Get current mode for skill resolution
 			const state = await provider?.getState()
 			const currentMode = state?.mode ?? "code"
+			const executionMode = getExecutionModeConfig(currentMode, state?.customModes)
+			const assignedSkillNames = executionMode?.injectedSkillNames ?? []
 
-			// Fetch skill content
-			const skillContent = await resolveSkillContentForMode(skillsManager, skillName, currentMode)
+			// A model may load only Skills assigned to its execution Mode. Explicit
+			// user slash commands use the separate global path.
+			const skillContent = await resolveSkillContentForMode(skillsManager, skillName, assignedSkillNames)
 
 			if (!skillContent) {
 				// Get available skills for error message
-				const availableSkills = skillsManager.getSkillsForMode(currentMode)
+				const availableSkills = skillsManager.getSkillsByNames(assignedSkillNames)
 				const skillNames = availableSkills.map((s) => s.name)
 
 				task.recordToolError("skill")

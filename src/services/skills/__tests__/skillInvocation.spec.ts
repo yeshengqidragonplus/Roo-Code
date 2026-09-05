@@ -1,4 +1,9 @@
-import { resolveSkillContentForMode, buildSkillApprovalMessage, buildSkillResult } from "../skillInvocation"
+import {
+	resolveSkillContentForMode,
+	resolveSkillContentForSlashCommand,
+	buildSkillApprovalMessage,
+	buildSkillResult,
+} from "../skillInvocation"
 import type { SkillLookup } from "../skillInvocation"
 import type { SkillContent } from "../../../shared/skills"
 
@@ -13,7 +18,7 @@ describe("skillInvocation", () => {
 
 	describe("resolveSkillContentForMode", () => {
 		it("returns null when skillsManager is undefined", async () => {
-			const result = await resolveSkillContentForMode(undefined, "test-skill", "code")
+			const result = await resolveSkillContentForMode(undefined, "test-skill", ["test-skill"])
 			expect(result).toBeNull()
 		})
 
@@ -22,8 +27,8 @@ describe("skillInvocation", () => {
 				getSkillContent: vi.fn().mockResolvedValue(mockSkillContent),
 			}
 
-			const result = await resolveSkillContentForMode(skillsManager, "test-skill", "architect")
-			expect(skillsManager.getSkillContent).toHaveBeenCalledWith("test-skill", "architect")
+			const result = await resolveSkillContentForMode(skillsManager, "test-skill", ["test-skill"])
+			expect(skillsManager.getSkillContent).toHaveBeenCalledWith("test-skill")
 			expect(result).toBe(mockSkillContent)
 		})
 
@@ -32,8 +37,26 @@ describe("skillInvocation", () => {
 				getSkillContent: vi.fn().mockResolvedValue(null),
 			}
 
-			const result = await resolveSkillContentForMode(skillsManager, "nonexistent", "code")
+			const result = await resolveSkillContentForMode(skillsManager, "nonexistent", ["nonexistent"])
 			expect(result).toBeNull()
+		})
+
+		it("rejects a Skill the Mode did not assign", async () => {
+			const skillsManager: SkillLookup = { getSkillContent: vi.fn().mockResolvedValue(mockSkillContent) }
+			await expect(resolveSkillContentForMode(skillsManager, "test-skill", [])).resolves.toBeNull()
+			expect(skillsManager.getSkillContent).not.toHaveBeenCalled()
+		})
+
+		it("uses the global slash-command lookup when present", async () => {
+			const getSkillContentForSlashCommand = vi.fn().mockResolvedValue(mockSkillContent)
+			const skillsManager: SkillLookup = {
+				getSkillContent: vi.fn(),
+				getSkillContentForSlashCommand,
+			}
+			await expect(resolveSkillContentForSlashCommand(skillsManager, "test-skill")).resolves.toBe(
+				mockSkillContent,
+			)
+			expect(getSkillContentForSlashCommand).toHaveBeenCalledWith("test-skill")
 		})
 	})
 

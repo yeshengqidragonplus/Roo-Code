@@ -209,9 +209,34 @@ export class SkillsManager {
 	}
 
 	/**
-	 * Check if a skill is available in the given mode.
-	 * - modeSlugs undefined or empty = available in all modes ("Any mode")
-	 * - modeSlugs with values = available only if mode is in the array
+	 * Resolve a named subset for a Mode's autonomous Skill discovery. Unlike
+	 * getSkillsForMode(), this does not use a Skill's legacy modeSlugs metadata:
+	 * Mode-owned injectedSkillNames is the source of truth for prompt exposure.
+	 */
+	getSkillsByNames(names: readonly string[]): SkillMetadata[] {
+		const requestedNames = new Set(names)
+		const resolvedSkills = new Map<string, SkillMetadata>()
+
+		for (const skill of this.skills.values()) {
+			if (!requestedNames.has(skill.name)) continue
+
+			const existingSkill = resolvedSkills.get(skill.name)
+			if (!existingSkill || this.shouldOverrideSkill(existingSkill, skill)) {
+				resolvedSkills.set(skill.name, skill)
+			}
+		}
+
+		// Keep the user's configured order stable in the prompt and UI.
+		return names.flatMap((name) => {
+			const skill = resolvedSkills.get(name)
+			return skill ? [skill] : []
+		})
+	}
+
+	/**
+	 * Legacy Skill-frontmatter availability check. New Mode-owned
+	 * injectedSkillNames controls model discovery; this remains only to support
+	 * existing stored Skill metadata and older callers.
 	 */
 	private isSkillAvailableInMode(skill: SkillMetadata, currentMode: string): boolean {
 		// No mode restrictions = available in all modes
@@ -252,7 +277,7 @@ export class SkillsManager {
 	}
 
 	/**
-	 * Get all skills (for UI display, debugging, etc.)
+	 * Get all skills (for UI display, debugging, slash-command discovery, etc.)
 	 */
 	getAllSkills(): SkillMetadata[] {
 		return Array.from(this.skills.values())
@@ -270,6 +295,21 @@ export class SkillsManager {
 			skill = Array.from(this.skills.values()).find((s) => s.name === name)
 		}
 
+		return this.readSkillContent(skill)
+	}
+
+	/** Load a Skill explicitly chosen by the user through a slash command. */
+	async getSkillContentForSlashCommand(name: string): Promise<SkillContent | null> {
+		return this.readSkillContent(this.getSkillsByNames([name])[0])
+	}
+
+	/** Load only a Skill explicitly assigned to the active Mode. */
+	async getAssignedSkillContent(name: string, assignedSkillNames: readonly string[]): Promise<SkillContent | null> {
+		if (!assignedSkillNames.includes(name)) return null
+		return this.readSkillContent(this.getSkillsByNames([name])[0])
+	}
+
+	private async readSkillContent(skill: SkillMetadata | undefined): Promise<SkillContent | null> {
 		if (!skill) return null
 
 		// Read skill content from disk

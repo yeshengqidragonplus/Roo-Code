@@ -13,8 +13,8 @@ describe("skillTool", () => {
 		vi.clearAllMocks()
 
 		mockSkillsManager = {
-			getSkillContent: vi.fn(),
-			getSkillsForMode: vi.fn().mockReturnValue([]),
+			getAssignedSkillContent: vi.fn(),
+			getSkillsByNames: vi.fn().mockReturnValue([]),
 		}
 
 		mockTask = {
@@ -25,7 +25,10 @@ describe("skillTool", () => {
 			ask: vi.fn().mockResolvedValue({}),
 			providerRef: {
 				deref: vi.fn().mockReturnValue({
-					getState: vi.fn().mockResolvedValue({ mode: "code" }),
+					getState: vi.fn().mockResolvedValue({
+						mode: "code",
+						customModes: [{ slug: "code", injectedSkillNames: ["create-mcp-server", "my-project-skill"] }],
+					}),
 					getSkillsManager: vi.fn().mockReturnValue(mockSkillsManager),
 				}),
 			},
@@ -68,8 +71,8 @@ describe("skillTool", () => {
 			},
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(null)
-		mockSkillsManager.getSkillsForMode.mockReturnValue([{ name: "create-mcp-server" }])
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(null)
+		mockSkillsManager.getSkillsByNames.mockReturnValue([{ name: "create-mcp-server" }])
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -89,8 +92,8 @@ describe("skillTool", () => {
 			},
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(null)
-		mockSkillsManager.getSkillsForMode.mockReturnValue([])
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(null)
+		mockSkillsManager.getSkillsByNames.mockReturnValue([])
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -117,7 +120,7 @@ describe("skillTool", () => {
 			instructions: "Step 1: Create the server...",
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(mockSkillContent)
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(mockSkillContent)
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -162,7 +165,7 @@ Step 1: Create the server...`,
 			instructions: "Step 1: Create the server...",
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(mockSkillContent)
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(mockSkillContent)
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -189,7 +192,7 @@ Step 1: Create the server...`,
 			},
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue({
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue({
 			name: "create-mcp-server",
 			description: "Test",
 			source: "global",
@@ -241,7 +244,7 @@ Step 1: Create the server...`,
 		}
 
 		const error = new Error("Test error")
-		mockSkillsManager.getSkillContent.mockRejectedValue(error)
+		mockSkillsManager.getAssignedSkillContent.mockRejectedValue(error)
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -268,7 +271,7 @@ Step 1: Create the server...`,
 			instructions: "Test instructions",
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(mockSkillContent)
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(mockSkillContent)
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 
@@ -317,7 +320,7 @@ Step 1: Create the server...`,
 			instructions: "Follow these project-specific instructions...",
 		}
 
-		mockSkillsManager.getSkillContent.mockResolvedValue(mockSkillContent)
+		mockSkillsManager.getAssignedSkillContent.mockResolvedValue(mockSkillContent)
 
 		await skillTool.handle(mockTask as Task, block, mockCallbacks)
 

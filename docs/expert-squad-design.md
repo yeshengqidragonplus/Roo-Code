@@ -316,6 +316,36 @@ modes: z.array(z.string()).optional(),
 
 未使用 `modes` 字段时（服务器无 `modes`），注入与执行行为逐字不变。
 
+### 5.5 Skills 的渐进式可见性
+
+Skills 与 MCP 一样需要按专家收窄，但其权限语义不同：MCP 是外部工具服务；Skill 是可按需展开的操作说明。为避免把所有 `SKILL.md` 的描述塞给所有模型，Skill 的**模型发现权**由 Mode 自己声明：
+
+```yaml
+- slug: web-researcher
+  injectedSkillNames:
+      - web-research
+      - cite-sources
+```
+
+语义如下：
+
+1. `injectedSkillNames` 只决定哪些 Skill 的名称、描述和路径进入该 Mode 的系统提示词；模型只能通过 `skill` 工具加载这份名单中的完整说明。
+2. 空数组或未配置表示该 Mode 没有可自主发现的 Skill，避免默认膨胀上下文。
+3. 群组运行时使用负责人的执行 Mode 配置，因此 Arthur 一类强绑定负责人只看到分配给 Arthur 的 Skills；同事各自只看到自己的名单。
+4. 用户显式输入 `/skill-name` 是另一条全局路径：所有已发现 Skill 在任何 Mode 的斜杠菜单中都可执行，不受 `injectedSkillNames` 限制。
+5. 模型调用 `run_slash_command` 并不能绕过名单；对于 Skill 回退路径，它和 `skill` 工具一样受当前执行 Mode 限制。
+
+旧 `SKILL.md` frontmatter 中的 `modeSlugs` 仅保留为兼容旧配置，不再决定新系统的提示词注入或用户斜杠可用性。Skill 创建页不再配置 Mode；在专家 Mode 设置页的“主动可用 Skills”多选菜单中完成分配。
+
+### 5.6 与 MCP 配置的边界
+
+| 项目         | MCP                                               | Skill                                         |
+| ------------ | ------------------------------------------------- | --------------------------------------------- |
+| 全局目录     | MCP 服务页始终显示全部服务器                      | Skills 页始终显示全部 Skill                   |
+| Mode 分配    | 服务配置的 `modes` 决定工具 schema 与提示词可见性 | Mode 的 `injectedSkillNames` 决定模型可发现性 |
+| 未分配时     | 模型不能调用该服务工具                            | 模型不能发现或加载该 Skill                    |
+| 用户显式动作 | 无通用绕过路径                                    | `/skill-name` 在所有 Mode 中始终可用          |
+
 ---
 
 ## 6. 群组模式创建界面

@@ -94,33 +94,6 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		return provider.getCurrentTask()?.cwd || provider.cwd
 	}
 
-	const getCurrentMode = async (): Promise<string> => {
-		const currentTask = provider.getCurrentTask()
-
-		if (currentTask) {
-			try {
-				return await currentTask.getTaskMode()
-			} catch (error) {
-				provider.log(
-					`Error resolving current task mode for command discovery: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-				)
-			}
-		}
-
-		try {
-			const state = await provider.getState()
-			if (typeof state.mode === "string" && state.mode.length > 0) {
-				return state.mode
-			}
-		} catch (error) {
-			provider.log(
-				`Error resolving global mode for command discovery: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-		}
-
-		return defaultModeSlug
-	}
-
 	const getDiscoveredCommands = async (): Promise<SlashCommand[]> => {
 		const { getCommands } = await import("../../services/command/commands")
 		const commands = await getCommands(getCurrentCwd())
@@ -140,8 +113,10 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			return commandList
 		}
 
-		const currentMode = await getCurrentMode()
-		const availableSkills = skillsManager.getSkillsForMode(currentMode)
+		// Slash commands are explicit user actions, so every discovered Skill is
+		// offered regardless of the active Mode. Mode-owned injectedSkillNames
+		// separately controls which Skills the model can discover on its own.
+		const availableSkills = skillsManager.getSkillsMetadata()
 
 		for (const skill of availableSkills) {
 			if (existingCommandNames.has(skill.name)) {

@@ -89,7 +89,7 @@ async function generatePrompt(
 
 	const [modesSection, skillsSection] = await Promise.all([
 		getModesSection(context, mode, customModeConfigs),
-		getSkillsSection(skillsManager, executionMode),
+		getSkillsSection(skillsManager, modeConfig.injectedSkillNames),
 	])
 	// `groups` are a legacy coarse capability declaration. A Mode that has
 	// switched to `nativeToolNames: []` still retains those group names for
@@ -99,7 +99,10 @@ async function generatePrompt(
 		(tool) => !ALWAYS_AVAILABLE_TOOLS.includes(tool as (typeof ALWAYS_AVAILABLE_TOOLS)[number]),
 	)
 	const shouldIncludeToolUse =
-		hasAssignedNativeTool || shouldIncludeMcp || Boolean(skillsSection) || Boolean(modeConfig.delegation?.canDelegate)
+		hasAssignedNativeTool ||
+		shouldIncludeMcp ||
+		Boolean(skillsSection) ||
+		Boolean(modeConfig.delegation?.canDelegate)
 	const toolUseSection = shouldIncludeToolUse ? getSharedToolUseSection(modeConfig.toolUsePolicy) : ""
 
 	// Tools catalog is not included in the system prompt.

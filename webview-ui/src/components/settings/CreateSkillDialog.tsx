@@ -1,13 +1,9 @@
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback } from "react"
 import { validateSkillName as validateSkillNameShared, SkillNameValidationError } from "@roo-code/types"
 
-import { getAllModes } from "@roo/modes"
-
 import { useAppTranslation } from "@/i18n/TranslationContext"
-import { useExtensionState } from "@/context/ExtensionStateContext"
 import {
 	Button,
-	Checkbox,
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -75,29 +71,16 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 	hasWorkspace,
 }) => {
 	const { t } = useAppTranslation()
-	const { customModes } = useExtensionState()
-
 	const [name, setName] = useState("")
 	const [description, setDescription] = useState("")
 	const [source, setSource] = useState<"global" | "project">(hasWorkspace ? "project" : "global")
 	const [nameError, setNameError] = useState<string | null>(null)
 	const [descriptionError, setDescriptionError] = useState<string | null>(null)
 
-	// Multi-mode selection state (same pattern as SkillsSettings mode dialog)
-	const [selectedModes, setSelectedModes] = useState<string[]>([])
-	const [isAnyMode, setIsAnyMode] = useState(true)
-
-	// Get available modes for the checkboxes (built-in + custom modes)
-	const availableModes = useMemo(() => {
-		return getAllModes(customModes).map((m) => ({ slug: m.slug, name: m.name }))
-	}, [customModes])
-
 	const resetForm = useCallback(() => {
 		setName("")
 		setDescription("")
 		setSource(hasWorkspace ? "project" : "global")
-		setSelectedModes([])
-		setIsAnyMode(true)
 		setNameError(null)
 		setDescriptionError(null)
 	}, [hasWorkspace])
@@ -118,33 +101,6 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 		setDescriptionError(null)
 	}, [])
 
-	// Handle "Any mode" toggle - mutually exclusive with specific modes
-	const handleAnyModeToggle = useCallback((checked: boolean) => {
-		if (checked) {
-			setIsAnyMode(true)
-			setSelectedModes([]) // Clear specific modes when "Any mode" is selected
-		} else {
-			setIsAnyMode(false)
-		}
-	}, [])
-
-	// Handle specific mode toggle - unchecks "Any mode" when a specific mode is selected
-	const handleModeToggle = useCallback((modeSlug: string, checked: boolean) => {
-		if (checked) {
-			setIsAnyMode(false) // Uncheck "Any mode" when selecting a specific mode
-			setSelectedModes((prev) => [...prev, modeSlug])
-		} else {
-			setSelectedModes((prev) => {
-				const newModes = prev.filter((m) => m !== modeSlug)
-				// If no modes selected, default back to "Any mode"
-				if (newModes.length === 0) {
-					setIsAnyMode(true)
-				}
-				return newModes
-			})
-		}
-	}, [])
-
 	const handleCreate = useCallback(() => {
 		// Validate fields
 		const nameValidationError = validateSkillName(name)
@@ -160,21 +116,19 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 			return
 		}
 
-		// Send message to create skill
-		// Convert to modeSlugs: undefined for "Any mode", or array of selected modes
-		const modeSlugs = isAnyMode ? undefined : selectedModes.length > 0 ? selectedModes : undefined
+		// Mode-owned Skill assignment is configured from the Mode settings page.
+		// New Skills are globally executable through slash commands by default.
 		vscode.postMessage({
 			type: "createSkill",
 			skillName: name,
 			source,
 			skillDescription: description,
-			skillModeSlugs: modeSlugs,
 		})
 
 		// Close dialog and notify parent
 		handleClose()
 		onSkillCreated()
-	}, [name, description, source, isAnyMode, selectedModes, handleClose, onSkillCreated])
+	}, [name, description, source, handleClose, onSkillCreated])
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,45 +187,6 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 								)}
 							</SelectContent>
 						</Select>
-					</div>
-
-					{/* Mode Selection (Optional) */}
-					<div className="flex flex-col gap-1">
-						<label className="text-sm font-medium text-vscode-foreground">
-							{t("settings:skills.createDialog.modeLabel")}
-						</label>
-						<span className="text-xs text-vscode-descriptionForeground mb-1">
-							{t("settings:skills.modeDialog.intro")}
-						</span>
-
-						{/* Individual mode checkboxes */}
-						<div className="flex flex-col max-h-28 overflow-y-auto">
-							{/* Any mode option */}
-							<div className="flex items-center gap-3 p-1 rounded-lg hover:bg-vscode-list-hoverBackground">
-								<Checkbox
-									id="create-mode-any"
-									checked={isAnyMode}
-									onCheckedChange={(checked) => handleAnyModeToggle(checked === true)}
-								/>
-								<label htmlFor="create-mode-any" className="flex-1 cursor-pointer font-medium">
-									{t("settings:skills.modeDialog.anyMode")}
-								</label>
-							</div>
-							{availableModes.map((m) => (
-								<div
-									key={m.slug}
-									className="flex items-center gap-3 p-1 rounded-lg hover:bg-vscode-list-hoverBackground">
-									<Checkbox
-										id={`create-mode-${m.slug}`}
-										checked={selectedModes.includes(m.slug)}
-										onCheckedChange={(checked) => handleModeToggle(m.slug, checked === true)}
-									/>
-									<label htmlFor={`create-mode-${m.slug}`} className="flex-1 cursor-pointer">
-										{m.name}
-									</label>
-								</div>
-							))}
-						</div>
 					</div>
 				</div>
 

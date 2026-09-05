@@ -109,6 +109,13 @@ export const modeConfigSchema = z.object({
 	 * the selected native tools. MCP server assignment remains separate.
 	 */
 	nativeToolNames: z.array(toolNamesSchema).optional(),
+	/**
+	 * Skill names that this Mode may discover and load autonomously. The list is
+	 * injected as metadata into the system prompt; an empty array explicitly
+	 * disables autonomous Skill discovery. User-entered slash commands remain
+	 * available independently of this setting.
+	 */
+	injectedSkillNames: z.array(z.string().min(1)).optional(),
 	source: z.enum(["global", "project"]).optional(),
 	// Expert system fields (optional; a plain mode is a default autonomous
 	// expert). Defined in expert.ts; see docs/expert-system-design.md.

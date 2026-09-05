@@ -2,18 +2,33 @@ import type { SkillContent } from "../../shared/skills"
 
 export interface SkillLookup {
 	getSkillContent(name: string, currentMode?: string): Promise<SkillContent | null>
+	getSkillContentForSlashCommand?(name: string): Promise<SkillContent | null>
+	getAssignedSkillContent?(name: string, assignedSkillNames: readonly string[]): Promise<SkillContent | null>
 }
 
+/** Resolve a user-explicit slash command, independent of Mode Skill injection. */
+export async function resolveSkillContentForSlashCommand(
+	skillsManager: SkillLookup | undefined,
+	skillName: string,
+): Promise<SkillContent | null> {
+	if (!skillsManager) return null
+
+	return skillsManager.getSkillContentForSlashCommand
+		? skillsManager.getSkillContentForSlashCommand(skillName)
+		: skillsManager.getSkillContent(skillName)
+}
+
+/** Resolve a Skill that the active Mode has explicitly exposed to the model. */
 export async function resolveSkillContentForMode(
 	skillsManager: SkillLookup | undefined,
 	skillName: string,
-	currentMode: string,
+	assignedSkillNames: readonly string[],
 ): Promise<SkillContent | null> {
-	if (!skillsManager) {
-		return null
-	}
+	if (!skillsManager || !assignedSkillNames.includes(skillName)) return null
 
-	return skillsManager.getSkillContent(skillName, currentMode)
+	return skillsManager.getAssignedSkillContent
+		? skillsManager.getAssignedSkillContent(skillName, assignedSkillNames)
+		: skillsManager.getSkillContent(skillName)
 }
 
 type SkillContentForFormatting = Pick<SkillContent, "source" | "description" | "instructions">

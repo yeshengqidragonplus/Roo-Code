@@ -96,7 +96,7 @@ describe("runSlashCommandTool", () => {
 			},
 		}
 
-		const getSkillContent = vi.fn().mockResolvedValue({
+		const getAssignedSkillContent = vi.fn().mockResolvedValue({
 			name: "skill-only",
 			description: "Skill-generated command",
 			path: "/mock/.roo/skills/skill-only/SKILL.md",
@@ -110,9 +110,10 @@ describe("runSlashCommandTool", () => {
 					runSlashCommand: true,
 				},
 				mode: "code",
+				customModes: [{ slug: "code", injectedSkillNames: ["skill-only"] }],
 			}),
 			getSkillsManager: vi.fn().mockReturnValue({
-				getSkillContent,
+				getAssignedSkillContent,
 			}),
 		})
 
@@ -120,7 +121,7 @@ describe("runSlashCommandTool", () => {
 
 		await runSlashCommandTool.handle(mockTask as Task, block, mockCallbacks)
 
-		expect(getSkillContent).toHaveBeenCalledWith("skill-only", "code")
+		expect(getAssignedSkillContent).toHaveBeenCalledWith("skill-only", ["skill-only"])
 		expect(mockCallbacks.askApproval).toHaveBeenCalledWith(
 			"tool",
 			JSON.stringify({

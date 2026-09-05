@@ -14,8 +14,9 @@ export interface SkillMetadata {
 	mode?: string
 	/**
 	 * Mode slugs where this skill is available.
-	 * - undefined or empty array means the skill is available in all modes ("Any mode").
-	 * - An array with one or more mode slugs restricts the skill to those modes.
+	 * @deprecated Skill exposure is now configured by each Mode's
+	 * injectedSkillNames. Kept solely for compatibility with existing SKILL.md
+	 * metadata and older clients.
 	 */
 	modeSlugs?: string[]
 }

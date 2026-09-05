@@ -822,13 +822,7 @@ describe("webviewMessageHandler - requestCommands", () => {
 	it("includes skill slug commands and dedupes duplicate skill names while preserving first skill entry", async () => {
 		mockGetCommands.mockResolvedValue([])
 
-		const getTaskMode = vi.fn().mockResolvedValue("code")
-		vi.mocked(mockClineProvider.getCurrentTask).mockReturnValue({
-			cwd: "/mock/workspace",
-			getTaskMode,
-		} as unknown as ReturnType<ClineProvider["getCurrentTask"]>)
-
-		const getSkillsForMode = vi.fn().mockReturnValue([
+		const getSkillsMetadata = vi.fn().mockReturnValue([
 			{
 				name: "skill-slug-entry",
 				description: "Primary skill slug",
@@ -853,7 +847,7 @@ describe("webviewMessageHandler - requestCommands", () => {
 		])
 
 		vi.mocked(mockClineProvider.getSkillsManager).mockReturnValue({
-			getSkillsForMode,
+			getSkillsMetadata,
 		} as unknown as ReturnType<ClineProvider["getSkillsManager"]>)
 
 		await webviewMessageHandler(mockClineProvider, { type: "requestCommands" })
@@ -896,13 +890,7 @@ describe("webviewMessageHandler - requestCommands", () => {
 			},
 		])
 
-		const getTaskMode = vi.fn().mockResolvedValue("code")
-		vi.mocked(mockClineProvider.getCurrentTask).mockReturnValue({
-			cwd: "/mock/workspace",
-			getTaskMode,
-		} as unknown as ReturnType<ClineProvider["getCurrentTask"]>)
-
-		const getSkillsForMode = vi.fn().mockReturnValue([
+		const getSkillsMetadata = vi.fn().mockReturnValue([
 			{
 				name: "deploy",
 				description: "Deploy skill",
@@ -920,12 +908,12 @@ describe("webviewMessageHandler - requestCommands", () => {
 		])
 
 		vi.mocked(mockClineProvider.getSkillsManager).mockReturnValue({
-			getSkillsForMode,
+			getSkillsMetadata,
 		} as unknown as ReturnType<ClineProvider["getSkillsManager"]>)
 
 		await webviewMessageHandler(mockClineProvider, { type: "requestCommands" })
 
-		expect(getSkillsForMode).toHaveBeenCalledWith("code")
+		expect(getSkillsMetadata).toHaveBeenCalledTimes(1)
 
 		expect(mockClineProvider.postMessageToWebview).toHaveBeenCalledWith({
 			type: "commands",
