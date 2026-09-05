@@ -43,6 +43,7 @@ export async function processUserContentMentions({
 	maxDiagnosticMessages = 50,
 	skillsManager,
 	currentMode = "code",
+	injectedSkillNames = [],
 }: {
 	userContent: Anthropic.Messages.ContentBlockParam[]
 	cwd: string
@@ -53,6 +54,8 @@ export async function processUserContentMentions({
 	maxDiagnosticMessages?: number
 	skillsManager?: SkillLookup
 	currentMode?: string
+	/** Skills already injected in the active Mode's system prompt. */
+	injectedSkillNames?: readonly string[]
 }): Promise<ProcessUserContentMentionsResult> {
 	// Track the first mode found from slash commands
 	let commandMode: string | undefined
@@ -76,6 +79,7 @@ export async function processUserContentMentions({
 							maxDiagnosticMessages,
 							skillsManager,
 							currentMode,
+							injectedSkillNames,
 						)
 						// Capture the first mode found
 						if (!commandMode && result.mode) {
@@ -121,6 +125,7 @@ export async function processUserContentMentions({
 								maxDiagnosticMessages,
 								skillsManager,
 								currentMode,
+								injectedSkillNames,
 							)
 							// Capture the first mode found
 							if (!commandMode && result.mode) {
@@ -172,6 +177,7 @@ export async function processUserContentMentions({
 											maxDiagnosticMessages,
 											skillsManager,
 											currentMode,
+											injectedSkillNames,
 										)
 										// Capture the first mode found
 										if (!commandMode && result.mode) {

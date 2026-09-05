@@ -128,13 +128,44 @@ describe("Command Mentions", () => {
 			)
 
 			expect(mockGetCommand).toHaveBeenCalledWith("/test/cwd", "skill-only")
-			expect(skillsManager.getSkillContent).toHaveBeenCalledWith("skill-only", "code")
+			expect(skillsManager.getSkillContent).toHaveBeenCalledWith("skill-only")
 			expect(result.text).toContain("Command 'skill-only' (see below for command content)")
 			expect(result.slashCommandHelp).toContain("Skill: skill-only")
 			expect(result.slashCommandHelp).toContain("Description: Skill-generated command")
 			expect(result.slashCommandHelp).toContain("Source: project")
 			expect(result.slashCommandHelp).toContain("--- Skill Instructions ---")
 			expect(result.slashCommandHelp).toContain("Use skill workflow")
+		})
+
+		it("should not append a Skill that is already injected by the active Mode", async () => {
+			mockGetCommand.mockResolvedValue(undefined)
+
+			const skillsManager = {
+				getSkillContent: vi.fn(),
+				getSkillContentForSlashCommand: vi.fn().mockResolvedValue({
+					name: "skill-only",
+					description: "Skill already present in the system prompt",
+					path: "/mock/.roo/skills/skill-only/SKILL.md",
+					source: "project" as const,
+					instructions: "This must not be duplicated in the user message",
+				}),
+			}
+
+			const result = await parseMentions(
+				"/skill-only run",
+				"/test/cwd",
+				undefined,
+				undefined,
+				false,
+				true,
+				50,
+				skillsManager,
+				"code",
+				["skill-only"],
+			)
+
+			expect(result.text).toContain("Skill 'skill-only' (already loaded by the current Mode)")
+			expect(result.slashCommandHelp).toBeUndefined()
 		})
 
 		it("should preserve command precedence over skill fallback", async () => {

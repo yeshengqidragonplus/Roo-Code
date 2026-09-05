@@ -65,7 +65,7 @@ import { combineCommandSequences } from "../../shared/combineCommandSequences"
 import { t } from "../../i18n"
 import { getApiMetrics, hasTokenUsageChanged, hasToolUsageChanged } from "../../shared/getApiMetrics"
 import { ClineAskResponse } from "../../shared/WebviewMessage"
-import { defaultModeSlug, getModeBySlug } from "../../shared/modes"
+import { defaultModeSlug, getExecutionModeConfig, getModeBySlug } from "../../shared/modes"
 import { DiffStrategy, type ToolUse, type ToolParamName, toolParamNames } from "../../shared/tools"
 import { getModelMaxOutputTokens } from "../../shared/api"
 
@@ -2986,6 +2986,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const includeDiagnosticMessages = state?.includeDiagnosticMessages ?? true
 			const maxDiagnosticMessages = state?.maxDiagnosticMessages ?? 50
 			const currentMode = state?.mode ?? defaultModeSlug
+			const injectedSkillNames = getExecutionModeConfig(currentMode, state?.customModes)?.injectedSkillNames ?? []
 
 			const { content: parsedUserContent, mode: slashCommandMode } = await processUserContentMentions({
 				userContent: currentUserContent,
@@ -2997,6 +2998,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				maxDiagnosticMessages,
 				skillsManager: provider?.getSkillsManager(),
 				currentMode,
+				injectedSkillNames,
 			})
 
 			// Switch mode if specified in a slash command's frontmatter

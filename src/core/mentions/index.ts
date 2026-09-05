@@ -110,10 +110,12 @@ export async function parseMentions(
 	maxDiagnosticMessages: number = 50,
 	skillsManager?: SkillLookup,
 	currentMode: string = "code",
+	injectedSkillNames: readonly string[] = [],
 ): Promise<ParseMentionsResult> {
 	const mentions: Set<string> = new Set()
 	const validCommands: Map<string, Command> = new Map()
 	const validSkills: Map<string, SkillContent> = new Map()
+	const alreadyInjectedSkills: Set<string> = new Set()
 	const contentBlocks: MentionContentBlock[] = []
 	let commandMode: string | undefined // Track mode from the first slash command that has one
 
@@ -150,7 +152,14 @@ export async function parseMentions(
 		}
 
 		if (skillContent) {
-			validSkills.set(commandName, skillContent)
+			// A Skill selected for the active Mode is already present in the system
+			// prompt. Keep the user's explicit slash reference visible, but do not
+			// append the same instructions again to this message.
+			if (injectedSkillNames.includes(commandName)) {
+				alreadyInjectedSkills.add(commandName)
+			} else {
+				validSkills.set(commandName, skillContent)
+			}
 		}
 	}
 
@@ -159,6 +168,8 @@ export async function parseMentions(
 	for (const [match, commandName] of commandMatches) {
 		if (validCommands.has(commandName) || validSkills.has(commandName)) {
 			parsedText = parsedText.replace(match, `Command '${commandName}' (see below for command content)`)
+		} else if (alreadyInjectedSkills.has(commandName)) {
+			parsedText = parsedText.replace(match, `Skill '${commandName}' (already loaded by the current Mode)`)
 		}
 	}
 
