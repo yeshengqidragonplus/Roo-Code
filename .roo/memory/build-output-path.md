@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.6 重打（2026-09-05，第十一次，SHA 364c619ca）
+
+包含：已注入 Skill 的斜杠调用去重（`364c619ca`）——当当前 Mode（群组时为负责人 Mode）已将某 Skill 注入系统提示词时，用户再次输入 `/skill-name` 会保留“已加载”提示而不重复附加 Skill 完整指令；未注入的 Skill 继续按需展开。验证：VSIX 非空（39,653,736 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `364c619ca8fa1c8d6f3ffb6c2c5306a35a3064fa`。已安装待测试。
+
 ## 0.0.6 重打（2026-09-05，第十次，SHA 1de4b8ed5）
 
 包含：Skills 分配多选交互修复（`1de4b8ed5`）——点击 Skill 的名称、说明或复选框都会正确切换当前 Mode 的 `injectedSkillNames`；MCP 多选保持原有行为不变。验证：VSIX 的 `extension/webview-ui/build/assets/index.js` 含完整 SHA `1de4b8ed5b51ca890818d69052d525fd4b2cde0c`。已安装待测试。
