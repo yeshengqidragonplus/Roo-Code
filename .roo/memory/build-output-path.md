@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.6 重打（2026-09-05，第十次，SHA 1de4b8ed5）
+
+包含：Skills 分配多选交互修复（`1de4b8ed5`）——点击 Skill 的名称、说明或复选框都会正确切换当前 Mode 的 `injectedSkillNames`；MCP 多选保持原有行为不变。验证：VSIX 的 `extension/webview-ui/build/assets/index.js` 含完整 SHA `1de4b8ed5b51ca890818d69052d525fd4b2cde0c`。已安装待测试。
+
 ## 0.0.6 重打（2026-09-05，第九次，SHA 83d895f72）
 
 包含：Mode 级 Skills 渐进式展开（`injectedSkillNames`）——只有该 Mode 分配的 Skill 元数据进入系统提示词；模型加载 Skill 与 `run_slash_command` 回退路径都受分配名单限制；用户输入 `/skill-name` 则在所有 Mode 中全局可执行。移除了旧 Skill→Mode 配置入口，统一改由 Mode 的“主动可用 Skills”多选设置。验证：VSIX 的 `extension/webview-ui/build/assets/index.js` 含完整 SHA `83d895f7293c70d3773f14170ef715e57370562f`。已安装待测试。
