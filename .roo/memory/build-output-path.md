@@ -18,6 +18,10 @@
 - 打包后复制到 bin 目录：`cp src/qcode-<version>.vsix bin/`
 - 版本号在 `src/package.json` 的 `version` 字段
 
+## 0.0.6 重打（2026-09-04 第九次，SHA da9d458e5）
+
+包含：系统提示词按需注入已分配 MCP 服务器列表（da9d458e5——新增 `sections/mcp-servers.ts` `getMcpServersSection`，复用 `isServerVisibleToMode` 过滤，在 Tool Use Guidelines 与 CAPABILITIES 之间拼接 server 列表及 `mcp--server--tool` 可调用名；mode 含 mcp 组且有可见 server 才注入）+ 文档同步（system-prompt-assembly 段落表新增第 6 段、mcp-mode-visibility-design §4.3 标记已实现）。验证：webview index.js 含完整 SHA `da9d458e5...`；extension.js 含 `assigned to the current mode`（新 section 文案）。已安装（`qcode.qcode@0.0.6`）。
+
 ## 0.0.6 重打（2026-09-04 第八次，SHA 7b53d0365）
 
 包含：模式切换解耦修复（7b53d0365——handleModeSwitch 先落内存 `_taskMode` 再持久化，事件监听/落盘失败不再回弹 UI）+ 此前 7ebe4c6af 全部内容。验证：webview index.js 含完整 SHA `7b53d0365...`；extension.js 含 `TaskModeSwitched listener failed`。已安装（`qcode.qcode@0.0.6`）。
