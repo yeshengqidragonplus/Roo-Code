@@ -19,6 +19,7 @@ import { setTtsEnabled } from "../../../utils/tts"
 import { ContextProxy } from "../../config/ContextProxy"
 import { Task, TaskOptions } from "../../task/Task"
 import { safeWriteJson } from "../../../utils/safeWriteJson"
+import { registerWebviewImageUri } from "../../../integrations/misc/image-handler"
 
 import { ClineProvider } from "../ClineProvider"
 import { MessageManager } from "../../message-manager"
@@ -586,6 +587,28 @@ describe("ClineProvider", () => {
 			const resolved = await provider.resolveImageRefsForWebview(messages as any, "test-task-id")
 
 			expect(resolved[0].images).toEqual([])
+		})
+
+		test("rebuilds a known stale webview URI for the current view", async () => {
+			const originalPath = "/test/task/path/images/abc.png"
+			const oldDisplayUri = "vscode-webview://old-view/abc.png"
+			const newDisplayUri = { toString: () => "vscode-webview://new-view/abc.png" }
+			registerWebviewImageUri(oldDisplayUri, originalPath)
+			;(mockWebviewView.webview.asWebviewUri as any).mockReturnValue(newDisplayUri)
+
+			const resolved = await provider.resolveImageRefsForWebview(
+				[
+					{
+						ts: 1,
+						type: "say" as const,
+						say: "user_feedback" as const,
+						images: [oldDisplayUri],
+					},
+				],
+				"test-task-id",
+			)
+
+			expect(resolved[0].images).toEqual(["vscode-webview://new-view/abc.png"])
 		})
 
 		test("passes legacy data URIs through untouched (fast path)", async () => {

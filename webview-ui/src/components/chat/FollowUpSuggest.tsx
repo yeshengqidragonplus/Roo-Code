@@ -18,6 +18,8 @@ interface FollowUpSuggestProps {
 	onCancelAutoApproval?: () => void
 	isAnswered?: boolean
 	isFollowUpAutoApprovalPaused?: boolean
+	/** Sandbox/workgroup sessions always wait for a human; do not show the legacy timer. */
+	disableAutoApprovalCountdown?: boolean
 }
 
 export const FollowUpSuggest = ({
@@ -27,6 +29,7 @@ export const FollowUpSuggest = ({
 	onCancelAutoApproval,
 	isAnswered = false,
 	isFollowUpAutoApprovalPaused = false,
+	disableAutoApprovalCountdown = false,
 }: FollowUpSuggestProps) => {
 	const { autoApprovalEnabled, alwaysAllowFollowupQuestions, followupAutoApproveTimeoutMs } = useExtensionState()
 	const [countdown, setCountdown] = useState<number | null>(null)
@@ -43,7 +46,8 @@ export const FollowUpSuggest = ({
 			suggestions.length > 0 &&
 			!suggestionSelected &&
 			!isAnswered &&
-			!isFollowUpAutoApprovalPaused
+			!isFollowUpAutoApprovalPaused &&
+			!disableAutoApprovalCountdown
 		) {
 			// Start with the configured timeout in seconds
 			const timeoutMs =
@@ -84,6 +88,7 @@ export const FollowUpSuggest = ({
 		onCancelAutoApproval,
 		isAnswered,
 		isFollowUpAutoApprovalPaused,
+		disableAutoApprovalCountdown,
 	])
 	const handleSuggestionClick = useCallback(
 		(suggestion: SuggestionItem, event: React.MouseEvent) => {

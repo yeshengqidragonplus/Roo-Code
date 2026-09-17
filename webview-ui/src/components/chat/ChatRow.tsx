@@ -182,8 +182,19 @@ export const ChatRowContent = ({
 }: ChatRowContentProps) => {
 	const { t, i18n } = useTranslation()
 
-	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode, apiConfiguration, clineMessages, currentTaskItem } =
-		useExtensionState()
+	const {
+		mcpServers,
+		alwaysAllowMcp,
+		currentCheckpoint,
+		mode,
+		apiConfiguration,
+		clineMessages,
+		currentTaskItem,
+		autoApprovalMode,
+		customModes,
+	} = useExtensionState()
+	const isWorkgroupMode = customModes.find((customMode) => customMode.slug === mode)?.workgroup !== undefined
+	const disableFollowUpAutoApprovalCountdown = autoApprovalMode === "sandbox" || isWorkgroupMode
 	const { info: model } = useSelectedModel(apiConfiguration)
 	const [isEditing, setIsEditing] = useState(false)
 	const [editedContent, setEditedContent] = useState("")
@@ -1697,6 +1708,7 @@ export const ChatRowContent = ({
 									onCancelAutoApproval={onFollowUpUnmount}
 									isAnswered={isFollowUpAnswered}
 									isFollowUpAutoApprovalPaused={isFollowUpAutoApprovalPaused}
+									disableAutoApprovalCountdown={disableFollowUpAutoApprovalCountdown}
 								/>
 							</div>
 						</>

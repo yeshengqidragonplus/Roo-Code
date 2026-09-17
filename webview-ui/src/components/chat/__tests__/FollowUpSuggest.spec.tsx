@@ -115,6 +115,20 @@ describe("FollowUpSuggest", () => {
 		expect(screen.queryByText(/\d+s/)).not.toBeInTheDocument()
 	})
 
+	it("should not display the legacy countdown when the session requires a human response", () => {
+		renderWithTestProviders(
+			<FollowUpSuggest
+				suggestions={mockSuggestions}
+				onSuggestionClick={mockOnSuggestionClick}
+				ts={123}
+				disableAutoApprovalCountdown={true}
+			/>,
+			defaultTestState,
+		)
+
+		expect(screen.queryByText(/Selecting in \d+s/)).not.toBeInTheDocument()
+	})
+
 	it("should clear interval and call onCancelAutoApproval when component unmounts", () => {
 		const { unmount } = renderWithTestProviders(
 			<FollowUpSuggest

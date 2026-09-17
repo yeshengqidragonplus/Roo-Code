@@ -88,7 +88,7 @@ import { webviewMessageHandler } from "./webviewMessageHandler"
 import { DelegationRouter, frameDelegationRequest } from "../delegation/DelegationRouter"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
 import { isBareFilePath, isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
-import { registerWebviewImageUri } from "../../integrations/misc/image-handler"
+import { registerWebviewImageUri, resolveWebviewImageUri } from "../../integrations/misc/image-handler"
 import { getTaskDirectoryPath, getStorageBasePath } from "../../utils/storage"
 import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
@@ -3775,7 +3775,13 @@ export class ClineProvider
 		// no-webview fallback in convertToWebviewUri — not renderable under the webview CSP), or a
 		// leaked transparent placeholder that must be stripped.
 		const needsResolution = (img: string) =>
-			isImageRef(img) || isBareFilePath(img) || img === TRANSPARENT_PLACEHOLDER_DATA_URL
+			isImageRef(img) ||
+			isBareFilePath(img) ||
+			img === TRANSPARENT_PLACEHOLDER_DATA_URL ||
+			// A display URI must never be persisted, but older message-edit flows could
+			// write one back. Rebuild it for the current webview while its reverse map
+			// is still available instead of reusing a stale URI from an earlier view.
+			resolveWebviewImageUri(img) !== undefined
 		if (!messages.some((m) => m.images?.some(needsResolution))) {
 			return messages
 		}
@@ -3792,7 +3798,9 @@ export class ClineProvider
 			if (!m.images?.some(needsResolution)) {
 				return m
 			}
-			const cleaned = m.images.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
+			const cleaned = m.images
+				.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
+				.map((img) => resolveWebviewImageUri(img) ?? img)
 			if (cleaned.length === 0) {
 				return { ...m, images: [] }
 			}

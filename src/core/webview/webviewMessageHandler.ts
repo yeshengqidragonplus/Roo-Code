@@ -47,6 +47,7 @@ import { Terminal } from "../../integrations/terminal/Terminal"
 import { openFile } from "../../integrations/misc/open-file"
 import { openImage, saveImage, resolveWebviewImageUri } from "../../integrations/misc/image-handler"
 import { selectImages } from "../../integrations/misc/process-images"
+import { readImageAsDataUrlWithBuffer } from "../tools/helpers/imageHelpers"
 import { stampSubtaskChildIds, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { getTheme } from "../../integrations/theme/getTheme"
 import { searchWorkspaceFiles } from "../../services/search/file-search"
@@ -141,7 +142,26 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 	 */
 	const resolveIncomingImages = async (payload: { text?: string; images?: string[] }) => {
 		const text = payload.text ?? ""
+		// Messages rendered in the webview use temporary vscode-webview/CDN URIs.
+		// If a user edits and resubmits a message, those display values can come
+		// back to the host. Convert known display URIs back to data before the
+		// task persists them, otherwise a later history restore points at a dead
+		// webview instance and the thumbnail is broken.
 		const images = payload.images
+			? await Promise.all(
+					payload.images.map(async (image) => {
+						const originalPath = resolveWebviewImageUri(image)
+						if (!originalPath) return image
+
+						try {
+							return (await readImageAsDataUrlWithBuffer(originalPath)).dataUrl
+						} catch (error) {
+							console.warn("Failed to restore webview image URI for message input:", error)
+							return image
+						}
+					}),
+				)
+			: undefined
 		const currentTask = provider.getCurrentTask()
 		const state = await provider.getState()
 		const resolved = await resolveImageMentions({
