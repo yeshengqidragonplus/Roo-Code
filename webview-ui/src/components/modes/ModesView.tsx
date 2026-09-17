@@ -1462,30 +1462,40 @@ const ModesView = () => {
 												{availableSkills.map((skill) => {
 													const assigned = assignedSkillNames.includes(skill.name)
 													return (
-														<VSCodeCheckbox
+														<label
 															key={`${skill.name}-${skill.source}`}
-															checked={assigned}
-															onChange={(event) => {
-																// The click can originate from the slotted name/description span;
-																// currentTarget is always the VSCodeCheckbox itself.
-																const checked = (
-																	event.currentTarget as HTMLInputElement
-																).checked
-																const injectedSkillNames = checked
-																	? [...new Set([...assignedSkillNames, skill.name])]
-																	: assignedSkillNames.filter(
-																			(name) => name !== skill.name,
-																		)
-																updateCustomMode(visualMode, {
-																	...currentMode!,
-																	injectedSkillNames,
-																})
-															}}>
-															<span>{skill.name}</span>
-															<span className="block text-xs text-vscode-descriptionForeground mt-0.5">
-																{skill.description}
+															className="flex items-start gap-3 cursor-pointer">
+															<VSCodeCheckbox
+																aria-label={`切换 Skill ${skill.name}`}
+																className="mt-1 w-4 min-w-4 shrink-0"
+																checked={assigned}
+																onChange={(event) => {
+																	const checked = (
+																		event.currentTarget as HTMLInputElement
+																	).checked
+																	const injectedSkillNames = checked
+																		? [
+																				...new Set([
+																					...assignedSkillNames,
+																					skill.name,
+																				]),
+																			]
+																		: assignedSkillNames.filter(
+																				(name) => name !== skill.name,
+																			)
+																	updateCustomMode(visualMode, {
+																		...currentMode!,
+																		injectedSkillNames,
+																	})
+																}}
+															/>
+															<span className="min-w-0 flex-1">
+																<span className="block font-medium">{skill.name}</span>
+																<span className="block text-xs text-vscode-descriptionForeground mt-0.5">
+																	{skill.description}
+																</span>
 															</span>
-														</VSCodeCheckbox>
+														</label>
 													)
 												})}
 											</div>

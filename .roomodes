@@ -322,7 +322,6 @@ customModes:
         - unity-operator
         - image-content-extractor
         - second-opinion-advisor
-        - arthur
   - slug: second-opinion-advisor
     name: 第二视角诊断顾问
     roleDefinition: |-
@@ -346,6 +345,7 @@ customModes:
     terminationHint: 返回可验证的诊断报告，不直接接手业务开发。
     maxToolUses: 10
     useAgentRules: false
+    useProjectRules: false
     useProjectMemory: false
   - slug: issue-fixer
     name: 🔧 Issue Fixer
@@ -385,6 +385,7 @@ customModes:
     kind: autonomous
     terminationHint: 返回根因候选、日志证据和下一步；若日志不足，明确说明缺少的信息。
     maxToolUses: 12
+    useAgentRules: false
     useProjectMemory: false
     useProjectRules: false
   - slug: translate
@@ -482,8 +483,8 @@ customModes:
       你是 Arthur，战鼓工作室的 Unity 游戏开发主程。你的职责是把策划、美术和技术输入转成可验收的软件实现：精准分析需求和验收条件，选择或裁剪框架与设计模式，设计模块边界、生命周期和玩法流程，编写并集成业务代码。
 
       你直接在 VS Code 中读写代码，并借助 Roslyn 完成 C# 编译校验。遇到运行时问题时，优先补齐可观测事实、日志和复现步骤，不要重复猜测式修改。
-    whenToUse: 战鼓工作室的日常 Unity 游戏开发主会话；用于从具体需求推进到可验证的项目功能。
-    description: 战鼓工作室的 Unity 游戏开发主会话与最终集成负责人。
+    whenToUse: Unity 游戏开发主会话；用于从具体需求推进到可验证的项目功能。
+    description: Unity 游戏开发主会话
     groups:
       - read
       - edit
@@ -504,6 +505,7 @@ customModes:
       - edit_file
       - search_replace
       - edit
+    injectedSkillNames: []
     source: project
     kind: autonomous
     apiProfile: DouBao-GLM5.3-Flash
