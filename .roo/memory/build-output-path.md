@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.6 重打（2026-09-28，第十二次，SHA c4d1e57a2）
+
+包含：当前项目的完整模式迁移导出（`c4d1e57a2`）——新增 `qcode-all-modes-export.yaml`，汇总 17 个自定义 Mode，并内嵌 7 个 Mode 的专属规则，供其他项目一次导入。验证：VSIX 非空（39,654,326 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `c4d1e57a2b0b752b628c2e213d23ed867e9dd8e7`。待安装。
+
 ## 0.0.6 重打（2026-09-05，第十一次，SHA 364c619ca）
 
 包含：已注入 Skill 的斜杠调用去重（`364c619ca`）——当当前 Mode（群组时为负责人 Mode）已将某 Skill 注入系统提示词时，用户再次输入 `/skill-name` 会保留“已加载”提示而不重复附加 Skill 完整指令；未注入的 Skill 继续按需展开。验证：VSIX 非空（39,653,736 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `364c619ca8fa1c8d6f3ffb6c2c5306a35a3064fa`。已安装待测试。
