@@ -462,6 +462,7 @@ describe("ClineProvider", () => {
 		})
 
 		expect(mockWebviewView.webview.html).toContain("<!DOCTYPE html>")
+		expect(mockWebviewView.webview.html).toContain("img-src vscode-webview://test-csp-source https: data:")
 	})
 
 	test("resolveWebviewView adds the configured storage root to localResourceRoots when storage is redirected", async () => {
