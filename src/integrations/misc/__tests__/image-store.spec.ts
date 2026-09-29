@@ -6,6 +6,7 @@ import {
 	IMAGE_REF_PREFIX,
 	isImageRef,
 	isDataUrl,
+	extractImageRefFromWebviewUri,
 	isBareFilePath,
 	parseDataUrl,
 	refToAbsPath,
@@ -38,6 +39,22 @@ describe("image-store", () => {
 			expect(isImageRef(PNG_DATA_URL)).toBe(false)
 			expect(isDataUrl(PNG_DATA_URL)).toBe(true)
 			expect(isDataUrl(`${IMAGE_REF_PREFIX}abc.png`)).toBe(false)
+		})
+	})
+
+	describe("extractImageRefFromWebviewUri", () => {
+		const filename = `${"a".repeat(64)}.png`
+
+		it("recovers a content-addressed ref from an encoded stale webview URI", () => {
+			expect(
+				extractImageRefFromWebviewUri(
+					`vscode-webview://old-view/file%2B.vscode-resource.vscode-cdn.net/c%3A/tasks/id/images/${filename}`,
+				),
+			).toBe(`${IMAGE_REF_PREFIX}${filename}`)
+		})
+
+		it("does not treat ordinary remote images as task image-store refs", () => {
+			expect(extractImageRefFromWebviewUri(`https://example.com/images/${filename}`)).toBeUndefined()
 		})
 	})
 

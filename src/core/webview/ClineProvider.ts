@@ -87,7 +87,12 @@ import { Task } from "../task/Task"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { DelegationRouter, frameDelegationRequest } from "../delegation/DelegationRouter"
 import type { ClineMessage, TodoItem } from "@roo-code/types"
-import { isBareFilePath, isImageRef, resolveImagesForDisplay } from "../../integrations/misc/image-store"
+import {
+	extractImageRefFromWebviewUri,
+	isBareFilePath,
+	isImageRef,
+	resolveImagesForDisplay,
+} from "../../integrations/misc/image-store"
 import { registerWebviewImageUri, resolveWebviewImageUri } from "../../integrations/misc/image-handler"
 import { getTaskDirectoryPath, getStorageBasePath } from "../../utils/storage"
 import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
@@ -3781,7 +3786,10 @@ export class ClineProvider
 			// A display URI must never be persisted, but older message-edit flows could
 			// write one back. Rebuild it for the current webview while its reverse map
 			// is still available instead of reusing a stale URI from an earlier view.
-			resolveWebviewImageUri(img) !== undefined
+			resolveWebviewImageUri(img) !== undefined ||
+			// Persisted display URIs from an older extension-host session have no reverse-map entry.
+			// The image-store filename embedded in the URI lets us recover them durably.
+			extractImageRefFromWebviewUri(img) !== undefined
 		if (!messages.some((m) => m.images?.some(needsResolution))) {
 			return messages
 		}
@@ -3800,7 +3808,7 @@ export class ClineProvider
 			}
 			const cleaned = m.images
 				.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
-				.map((img) => resolveWebviewImageUri(img) ?? img)
+				.map((img) => resolveWebviewImageUri(img) ?? extractImageRefFromWebviewUri(img) ?? img)
 			if (cleaned.length === 0) {
 				return { ...m, images: [] }
 			}

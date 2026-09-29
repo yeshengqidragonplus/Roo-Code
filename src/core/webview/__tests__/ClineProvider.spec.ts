@@ -611,6 +611,27 @@ describe("ClineProvider", () => {
 			expect(resolved[0].images).toEqual(["vscode-webview://new-view/abc.png"])
 		})
 
+		test("rebuilds a persisted stale webview URI after its in-memory reverse map is gone", async () => {
+			const filename = `${"a".repeat(64)}.png`
+			const oldDisplayUri = `vscode-webview://old-view/file%2B.vscode-resource.vscode-cdn.net/c%3A/tasks/test-task-id/images/${filename}`
+			const newDisplayUri = { toString: () => "vscode-webview://new-view/recovered.png" }
+			;(mockWebviewView.webview.asWebviewUri as any).mockReturnValue(newDisplayUri)
+
+			const resolved = await provider.resolveImageRefsForWebview(
+				[
+					{
+						ts: 1,
+						type: "say" as const,
+						say: "user_feedback" as const,
+						images: [oldDisplayUri],
+					},
+				],
+				"test-task-id",
+			)
+
+			expect(resolved[0].images).toEqual(["vscode-webview://new-view/recovered.png"])
+		})
+
 		test("passes legacy data URIs through untouched (fast path)", async () => {
 			const dataUri =
 				"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="

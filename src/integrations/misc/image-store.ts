@@ -49,6 +49,41 @@ export function isDataUrl(value: string): boolean {
 	return value.startsWith("data:")
 }
 
+/**
+ * Recover a task image-store reference from an obsolete webview URI.
+ *
+ * A webview URI produced by `asWebviewUri` includes the original absolute path, and thus the
+ * content-addressed file name (`<sha256>.<ext>`). Those display URIs must not be persisted, but
+ * older message-edit paths did persist them. The in-memory URI-to-path map cannot survive an
+ * extension-host restart, so extracting the hash lets the history renderer rebuild a fresh URI
+ * from the task's `images/` directory.
+ */
+export function extractImageRefFromWebviewUri(value: string): string | undefined {
+	if (
+		!value.startsWith("vscode-webview:") &&
+		!value.includes("vscode-resource") &&
+		!value.includes("vscode-cdn.net")
+	) {
+		return undefined
+	}
+
+	// VS Code encodes the file path once (and some URI variants encode `+` again). Decode at
+	// most twice; a malformed escape sequence should simply remain unhealed rather than throw.
+	let decoded = value
+	for (let i = 0; i < 2; i++) {
+		try {
+			const next = decodeURIComponent(decoded)
+			if (next === decoded) break
+			decoded = next
+		} catch {
+			break
+		}
+	}
+
+	const match = decoded.match(/([a-f0-9]{64}\.(?:png|jpe?g|webp|gif))(?:[?#]|$)/i)
+	return match ? `${IMAGE_REF_PREFIX}${match[1]}` : undefined
+}
+
 /** Parse a `data:<mime>;base64,<data>` URI into its parts, or null if it isn't one. */
 export function parseDataUrl(dataUrl: string): { mimeType: string; base64: string } | null {
 	if (!isDataUrl(dataUrl)) {
@@ -141,11 +176,7 @@ export function isBareFilePath(value: string): boolean {
  * no-webview fallback in convertToWebviewUri) are treated as absolute paths and re-resolved so they
  * render instead of showing as broken images. Pure — unit-testable without a webview.
  */
-export function resolveDisplayImage(
-	taskDir: string,
-	image: string,
-	toDisplayUri: (absPath: string) => string,
-): string {
+export function resolveDisplayImage(taskDir: string, image: string, toDisplayUri: (absPath: string) => string): string {
 	if (isImageRef(image)) {
 		return toDisplayUri(refToAbsPath(taskDir, image))
 	}
