@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.6 重打（2026-09-30，第十三次，SHA 845493010）
+
+包含：历史图片缩略图在扩展重启后仍可恢复（`5598d44c0`）——从旧 Webview URL 中提取内容寻址图片文件名，重新生成当前 Webview 可访问的 URI；以及 Webview 构建禁用 Turbo 缓存（`845493010`），确保每次 VSIX 都嵌入当前提交 SHA。验证：VSIX 非空（39,655,500 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `8454930102c5a57b861a30cd22481fa95a218c10`。待安装。
+
 ## 0.0.6 重打（2026-09-28，第十二次，SHA c4d1e57a2）
 
 包含：当前项目的完整模式迁移导出（`c4d1e57a2`）——新增 `qcode-all-modes-export.yaml`，汇总 17 个自定义 Mode，并内嵌 7 个 Mode 的专属规则，供其他项目一次导入。验证：VSIX 非空（39,654,326 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `c4d1e57a2b0b752b628c2e213d23ed867e9dd8e7`。待安装。
