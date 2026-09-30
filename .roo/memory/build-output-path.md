@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.6 重打（2026-09-30，第十四次，SHA a4cb037c4）
+
+包含：历史图片缩略图 CSP 修复（`a4cb037c4`）——允许 Webview 加载 VS Code `asWebviewUri` 在桌面端生成的 HTTPS 资源地址，避免文件存在且链接可打开、但 `<img>` 被 CSP 拦截而显示破图。验证：VSIX 非空（39,655,472 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `a4cb037c437c7e010e2a84b398f368ab9d439408`。待安装。
+
 ## 0.0.6 重打（2026-09-30，第十三次，SHA 845493010）
 
 包含：历史图片缩略图在扩展重启后仍可恢复（`5598d44c0`）——从旧 Webview URL 中提取内容寻址图片文件名，重新生成当前 Webview 可访问的 URI；以及 Webview 构建禁用 Turbo 缓存（`845493010`），确保每次 VSIX 都嵌入当前提交 SHA。验证：VSIX 非空（39,655,500 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `8454930102c5a57b861a30cd22481fa95a218c10`。待安装。
