@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.7 重打（2026-11-06，SHA 27212ef7e）
+
+包含：会话定时恢复和 API 请求定时重试，绑定原会话与提示并保留草稿。验证：VSIX 非空（39,670,671 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `27212ef7e36ef05911ab1422e17bc207bd25224c`。待安装及实际界面验证。
+
 ## 0.0.7 重打（2026-11-06，SHA 90ed7a1f9）
 
 包含：已有会话多轮定时发送、会话和问题绑定校验、失败后恢复消息。验证：VSIX 非空（39,669,241 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `90ed7a1f94cba06d5e476500c056e67d25e78c20`。待安装及实际界面验证。
