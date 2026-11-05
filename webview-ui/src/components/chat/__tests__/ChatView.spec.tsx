@@ -339,6 +339,31 @@ describe("ChatView - scheduled workgroup task", () => {
 		expect(view.getByTestId("chat-textarea").querySelector("input")).toHaveValue("未发送的消息")
 		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "cancelScheduledTask" })
 	})
+
+	it.each([
+		["resume_task", "安排恢复"],
+		["api_req_failed", "安排重试"],
+	])("schedules %s without requiring or clearing a draft", async (ask, button) => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "conversation-1",
+			clineMessages: [{ type: "ask", ask, ts: Date.now(), text: "quota" }],
+		})
+		const time = await view.findByLabelText(/定时发送/)
+		const textarea = view.getByTestId("chat-textarea").querySelector("input")!
+		fireEvent.change(time, { target: { value: "2030-01-01T12:00" } })
+		expect(await view.findByText(button)).toBeEnabled()
+		fireEvent.change(textarea, { target: { value: "保留草稿" } })
+		fireEvent.click(await view.findByText(button))
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "scheduleResumeTask",
+			taskId: "conversation-1",
+			values: { dueAt: new Date("2030-01-01T12:00").getTime() },
+		})
+		window.postMessage({ type: "scheduledResumeCreated" }, "*")
+		await waitFor(() => expect(time).toHaveValue(""))
+		expect(textarea).toHaveValue("保留草稿")
+	})
 })
 
 describe("ChatView - Sound Playing Tests", () => {

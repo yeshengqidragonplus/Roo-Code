@@ -246,7 +246,10 @@ export class ClineProvider
 					const current = this.getCurrentTask()
 					if (!current || current.taskId !== task.taskId)
 						throw new Error("原会话不在当前窗口，未发送定时消息")
-					current.submitScheduledReply(task.text, task.images, task.askTs)
+					if (task.action === "resume") {
+						if (task.askTs === undefined || !task.resumeAskType) throw new Error("定时恢复信息不完整")
+						current.submitScheduledResume(task.askTs, task.resumeAskType)
+					} else current.submitScheduledReply(task.text, task.images, task.askTs)
 					return
 				}
 				if (this.hasWorkspaceActiveTask()) throw new Error("当前项目已有会话，未自动启动；请关闭会话后重新安排")
@@ -257,7 +260,9 @@ export class ClineProvider
 			},
 			notify: (task) => {
 				if (task.status === "started")
-					void vscode.window.showInformationMessage(task.taskId ? "定时消息已发送" : "定时任务已启动")
+					void vscode.window.showInformationMessage(
+						task.action === "resume" ? "定时恢复已执行" : task.taskId ? "定时消息已发送" : "定时任务已启动",
+					)
 				else void vscode.window.showWarningMessage(`定时任务未启动：${task.error ?? task.status}`)
 				void this.postStateToWebviewWithoutClineMessages().catch((error) => {
 					this.log(
@@ -2363,6 +2368,7 @@ export class ClineProvider
 							status: task.status,
 							error: task.error,
 							taskId: task.taskId,
+							action: task.action,
 							...(task.status === "failed" || task.status === "missed"
 								? { text: task.text, images: task.images }
 								: {}),
@@ -3016,6 +3022,29 @@ export class ClineProvider
 			askTs: taskId ? current?.getScheduledReplyAsk() : undefined,
 			apiConfigName: state.currentApiConfigName,
 			reviewerChoiceEnabled,
+			status: "pending",
+		})
+		await this.postStateToWebviewWithoutClineMessages()
+	}
+
+	public async scheduleResumeTask(taskId: string, dueAt: number): Promise<void> {
+		const current = this.getCurrentTask()
+		if (!current || current.taskId !== taskId) throw new Error("当前会话已切换，请重新安排")
+		const state = await this.getState()
+		if (this.getCurrentTask() !== current) throw new Error("当前会话已切换，请重新安排")
+		const ask = current.getScheduledResumeAsk()
+		if (!ask) throw new Error("当前会话没有可恢复或重试的任务")
+		await this.scheduledTaskService.schedule({
+			id: crypto.randomUUID(),
+			dueAt,
+			text: "",
+			mode: state.mode ?? defaultModeSlug,
+			taskId,
+			action: "resume",
+			askTs: ask.ts,
+			resumeAskType: ask.type,
+			apiConfigName: state.currentApiConfigName,
+			reviewerChoiceEnabled: current.reviewerChoiceEnabled,
 			status: "pending",
 		})
 		await this.postStateToWebviewWithoutClineMessages()

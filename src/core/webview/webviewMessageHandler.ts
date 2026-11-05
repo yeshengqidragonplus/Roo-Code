@@ -659,6 +659,19 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			}
 			break
 		}
+		case "scheduleResumeTask": {
+			try {
+				if (!message.taskId) throw new Error("缺少会话标识")
+				await provider.scheduleResumeTask(message.taskId, Number(message.values?.dueAt))
+				await provider.postMessageToWebview({ type: "scheduledResumeCreated" })
+				await vscode.window.showInformationMessage("定时恢复已安排；请保持 VS Code 和当前会话打开。")
+			} catch (error) {
+				await vscode.window.showErrorMessage(
+					`无法安排定时恢复：${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+			break
+		}
 		case "cancelScheduledTask":
 			await provider.cancelScheduledTask()
 			break

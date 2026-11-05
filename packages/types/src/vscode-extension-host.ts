@@ -33,6 +33,7 @@ export interface ExtensionMessage {
 		| "workspaceUpdated"
 		| "invoke"
 		| "scheduledTaskCreated"
+		| "scheduledResumeCreated"
 		| "messageUpdated"
 		| "messageWindow"
 		| "mcpServers"
@@ -321,6 +322,7 @@ export type ExtensionState = Pick<
 		dueAt: number
 		mode: string
 		taskId?: string
+		action?: "resume"
 		text?: string
 		images?: string[]
 		status: "pending" | "started" | "missed" | "failed"
@@ -439,6 +441,7 @@ export interface WebviewMessage {
 		| "newTask"
 		| "setReviewerChoiceEnabled"
 		| "scheduleNewTask"
+		| "scheduleResumeTask"
 		| "cancelScheduledTask"
 		| "askResponse"
 		| "requestMessageWindow"

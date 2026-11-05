@@ -8,6 +8,8 @@ export interface ScheduledTask {
 	taskId?: string
 	/** If scheduled while waiting for a response, never answer a different question. */
 	askTs?: number
+	action?: "resume"
+	resumeAskType?: "resume_task" | "api_req_failed"
 	apiConfigName?: string
 	reviewerChoiceEnabled: boolean
 	status: "pending" | "started" | "missed" | "failed"

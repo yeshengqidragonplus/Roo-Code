@@ -200,6 +200,56 @@ describe("Cline", () => {
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
 
+	it.each(["resume_task", "api_req_failed"] as const)(
+		"resumes a real pending %s ask at the scheduled time",
+		async (type) => {
+			const task = new Task({
+				provider: mockProvider,
+				apiConfiguration: mockApiConfig,
+				task: "test",
+				startTask: false,
+			})
+			vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+			vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(false)
+			vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+				task.clineMessages.push(message)
+			})
+			vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+				for (let i = 0; i < 100; i++) {
+					if (predicate()) return
+					await new Promise((resolve) => setTimeout(resolve, 2))
+				}
+				throw new Error("response was not received")
+			})
+			const pending = task.ask(type, "quota")
+			await vi.waitFor(() => expect(task.getScheduledResumeAsk()).toBeDefined())
+			const ask = task.getScheduledResumeAsk()!
+			expect(() => task.submitScheduledResume(ask.ts + 1, type)).toThrow("未自动继续")
+			task.submitScheduledResume(ask.ts, type)
+			expect(await pending).toMatchObject({ response: "yesButtonClicked" })
+			expect(task.getScheduledResumeAsk()).toBeUndefined()
+		},
+	)
+
+	it("never resumes an approval, changed prompt, or completed subtask", () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		task.lastMessageTs = 123
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "command" }
+		expect(task.getScheduledResumeAsk()).toBeUndefined()
+		expect(() => task.submitScheduledResume(123, "resume_task")).toThrow("未自动继续")
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "api_req_failed" }
+		expect(() => task.submitScheduledResume(123, "resume_task")).toThrow("未自动继续")
+		;(task as any).parentTaskId = "parent"
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "resume_task" }
+		task.clineMessages.push({ ts: 122, type: "ask", ask: "completion_result" })
+		expect(task.getScheduledResumeAsk()).toBeUndefined()
+	})
+
 	it("delivers a scheduled reply through a real pending follow-up", async () => {
 		const task = new Task({
 			provider: mockProvider,

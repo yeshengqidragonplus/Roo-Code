@@ -1771,6 +1771,37 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.handleWebviewAskResponse("messageResponse", text, images)
 	}
 
+	/** Match the actual resume/retry button, never a tool or command approval. */
+	public getScheduledResumeAsk(): { ts: number; type: "resume_task" | "api_req_failed" } | undefined {
+		const ask = this.scheduledReplyAsk
+		if (
+			this.abort ||
+			!ask ||
+			this.askResponse !== undefined ||
+			this.lastMessageTs !== ask.ts ||
+			(ask.type !== "resume_task" && ask.type !== "api_req_failed")
+		)
+			return undefined
+		// The UI's primary button starts a new task for already-completed subtasks.
+		if (
+			ask.type === "resume_task" &&
+			this.parentTaskId &&
+			this.clineMessages.some(
+				(message) => message.ask === "completion_result" || message.say === "completion_result",
+			)
+		)
+			return undefined
+		return { ts: ask.ts, type: ask.type }
+	}
+
+	public submitScheduledResume(expectedTs: number, expectedType: "resume_task" | "api_req_failed"): void {
+		const ask = this.getScheduledResumeAsk()
+		if (!ask || ask.ts !== expectedTs || ask.type !== expectedType) {
+			throw new Error("会话不再等待原来的恢复或重试，未自动继续")
+		}
+		this.handleWebviewAskResponse("yesButtonClicked")
+	}
+
 	/**
 	 * Cancel any pending auto-approval timeout.
 	 * Called when user interacts (types, clicks buttons, etc.) to prevent the timeout from firing.

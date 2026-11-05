@@ -506,6 +506,38 @@ describe("ClineProvider", () => {
 		expect(reply).toHaveBeenCalledTimes(1)
 	})
 
+	test("schedules and executes a resume only for the bound session and prompt", async () => {
+		const resume = vi.fn()
+		const task = {
+			taskId: "original",
+			reviewerChoiceEnabled: false,
+			getScheduledResumeAsk: () => ({ ts: 123, type: "api_req_failed" }),
+			submitScheduledResume: resume,
+		} as unknown as Task
+		vi.spyOn(provider, "getCurrentTask").mockReturnValue(task)
+		vi.spyOn(provider, "getState").mockResolvedValue({ mode: "code", currentApiConfigName: "model" } as never)
+		vi.spyOn(provider, "postStateToWebviewWithoutClineMessages").mockResolvedValue(undefined)
+		const service = (provider as any).scheduledTaskService
+		const schedule = vi.spyOn(service, "schedule").mockResolvedValue(undefined as never)
+		await provider.scheduleResumeTask("original", Date.now() + 10000)
+		expect(schedule).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: "resume",
+				taskId: "original",
+				askTs: 123,
+				resumeAskType: "api_req_failed",
+			}),
+		)
+		const scheduled = { ...(schedule.mock.calls[0][0] as object), status: "started" }
+		vi.mocked(mockContext.workspaceState.get).mockReturnValue(scheduled)
+		await service.deps.execute(scheduled)
+		expect(resume).toHaveBeenCalledWith(123, "api_req_failed")
+		await expect(service.deps.execute({ ...scheduled, taskId: "other" })).rejects.toThrow("原会话")
+		vi.mocked(mockContext.workspaceState.get).mockReturnValue(undefined)
+		await expect(service.deps.execute(scheduled)).rejects.toThrow("已取消或变更")
+		expect(resume).toHaveBeenCalledTimes(1)
+	})
+
 	test("resolveWebviewView adds the configured storage root to localResourceRoots when storage is redirected", async () => {
 		// Simulate `customStoragePath` redirecting storage to a different drive/directory.
 		vi.mocked(getStorageBasePath).mockResolvedValue("/custom/storage/root")
