@@ -359,6 +359,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private askResponse?: ClineAskResponse
 	private askResponseText?: string
 	private askResponseImages?: string[]
+	private scheduledReplyAsk?: { ts: number; type: ClineAsk }
 	public lastMessageTs?: number
 	private autoApprovalTimeoutRef?: NodeJS.Timeout
 	private activeReviewerAsk?: symbol
@@ -1424,6 +1425,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		let timeouts: NodeJS.Timeout[] = []
 		const reviewerAskToken = Symbol("reviewer-ask")
 		this.activeReviewerAsk = reviewerAskToken
+		this.scheduledReplyAsk = { ts: askTs, type }
 
 		// Automatically approve if the ask according to the user's settings.
 		const provider = this.providerRef.deref()
@@ -1644,6 +1646,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		)
 
 		if (this.activeReviewerAsk === reviewerAskToken) this.activeReviewerAsk = undefined
+		if (this.scheduledReplyAsk?.ts === askTs) this.scheduledReplyAsk = undefined
 		if (this.lastMessageTs !== askTs) {
 			// Could happen if we send multiple asks in a row i.e. with
 			// command_output. It's important that when we know an ask could
@@ -1687,6 +1690,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		this.scheduledReplyAsk = undefined
 		// Any response closes this review slot before asynchronous reviewer work can finish.
 		this.activeReviewerAsk = undefined
 		// Clear any pending auto-approval timeout when user responds
@@ -1735,6 +1739,36 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				})
 			}
 		}
+	}
+
+	/** Only conversational asks may receive a scheduled message; never approve a tool implicitly. */
+	public getScheduledReplyAsk(): number | undefined {
+		const ask = this.scheduledReplyAsk
+		if (
+			this.abort ||
+			!ask ||
+			this.askResponse !== undefined ||
+			this.lastMessageTs !== ask.ts ||
+			!(
+				[
+					"followup",
+					"completion_result",
+					"resume_task",
+					"resume_completed_task",
+					"mistake_limit_reached",
+				] as ClineAsk[]
+			).includes(ask.type)
+		)
+			return undefined
+		return ask.ts
+	}
+
+	public submitScheduledReply(text: string, images?: string[], expectedAskTs?: number): void {
+		const askTs = this.getScheduledReplyAsk()
+		if (askTs === undefined || (expectedAskTs !== undefined && askTs !== expectedAskTs)) {
+			throw new Error("会话不再等待原来的回复，未发送定时消息")
+		}
+		this.handleWebviewAskResponse("messageResponse", text, images)
 	}
 
 	/**

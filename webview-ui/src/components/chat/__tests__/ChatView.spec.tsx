@@ -272,6 +272,7 @@ const renderChatView = (props: Partial<ChatViewProps> = {}) => {
 }
 
 describe("ChatView - scheduled workgroup task", () => {
+	beforeEach(() => vi.clearAllMocks())
 	it("sends the prompt, selected time and session reviewer choice to the extension", async () => {
 		const view = renderChatView()
 		mockPostMessage({
@@ -295,6 +296,48 @@ describe("ChatView - scheduled workgroup task", () => {
 			images: [],
 			values: { dueAt: new Date("2030-01-01T12:00").getTime(), reviewerChoiceEnabled: true },
 		})
+	})
+
+	it("can schedule a follow-up even after the initial scheduled task started", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "conversation-1",
+			scheduledTask: { id: "old", dueAt: Date.now(), mode: "code", status: "started" },
+			clineMessages: [{ type: "ask", ask: "completion_result", ts: Date.now(), text: "done" }],
+		})
+		const time = await view.findByLabelText(/定时发送/)
+		fireEvent.change(view.getByTestId("chat-textarea").querySelector("input")!, { target: { value: "继续修改" } })
+		fireEvent.change(time, { target: { value: "2030-01-01T12:00" } })
+		fireEvent.click(view.getByText("安排发送"))
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "scheduleNewTask",
+			text: "继续修改",
+			images: [],
+			values: {
+				dueAt: new Date("2030-01-01T12:00").getTime(),
+				reviewerChoiceEnabled: false,
+				taskId: "conversation-1",
+			},
+		})
+	})
+
+	it("restores an unsent scheduled reply to the input", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "conversation-1",
+			scheduledTask: {
+				id: "old",
+				dueAt: Date.now(),
+				mode: "code",
+				status: "failed",
+				taskId: "conversation-1",
+				text: "未发送的消息",
+				images: [],
+			},
+		})
+		fireEvent.click(await view.findByText("恢复内容"))
+		expect(view.getByTestId("chat-textarea").querySelector("input")).toHaveValue("未发送的消息")
+		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "cancelScheduledTask" })
 	})
 })
 

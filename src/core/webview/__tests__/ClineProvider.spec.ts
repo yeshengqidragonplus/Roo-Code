@@ -481,6 +481,31 @@ describe("ClineProvider", () => {
 		expect(remove).not.toHaveBeenCalled()
 	})
 
+	test("a scheduled reply is delivered only to its original session", async () => {
+		const reply = vi.fn()
+		const task = { taskId: "original", submitScheduledReply: reply } as unknown as Task
+		vi.spyOn(provider, "getCurrentTask").mockReturnValue(task)
+		vi.spyOn(provider, "getState").mockResolvedValue({ mode: "code", currentApiConfigName: "model" } as never)
+		const execute = (provider as any).scheduledTaskService.deps.execute
+		const scheduled = {
+			id: "scheduled",
+			taskId: "original",
+			text: "next",
+			images: ["image"],
+			askTs: 123,
+			mode: "code",
+			apiConfigName: "model",
+		}
+		vi.mocked(mockContext.workspaceState.get).mockReturnValue({ ...scheduled, status: "started" })
+		await execute(scheduled)
+		expect(reply).toHaveBeenCalledWith("next", ["image"], 123)
+		await expect(execute({ ...scheduled, taskId: "another" })).rejects.toThrow("原会话")
+		expect(reply).toHaveBeenCalledTimes(1)
+		vi.mocked(mockContext.workspaceState.get).mockReturnValue(undefined)
+		await expect(execute(scheduled)).rejects.toThrow("已取消或变更")
+		expect(reply).toHaveBeenCalledTimes(1)
+	})
+
 	test("resolveWebviewView adds the configured storage root to localResourceRoots when storage is redirected", async () => {
 		// Simulate `customStoragePath` redirecting storage to a different drive/directory.
 		vi.mocked(getStorageBasePath).mockResolvedValue("/custom/storage/root")

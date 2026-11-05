@@ -4,6 +4,10 @@ export interface ScheduledTask {
 	text: string
 	images?: string[]
 	mode: string
+	/** Absent for records created by older versions (a new task). */
+	taskId?: string
+	/** If scheduled while waiting for a response, never answer a different question. */
+	askTs?: number
 	apiConfigName?: string
 	reviewerChoiceEnabled: boolean
 	status: "pending" | "started" | "missed" | "failed"

@@ -200,6 +200,35 @@ describe("Cline", () => {
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
 
+	it("delivers a scheduled reply through a real pending follow-up", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(false)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.spyOn(task, "checkpointSave").mockResolvedValue(undefined as never)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 100; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("followup", JSON.stringify({ question: "Choose", suggest: [] }))
+		await vi.waitFor(() => expect(task.getScheduledReplyAsk()).toBeDefined())
+		const askTs = task.getScheduledReplyAsk()
+		task.submitScheduledReply("定时回复", undefined, askTs)
+		expect(await pending).toMatchObject({ response: "messageResponse", text: "定时回复" })
+		expect(task.getScheduledReplyAsk()).toBeUndefined()
+	})
+
 	it("does not apply a reviewer answer after a human already replied", async () => {
 		const task = new Task({
 			provider: mockProvider,
@@ -2183,6 +2212,26 @@ describe("pushToolResultToUserContent", () => {
 		expect(added).toBe(true)
 		expect(task.userMessageContent).toHaveLength(1)
 		expect(task.userMessageContent[0]).toEqual(toolResult)
+	})
+
+	it("sends a scheduled reply only to the same pending conversational ask", () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		const respond = vi.spyOn(task, "handleWebviewAskResponse").mockImplementation(() => {})
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "followup" }
+		task.lastMessageTs = 123
+		expect(() => task.submitScheduledReply("answer", ["image"], 122)).toThrow("未发送")
+		task.submitScheduledReply("answer", ["image"], 123)
+		expect(respond).toHaveBeenCalledWith("messageResponse", "answer", ["image"])
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "command" }
+		expect(() => task.submitScheduledReply("answer")).toThrow("未发送")
+		task.lastMessageTs = 124
+		;(task as any).scheduledReplyAsk = { ts: 123, type: "followup" }
+		expect(() => task.submitScheduledReply("answer")).toThrow("未发送")
 	})
 
 	it("should prevent duplicate tool_result with same tool_use_id", () => {

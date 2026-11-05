@@ -320,6 +320,9 @@ export type ExtensionState = Pick<
 		id: string
 		dueAt: number
 		mode: string
+		taskId?: string
+		text?: string
+		images?: string[]
 		status: "pending" | "started" | "missed" | "failed"
 		error?: string
 	}

@@ -648,6 +648,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					resolved.images,
 					Number(message.values?.dueAt),
 					message.values?.reviewerChoiceEnabled === true,
+					typeof message.values?.taskId === "string" ? message.values.taskId : undefined,
 				)
 				await provider.postMessageToWebview({ type: "scheduledTaskCreated" })
 				await vscode.window.showInformationMessage("定时任务已安排；请保持 VS Code 和项目窗口打开。")

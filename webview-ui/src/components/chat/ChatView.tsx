@@ -1851,14 +1851,40 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			{scheduledTask && (
 				<div className="flex items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
 					<span>
-						定时任务：{new Date(scheduledTask.dueAt).toLocaleString()} ·{" "}
-						{
-							({ pending: "等待启动", started: "已启动", missed: "已错过", failed: "启动失败" } as const)[
-								scheduledTask.status
-							]
-						}
+						{scheduledTask.taskId ? "定时消息" : "定时任务"}：
+						{new Date(scheduledTask.dueAt).toLocaleString()} ·{" "}
+						{scheduledTask.taskId
+							? (
+									{
+										pending: "等待发送",
+										started: "已发送",
+										missed: "已错过",
+										failed: "发送失败",
+									} as const
+								)[scheduledTask.status]
+							: (
+									{
+										pending: "等待启动",
+										started: "已启动",
+										missed: "已错过",
+										failed: "启动失败",
+									} as const
+								)[scheduledTask.status]}
 						{scheduledTask.error ? ` · ${scheduledTask.error}` : ""}
 					</span>
+					{(scheduledTask.status === "failed" || scheduledTask.status === "missed") && (
+						<button
+							type="button"
+							className="underline"
+							disabled={!!inputValue || selectedImages.length > 0}
+							onClick={() => {
+								setInputValue(scheduledTask.text ?? "")
+								setSelectedImages(scheduledTask.images ?? [])
+								vscode.postMessage({ type: "cancelScheduledTask" })
+							}}>
+							恢复内容
+						</button>
+					)}
 					<button
 						type="button"
 						className="underline"
@@ -1867,10 +1893,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					</button>
 				</div>
 			)}
-			{!currentTaskId && !scheduledTask && (
+			{scheduledTask?.status !== "pending" && (
 				<div className="flex flex-wrap items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
 					<label>
-						定时启动{" "}
+						{currentTaskId ? "定时发送" : "定时启动"}{" "}
 						<input
 							type="datetime-local"
 							className="rounded border border-vscode-input-border bg-vscode-input-background px-2 py-1 text-vscode-input-foreground"
@@ -1890,12 +1916,17 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 								values: {
 									dueAt: new Date(scheduledLocalTime).getTime(),
 									reviewerChoiceEnabled: newTaskReviewerChoice,
+									...(currentTaskId ? { taskId: currentTaskId } : {}),
 								},
 							})
 						}>
-						安排任务
+						{currentTaskId ? "安排发送" : "安排任务"}
 					</button>
-					<span>需保持 VS Code 和项目打开；到点时须无活动会话且模式、模型未变，错过两分钟不补跑。</span>
+					<span>
+						{currentTaskId
+							? "保持当前会话打开；到点时须等待回复且模式、模型未变，错过两分钟不补发。"
+							: "需保持 VS Code 和项目打开；到点时须无活动会话且模式、模型未变，错过两分钟不补跑。"}
+					</span>
 				</div>
 			)}
 			{reviewerAvailable && (

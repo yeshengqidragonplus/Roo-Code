@@ -234,18 +234,30 @@ export class ClineProvider
 				}
 			},
 			execute: async (task) => {
-				if (this.hasWorkspaceActiveTask()) throw new Error("当前项目已有会话，未自动启动；请关闭会话后重新安排")
 				const state = await this.getState()
 				if (state.mode !== task.mode || state.currentApiConfigName !== task.apiConfigName) {
 					throw new Error("模式或模型配置已变化，请确认后重新安排")
 				}
+				const currentSchedule = this.context.workspaceState.get<ScheduledTask>("qcode.scheduledTask")
+				if (currentSchedule?.id !== task.id || currentSchedule.status !== "started") {
+					throw new Error("定时任务已取消或变更")
+				}
+				if (task.taskId) {
+					const current = this.getCurrentTask()
+					if (!current || current.taskId !== task.taskId)
+						throw new Error("原会话不在当前窗口，未发送定时消息")
+					current.submitScheduledReply(task.text, task.images, task.askTs)
+					return
+				}
+				if (this.hasWorkspaceActiveTask()) throw new Error("当前项目已有会话，未自动启动；请关闭会话后重新安排")
 				await this.createTask(task.text, task.images, undefined, {
 					reviewerChoiceEnabled: task.reviewerChoiceEnabled,
 					failIfTaskActive: true,
 				})
 			},
 			notify: (task) => {
-				if (task.status === "started") void vscode.window.showInformationMessage("定时任务已启动")
+				if (task.status === "started")
+					void vscode.window.showInformationMessage(task.taskId ? "定时消息已发送" : "定时任务已启动")
 				else void vscode.window.showWarningMessage(`定时任务未启动：${task.error ?? task.status}`)
 				void this.postStateToWebviewWithoutClineMessages().catch((error) => {
 					this.log(
@@ -2344,7 +2356,17 @@ export class ClineProvider
 			scheduledTask: (() => {
 				const task = this.context.workspaceState.get<ScheduledTask>("qcode.scheduledTask")
 				return task
-					? { id: task.id, dueAt: task.dueAt, mode: task.mode, status: task.status, error: task.error }
+					? {
+							id: task.id,
+							dueAt: task.dueAt,
+							mode: task.mode,
+							status: task.status,
+							error: task.error,
+							taskId: task.taskId,
+							...(task.status === "failed" || task.status === "missed"
+								? { text: task.text, images: task.images }
+								: {}),
+						}
 					: undefined
 			})(),
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
@@ -2976,16 +2998,22 @@ export class ClineProvider
 		images: string[] | undefined,
 		dueAt: number,
 		reviewerChoiceEnabled: boolean,
+		taskId?: string,
 	): Promise<void> {
-		if (this.hasWorkspaceActiveTask()) throw new Error("请先关闭当前项目的会话，再安排新的定时任务")
+		const current = this.getCurrentTask()
+		if (taskId && current?.taskId !== taskId) throw new Error("当前会话已切换，请重新安排")
+		if (!taskId && this.hasWorkspaceActiveTask()) throw new Error("请先关闭当前项目的会话，再安排新的定时任务")
 		if (!text.trim() && !images?.length) throw new Error("请输入任务内容")
 		const state = await this.getState()
+		if (taskId && this.getCurrentTask() !== current) throw new Error("当前会话已切换，请重新安排")
 		await this.scheduledTaskService.schedule({
 			id: crypto.randomUUID(),
 			dueAt,
 			text,
 			images,
 			mode: state.mode ?? defaultModeSlug,
+			taskId,
+			askTs: taskId ? current?.getScheduledReplyAsk() : undefined,
 			apiConfigName: state.currentApiConfigName,
 			reviewerChoiceEnabled,
 			status: "pending",
