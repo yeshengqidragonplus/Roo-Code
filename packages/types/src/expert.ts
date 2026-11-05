@@ -94,6 +94,8 @@ export const workgroupConfigSchema = z.object({
 	 * workgroup supplies delegation boundaries and approval behavior.
 	 */
 	leadModeSlug: z.string().min(1).optional(),
+	/** Workgroup member designated to review execution and, when enabled, answer questions. */
+	reviewerModeSlug: z.string().min(1).optional(),
 	/** Short collaboration rules appended to the lead's system prompt. */
 	instructions: z.string().optional(),
 	colleagueSlugs: z.array(z.string().min(1)).default([]),

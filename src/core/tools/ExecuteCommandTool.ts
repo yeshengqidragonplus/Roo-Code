@@ -64,7 +64,8 @@ export class ExecuteCommandTool extends BaseTool<"execute_command"> {
 
 			task.consecutiveMistakeCount = 0
 
-			const didApprove = await askApproval("command", canonicalCommand)
+			const reviewCwd = customCwd ? path.resolve(task.cwd, customCwd) : task.cwd
+			const didApprove = await askApproval("command", canonicalCommand, undefined, undefined, reviewCwd)
 
 			if (!didApprove) {
 				return

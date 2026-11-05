@@ -39,6 +39,7 @@ const WorkgroupsView = () => {
 	const [description, setDescription] = useState("")
 	const [leadModeSlug, setLeadModeSlug] = useState("")
 	const [groupInstructions, setGroupInstructions] = useState("")
+	const [reviewerModeSlug, setReviewerModeSlug] = useState("")
 	const [systemPrompt, setSystemPrompt] = useState("")
 	const [isPromptPreviewOpen, setIsPromptPreviewOpen] = useState(false)
 
@@ -58,6 +59,7 @@ const WorkgroupsView = () => {
 		setDescription(coordinator?.description ?? "")
 		setLeadModeSlug(coordinator?.workgroup?.leadModeSlug ?? "")
 		setGroupInstructions(coordinator?.workgroup?.instructions ?? "")
+		setReviewerModeSlug(coordinator?.workgroup?.reviewerModeSlug ?? "")
 	}, [coordinator])
 
 	useEffect(() => {
@@ -84,12 +86,18 @@ const WorkgroupsView = () => {
 		colleagueSlugs: string[] = colleagues,
 		nextLeadModeSlug = leadModeSlug,
 		nextInstructions = groupInstructions,
+		nextReviewerModeSlug = reviewerModeSlug,
 	) =>
 		save({
 			workgroup: {
 				colleagueSlugs,
 				...(nextLeadModeSlug ? { leadModeSlug: nextLeadModeSlug } : {}),
 				...(nextInstructions.trim() ? { instructions: nextInstructions.trim() } : {}),
+				...(nextReviewerModeSlug &&
+				nextReviewerModeSlug !== nextLeadModeSlug &&
+				colleagueSlugs.includes(nextReviewerModeSlug)
+					? { reviewerModeSlug: nextReviewerModeSlug }
+					: {}),
 			},
 		})
 
@@ -191,6 +199,38 @@ const WorkgroupsView = () => {
 							</Select>
 							<p className="text-vscode-descriptionForeground text-sm mt-1 mb-0">
 								群组运行时使用主程的系统提示词、基础工具和 Skill；专业能力只在同事任务中展开。
+							</p>
+						</div>
+						<div>
+							<div className="font-medium mb-1">审核同事</div>
+							<Select
+								value={reviewerModeSlug || "__none__"}
+								onValueChange={(value) => {
+									const next = value === "__none__" ? "" : value
+									setReviewerModeSlug(next)
+									saveWorkgroup(colleagues, leadModeSlug, groupInstructions, next)
+								}}>
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__none__">未设置（由我审核）</SelectItem>
+									{leadCandidates
+										.filter(
+											(mode) =>
+												colleagues.includes(mode.slug) &&
+												mode.slug !== leadModeSlug &&
+												mode.kind !== "workflow",
+										)
+										.map((mode) => (
+											<SelectItem key={mode.slug} value={mode.slug}>
+												{mode.name}
+											</SelectItem>
+										))}
+								</SelectContent>
+							</Select>
+							<p className="text-vscode-descriptionForeground text-sm mt-1 mb-0">
+								使用该模式的角色指令和默认模型进行审核；当前不调用其工具或技能，无法完整判断的命令仍需人工审批。
 							</p>
 						</div>
 						<div>

@@ -271,6 +271,33 @@ const renderChatView = (props: Partial<ChatViewProps> = {}) => {
 	)
 }
 
+describe("ChatView - scheduled workgroup task", () => {
+	it("sends the prompt, selected time and session reviewer choice to the extension", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			mode: "team",
+			customModes: [
+				{
+					slug: "team",
+					name: "Team",
+					workgroup: { colleagueSlugs: ["reviewer"], reviewerModeSlug: "reviewer" },
+				},
+			],
+		})
+		const reviewer = await view.findByLabelText("本次会话由审核同事代答选择题")
+		fireEvent.click(reviewer)
+		fireEvent.change(view.getByTestId("chat-textarea").querySelector("input")!, { target: { value: "开发货币栏" } })
+		fireEvent.change(view.getByLabelText(/定时启动/), { target: { value: "2030-01-01T12:00" } })
+		fireEvent.click(view.getByText("安排任务"))
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "scheduleNewTask",
+			text: "开发货币栏",
+			images: [],
+			values: { dueAt: new Date("2030-01-01T12:00").getTime(), reviewerChoiceEnabled: true },
+		})
+	})
+})
+
 describe("ChatView - Sound Playing Tests", () => {
 	beforeEach(() => vi.clearAllMocks())
 
@@ -704,6 +731,10 @@ describe("ChatView - Message Queueing Tests", () => {
 		// Wait for state to be updated
 		await waitFor(() => {
 			expect(getByTestId("chat-textarea")).toBeInTheDocument()
+		})
+
+		await waitFor(() => {
+			expect(getByTestId("chat-textarea").querySelector("input")).toHaveAttribute("data-sending-disabled", "true")
 		})
 
 		// Clear message calls before simulating user input

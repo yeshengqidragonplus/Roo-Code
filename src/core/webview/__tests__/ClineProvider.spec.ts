@@ -3,6 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import * as vscode from "vscode"
 import axios from "axios"
+import * as fs from "fs/promises"
 
 import {
 	type ProviderSettingsEntry,
@@ -33,13 +34,16 @@ vi.mock("p-wait-for", () => ({
 	default: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock("fs/promises", () => ({
-	mkdir: vi.fn().mockResolvedValue(undefined),
-	writeFile: vi.fn().mockResolvedValue(undefined),
-	readFile: vi.fn().mockResolvedValue(""),
-	unlink: vi.fn().mockResolvedValue(undefined),
-	rmdir: vi.fn().mockResolvedValue(undefined),
-}))
+vi.mock("fs/promises", () => {
+	const mock = {
+		mkdir: vi.fn().mockResolvedValue(undefined),
+		writeFile: vi.fn().mockResolvedValue(undefined),
+		readFile: vi.fn().mockResolvedValue(""),
+		unlink: vi.fn().mockResolvedValue(undefined),
+		rmdir: vi.fn().mockResolvedValue(undefined),
+	}
+	return { ...mock, default: mock }
+})
 
 vi.mock("axios", () => ({
 	default: {
@@ -346,6 +350,7 @@ describe("ClineProvider", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks()
+		vi.mocked(vscode.workspace.getConfiguration).mockReturnValue({ get: vi.fn() } as never)
 
 		const globalState: Record<string, string | undefined> = {
 			mode: "architect",
@@ -465,6 +470,17 @@ describe("ClineProvider", () => {
 		expect(mockWebviewView.webview.html).toContain("img-src vscode-webview://test-csp-source https: data:")
 	})
 
+	test("a scheduled start cannot replace an active task", async () => {
+		vi.spyOn(provider, "getCurrentTask").mockReturnValue({ taskId: "active" } as Task)
+		vi.spyOn(provider, "setValues").mockResolvedValue(undefined as never)
+		vi.spyOn(provider, "getState").mockResolvedValue({ apiConfiguration: {} } as never)
+		const remove = vi.spyOn(provider, "removeClineFromStack")
+		await expect(
+			provider.createTask("scheduled", undefined, undefined, { failIfTaskActive: true }),
+		).rejects.toThrow("当前已有会话")
+		expect(remove).not.toHaveBeenCalled()
+	})
+
 	test("resolveWebviewView adds the configured storage root to localResourceRoots when storage is redirected", async () => {
 		// Simulate `customStoragePath` redirecting storage to a different drive/directory.
 		vi.mocked(getStorageBasePath).mockResolvedValue("/custom/storage/root")
@@ -548,7 +564,19 @@ describe("ClineProvider", () => {
 
 	describe("resolveImageRefsForWebview", () => {
 		beforeEach(async () => {
+			vi.mocked(mockWebviewView.onDidDispose).mockReturnValue({ dispose: vi.fn() })
+			vi.spyOn(provider, "postStateToWebviewWithoutClineMessages").mockResolvedValue()
+			vi.mocked(fs.readFile).mockRejectedValue(new Error("not found"))
 			await provider.resolveWebviewView(mockWebviewView)
+		})
+
+		test("renders stored image bytes as a data URL without relying on the webview resource server", async () => {
+			vi.mocked(fs.readFile).mockResolvedValueOnce(Buffer.from([137, 80, 78, 71]) as never)
+			const resolved = await provider.resolveImageRefsForWebview(
+				[{ ts: 1, type: "say", say: "text", images: ["roo-image-ref:example.png"] }],
+				"test-task-id",
+			)
+			expect(resolved[0].images).toEqual(["data:image/png;base64,iVBORw=="])
 		})
 
 		test("re-resolves bare file paths leaked by the legacy no-webview fallback", async () => {
@@ -615,8 +643,7 @@ describe("ClineProvider", () => {
 		test("rebuilds a persisted stale webview URI after its in-memory reverse map is gone", async () => {
 			const filename = `${"a".repeat(64)}.png`
 			const oldDisplayUri = `vscode-webview://old-view/file%2B.vscode-resource.vscode-cdn.net/c%3A/tasks/test-task-id/images/${filename}`
-			const newDisplayUri = { toString: () => "vscode-webview://new-view/recovered.png" }
-			;(mockWebviewView.webview.asWebviewUri as any).mockReturnValue(newDisplayUri)
+			vi.mocked(fs.readFile).mockResolvedValueOnce(Buffer.from([137, 80, 78, 71]) as never)
 
 			const resolved = await provider.resolveImageRefsForWebview(
 				[
@@ -630,7 +657,7 @@ describe("ClineProvider", () => {
 				"test-task-id",
 			)
 
-			expect(resolved[0].images).toEqual(["vscode-webview://new-view/recovered.png"])
+			expect(resolved[0].images).toEqual(["data:image/png;base64,iVBORw=="])
 		})
 
 		test("passes legacy data URIs through untouched (fast path)", async () => {

@@ -2,7 +2,6 @@ import {
 	type ClineAsk,
 	type ClineSayTool,
 	type McpServerUse,
-	type FollowUpData,
 	type ExtensionState,
 	isNonBlockingAsk,
 } from "@roo-code/types"
@@ -83,29 +82,8 @@ export async function checkAutoApproval({
 	}
 
 	if (ask === "followup") {
-		if (state.alwaysAllowFollowupQuestions === true) {
-			try {
-				const suggestion = (JSON.parse(text || "{}") as FollowUpData).suggest?.[0]
-
-				if (
-					suggestion &&
-					typeof state.followupAutoApproveTimeoutMs === "number" &&
-					state.followupAutoApproveTimeoutMs > 0
-				) {
-					return {
-						decision: "timeout",
-						timeout: state.followupAutoApproveTimeoutMs,
-						fn: () => ({ askResponse: "messageResponse", text: suggestion.answer }),
-					}
-				} else {
-					return { decision: "ask" }
-				}
-			} catch (error) {
-				return { decision: "ask" }
-			}
-		} else {
-			return { decision: "ask" }
-		}
+		// Existing settings must not turn a timeout into a user decision.
+		return { decision: "ask" }
 	}
 
 	if (ask === "use_mcp_server") {
@@ -227,8 +205,7 @@ function checkSandboxApproval({
 	text?: string
 	isProtected?: boolean
 }): CheckAutoApprovalResult {
-	// Follow-up questions: a human is present in this mode — always wait, never
-	// auto-select. (The legacy countdown lives only in "manual" mode.)
+	// Follow-up questions wait for an explicit response.
 	if (ask === "followup") {
 		return { decision: "ask" }
 	}

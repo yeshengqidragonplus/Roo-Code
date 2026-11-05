@@ -1,6 +1,7 @@
 import os from "os"
 import * as path from "path"
 import fs from "fs/promises"
+import crypto from "crypto"
 import EventEmitter from "events"
 
 import { Anthropic } from "@anthropic-ai/sdk"
@@ -91,9 +92,11 @@ import {
 	extractImageRefFromWebviewUri,
 	isBareFilePath,
 	isImageRef,
+	refToDataUrl,
 	resolveImagesForDisplay,
 } from "../../integrations/misc/image-store"
 import { registerWebviewImageUri, resolveWebviewImageUri } from "../../integrations/misc/image-handler"
+import { readImageAsDataUrlWithBuffer } from "../tools/helpers/imageHelpers"
 import { getTaskDirectoryPath, getStorageBasePath } from "../../utils/storage"
 import { stampSubtaskChildIds, windowClineMessages, olderClineMessagesBefore } from "./clineMessagesWindow"
 import { readApiMessages, saveApiMessages, saveTaskMessages, TaskHistoryStore } from "../task-persistence"
@@ -102,6 +105,7 @@ import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
 import { REQUESTY_BASE_URL } from "../../shared/utils/requesty"
 import { validateAndFixToolResultIds } from "../task/validateToolResultIds"
+import { ScheduledTaskService, type ScheduledTask } from "./scheduledTask"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -175,6 +179,8 @@ export class ClineProvider
 	public settingsImportedAt?: number
 	public readonly providerSettingsManager: ProviderSettingsManager
 	public readonly customModesManager: CustomModesManager
+	private readonly scheduledTaskService: ScheduledTaskService
+	private topLevelTaskStarting = false
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -209,6 +215,48 @@ export class ClineProvider
 			await this.postStateToWebviewWithoutClineMessages()
 		})
 
+		this.scheduledTaskService = new ScheduledTaskService({
+			load: () => this.context.workspaceState.get<ScheduledTask>("qcode.scheduledTask"),
+			save: async (task) => {
+				await this.context.workspaceState.update("qcode.scheduledTask", task)
+			},
+			claim: async (id) => {
+				if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("无效的定时任务标识")
+				const dir = path.join(this.contextProxy.globalStorageUri.fsPath, "scheduled-claims")
+				await fs.mkdir(dir, { recursive: true })
+				try {
+					const handle = await fs.open(path.join(dir, id), "wx")
+					await handle.close()
+					return true
+				} catch (error) {
+					if ((error as NodeJS.ErrnoException).code === "EEXIST") return false
+					throw error
+				}
+			},
+			execute: async (task) => {
+				if (this.hasWorkspaceActiveTask()) throw new Error("当前项目已有会话，未自动启动；请关闭会话后重新安排")
+				const state = await this.getState()
+				if (state.mode !== task.mode || state.currentApiConfigName !== task.apiConfigName) {
+					throw new Error("模式或模型配置已变化，请确认后重新安排")
+				}
+				await this.createTask(task.text, task.images, undefined, {
+					reviewerChoiceEnabled: task.reviewerChoiceEnabled,
+					failIfTaskActive: true,
+				})
+			},
+			notify: (task) => {
+				if (task.status === "started") void vscode.window.showInformationMessage("定时任务已启动")
+				else void vscode.window.showWarningMessage(`定时任务未启动：${task.error ?? task.status}`)
+				void this.postStateToWebviewWithoutClineMessages().catch((error) => {
+					this.log(
+						`Failed to refresh scheduled task state: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				})
+			},
+			now: Date.now,
+		})
+		this.scheduledTaskService.arm()
+
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)
 			.then((hub) => {
@@ -217,7 +265,11 @@ export class ClineProvider
 				// The initial state may have been posted before the asynchronous MCP
 				// hub finished loading. Publish again so settings (including the Mode
 				// MCP assignment list) receives every configured server immediately.
-				void this.postStateToWebviewWithoutClineMessages()
+				void this.postStateToWebviewWithoutClineMessages().catch((error) => {
+					this.log(
+						`Failed to refresh webview after MCP initialization: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				})
 			})
 			.catch((error) => {
 				this.log(`Failed to initialize MCP Hub: ${error}`)
@@ -577,6 +629,7 @@ export class ClineProvider
 		}
 
 		this._disposed = true
+		this.scheduledTaskService.dispose()
 		this.log("Disposing ClineProvider...")
 
 		// Clear all tasks from the stack.
@@ -2074,7 +2127,7 @@ export class ClineProvider
 	 *   without interfering with task message streaming.
 	 */
 	async postStateToWebviewWithoutClineMessages(): Promise<void> {
-		const state = await this.getStateToPostToWebview()
+		const state = await this.getStateToPostToWebview({ includeMessages: false })
 		const { clineMessages: _omitMessages, taskHistory: _omitHistory, ...rest } = state
 		this.postMessageToWebview({ type: "state", state: rest })
 	}
@@ -2135,7 +2188,9 @@ export class ClineProvider
 		}
 	}
 
-	async getStateToPostToWebview(): Promise<ExtensionState> {
+	async getStateToPostToWebview({
+		includeMessages = true,
+	}: { includeMessages?: boolean } = {}): Promise<ExtensionState> {
 		// Ensure the store is initialized before reading task history
 		await this.taskHistoryStore.initialized
 
@@ -2234,9 +2289,10 @@ export class ClineProvider
 		const currentTaskChildIds = currentTask ? (this.taskHistoryStore.get(currentTask.taskId)?.childIds ?? []) : []
 		const fullMessages = currentTask ? stampSubtaskChildIds(currentTask.clineMessages, currentTaskChildIds) : []
 		const clineMessagesTotal = fullMessages.length
-		const clineMessagesForWebview = currentTask
-			? await this.resolveImageRefsForWebview(windowClineMessages(fullMessages), currentTask.taskId)
-			: []
+		const clineMessagesForWebview =
+			currentTask && includeMessages
+				? await this.resolveImageRefsForWebview(windowClineMessages(fullMessages), currentTask.taskId)
+				: []
 
 		// Project the current workflow session (if any) for visualization.
 		let workflowViz: WorkflowVizPayload | undefined
@@ -2285,8 +2341,15 @@ export class ClineProvider
 			autoCondenseContextMessageCount: autoCondenseContextMessageCount ?? 0,
 			uriScheme: vscode.env.uriScheme,
 			currentTaskId: currentTask?.taskId,
+			scheduledTask: (() => {
+				const task = this.context.workspaceState.get<ScheduledTask>("qcode.scheduledTask")
+				return task
+					? { id: task.id, dueAt: task.dueAt, mode: task.mode, status: task.status, error: task.error }
+					: undefined
+			})(),
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
 			clineMessages: clineMessagesForWebview,
+			reviewerChoiceEnabled: currentTask?.reviewerChoiceEnabled ?? false,
 			clineMessagesTotal,
 			currentTaskTodos: currentTask?.todoList || [],
 			messageQueue: currentTask?.messageQueueService?.messages,
@@ -2813,90 +2876,135 @@ export class ClineProvider
 		options: CreateTaskOptions = {},
 		configuration: RooCodeSettings = {},
 	): Promise<Task> {
-		if (configuration) {
-			await this.setValues(configuration)
+		if (!parentTask && this.topLevelTaskStarting) throw new Error("另一个会话正在启动，请稍后重试")
+		if (!parentTask) this.topLevelTaskStarting = true
+		try {
+			if (configuration) {
+				await this.setValues(configuration)
 
-			if (configuration.allowedCommands) {
-				await vscode.workspace
-					.getConfiguration(Package.name)
-					.update("allowedCommands", configuration.allowedCommands, vscode.ConfigurationTarget.Global)
-			}
+				if (configuration.allowedCommands) {
+					await vscode.workspace
+						.getConfiguration(Package.name)
+						.update("allowedCommands", configuration.allowedCommands, vscode.ConfigurationTarget.Global)
+				}
 
-			if (configuration.deniedCommands) {
-				await vscode.workspace
-					.getConfiguration(Package.name)
-					.update("deniedCommands", configuration.deniedCommands, vscode.ConfigurationTarget.Global)
-			}
+				if (configuration.deniedCommands) {
+					await vscode.workspace
+						.getConfiguration(Package.name)
+						.update("deniedCommands", configuration.deniedCommands, vscode.ConfigurationTarget.Global)
+				}
 
-			if (configuration.commandExecutionTimeout !== undefined) {
-				await vscode.workspace
-					.getConfiguration(Package.name)
-					.update(
-						"commandExecutionTimeout",
-						configuration.commandExecutionTimeout,
-						vscode.ConfigurationTarget.Global,
-					)
-			}
+				if (configuration.commandExecutionTimeout !== undefined) {
+					await vscode.workspace
+						.getConfiguration(Package.name)
+						.update(
+							"commandExecutionTimeout",
+							configuration.commandExecutionTimeout,
+							vscode.ConfigurationTarget.Global,
+						)
+				}
 
-			if (configuration.currentApiConfigName) {
-				await this.setProviderProfile(configuration.currentApiConfigName)
-			}
+				if (configuration.currentApiConfigName) {
+					await this.setProviderProfile(configuration.currentApiConfigName)
+				}
 
-			// Register custom modes so the CustomModesManager knows about them.
-			// setValues writes to global state, but the manager overwrites that
-			// when it merges .roomodes + global settings on refresh.  Persisting
-			// via updateCustomMode ensures modes survive the merge cycle.
-			if (configuration.customModes?.length) {
-				for (const mode of configuration.customModes) {
-					await this.customModesManager.updateCustomMode(mode.slug, mode)
+				// Register custom modes so the CustomModesManager knows about them.
+				// setValues writes to global state, but the manager overwrites that
+				// when it merges .roomodes + global settings on refresh.  Persisting
+				// via updateCustomMode ensures modes survive the merge cycle.
+				if (configuration.customModes?.length) {
+					for (const mode of configuration.customModes) {
+						await this.customModesManager.updateCustomMode(mode.slug, mode)
+					}
 				}
 			}
-		}
 
-		const { apiConfiguration, organizationAllowList, enableCheckpoints, checkpointTimeout, experiments } =
-			await this.getState()
+			const { apiConfiguration, organizationAllowList, enableCheckpoints, checkpointTimeout, experiments } =
+				await this.getState()
 
-		// Single-open-task invariant: always enforce for user-initiated top-level tasks
-		if (!parentTask) {
-			try {
-				await this.removeClineFromStack()
-			} catch {
-				// Non-fatal
+			// Single-open-task invariant: always enforce for user-initiated top-level tasks
+			if (!parentTask) {
+				if (options.failIfTaskActive && this.hasWorkspaceActiveTask(true)) {
+					throw new Error("当前已有会话，未自动启动；请关闭会话后重新安排")
+				}
+				try {
+					await this.removeClineFromStack()
+				} catch {
+					// Non-fatal
+				}
 			}
-		}
 
-		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
-			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
-		}
+			if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
+				throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
+			}
 
-		const task = new Task({
-			provider: this,
-			apiConfiguration,
-			enableCheckpoints,
-			checkpointTimeout,
-			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
-			task: text,
+			const task = new Task({
+				provider: this,
+				apiConfiguration,
+				enableCheckpoints,
+				checkpointTimeout,
+				consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+				task: text,
+				images,
+				experiments,
+				rootTask: this.clineStack.length > 0 ? this.clineStack[0] : undefined,
+				parentTask,
+				taskNumber: this.clineStack.length + 1,
+				onCreated: this.taskCreationCallback,
+				initialTodos: options.initialTodos,
+				// Ensure this task is present in clineStack before startTask() emits
+				// its initial state update, so state.currentTaskId is available ASAP.
+				startTask: false,
+				...options,
+			})
+
+			await this.addClineToStack(task)
+			task.start()
+
+			this.log(
+				`[createTask] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
+			)
+
+			return task
+		} finally {
+			if (!parentTask) this.topLevelTaskStarting = false
+		}
+	}
+
+	public async scheduleNewTask(
+		text: string,
+		images: string[] | undefined,
+		dueAt: number,
+		reviewerChoiceEnabled: boolean,
+	): Promise<void> {
+		if (this.hasWorkspaceActiveTask()) throw new Error("请先关闭当前项目的会话，再安排新的定时任务")
+		if (!text.trim() && !images?.length) throw new Error("请输入任务内容")
+		const state = await this.getState()
+		await this.scheduledTaskService.schedule({
+			id: crypto.randomUUID(),
+			dueAt,
+			text,
 			images,
-			experiments,
-			rootTask: this.clineStack.length > 0 ? this.clineStack[0] : undefined,
-			parentTask,
-			taskNumber: this.clineStack.length + 1,
-			onCreated: this.taskCreationCallback,
-			initialTodos: options.initialTodos,
-			// Ensure this task is present in clineStack before startTask() emits
-			// its initial state update, so state.currentTaskId is available ASAP.
-			startTask: false,
-			...options,
+			mode: state.mode ?? defaultModeSlug,
+			apiConfigName: state.currentApiConfigName,
+			reviewerChoiceEnabled,
+			status: "pending",
 		})
+		await this.postStateToWebviewWithoutClineMessages()
+	}
 
-		await this.addClineToStack(task)
-		task.start()
+	public async cancelScheduledTask(): Promise<void> {
+		await this.scheduledTaskService.cancel()
+		await this.postStateToWebviewWithoutClineMessages()
+	}
 
-		this.log(
-			`[createTask] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
+	private hasWorkspaceActiveTask(ignoreOwnStart = false): boolean {
+		return Array.from(ClineProvider.activeInstances).some(
+			(provider) =>
+				provider.cwd === this.cwd &&
+				(!!provider.getCurrentTask() ||
+					(provider.topLevelTaskStarting && !(ignoreOwnStart && provider === this))),
 		)
-
-		return task
 	}
 
 	public async cancelTask(): Promise<void> {
@@ -3804,21 +3912,40 @@ export class ClineProvider
 			return messages
 		}
 
-		return messages.map((m) => {
-			if (!m.images?.some(needsResolution)) {
-				return m
-			}
-			const cleaned = m.images
-				.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
-				.map((img) => resolveWebviewImageUri(img) ?? extractImageRefFromWebviewUri(img) ?? img)
-			if (cleaned.length === 0) {
-				return { ...m, images: [] }
-			}
-			return {
-				...m,
-				images: resolveImagesForDisplay(taskDir, cleaned, (absPath) => this.convertToWebviewUri(absPath)),
-			}
-		})
+		return Promise.all(
+			messages.map(async (m) => {
+				if (!m.images?.some(needsResolution)) {
+					return m
+				}
+				const cleaned = m.images
+					.filter((img) => img !== TRANSPARENT_PLACEHOLDER_DATA_URL)
+					.map((img) => resolveWebviewImageUri(img) ?? extractImageRefFromWebviewUri(img) ?? img)
+				if (cleaned.length === 0) {
+					return { ...m, images: [] }
+				}
+				const images = await Promise.all(
+					cleaned.map(async (img) => {
+						if (isImageRef(img)) {
+							try {
+								return await refToDataUrl(taskDir, img)
+							} catch (error) {
+								console.warn("Failed to read stored task image for display:", error)
+							}
+						} else if (isBareFilePath(img)) {
+							try {
+								return (await readImageAsDataUrlWithBuffer(img)).dataUrl
+							} catch (error) {
+								console.warn("Failed to read local image for display:", error)
+							}
+						}
+						return resolveImagesForDisplay(taskDir, [img], (absPath) =>
+							this.convertToWebviewUri(absPath),
+						)[0]
+					}),
+				)
+				return { ...m, images }
+			}),
+		)
 	}
 
 	/** Single-message variant of {@link resolveImageRefsForWebview} for streaming updates. */

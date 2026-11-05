@@ -83,6 +83,16 @@ describe("expertModeFields includes toolPolicy", () => {
 })
 
 describe("expertKindSchema", () => {
+	it("preserves the configured workgroup reviewer", () => {
+		const config = modeConfigSchema.parse({
+			slug: "team",
+			name: "Team",
+			roleDefinition: "Coordinate",
+			groups: ["read"],
+			workgroup: { leadModeSlug: "lead", colleagueSlugs: ["reviewer"], reviewerModeSlug: "reviewer" },
+		})
+		expect(config.workgroup?.reviewerModeSlug).toBe("reviewer")
+	})
 	it("accepts autonomous and workflow", () => {
 		expect(expertKindSchema.parse("autonomous")).toBe("autonomous")
 		expect(expertKindSchema.parse("workflow")).toBe("workflow")

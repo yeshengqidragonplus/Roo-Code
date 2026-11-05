@@ -38,12 +38,17 @@ describe("AutoApproveToggle", () => {
 			</TranslationProvider>,
 		)
 
-		Object.values(autoApproveSettingsConfig).forEach((config) => {
-			const button = screen.getByTestId(config.testId)
-			expect(button).toBeInTheDocument()
-			expect(button).toHaveAttribute("aria-label", config.labelKey)
-			expect(button).toHaveAttribute("aria-pressed", String(initialProps[config.key]))
-		})
+		Object.values(autoApproveSettingsConfig)
+			.filter((config) => config.key !== "alwaysAllowFollowupQuestions")
+			.forEach((config) => {
+				const button = screen.getByTestId(config.testId)
+				expect(button).toBeInTheDocument()
+				expect(button).toHaveAttribute("aria-label", config.labelKey)
+				expect(button).toHaveAttribute("aria-pressed", String(initialProps[config.key]))
+			})
+		expect(
+			screen.queryByTestId(autoApproveSettingsConfig.alwaysAllowFollowupQuestions.testId),
+		).not.toBeInTheDocument()
 	})
 
 	test("calls onToggle with the correct key and value when a button is clicked", () => {

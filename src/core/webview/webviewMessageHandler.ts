@@ -615,7 +615,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					resolved.text,
 					resolved.images,
 					undefined,
-					{ taskId: message.taskId },
+					{ taskId: message.taskId, reviewerChoiceEnabled: message.values?.reviewerChoiceEnabled === true },
 					message.taskConfiguration,
 				)
 				// Task created successfully - notify the UI to reset
@@ -628,6 +628,38 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					`Failed to create task: ${error instanceof Error ? error.message : String(error)}`,
 				)
 			}
+			break
+		case "setReviewerChoiceEnabled": {
+			const task = provider.getCurrentTask()
+			if (task) {
+				task.reviewerChoiceEnabled = message.bool === true
+				const item = provider.taskHistoryStore.get(task.taskId)
+				if (item)
+					await provider.updateTaskHistory({ ...item, reviewerChoiceEnabled: task.reviewerChoiceEnabled })
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "scheduleNewTask": {
+			try {
+				const resolved = await resolveIncomingImages({ text: message.text, images: message.images })
+				await provider.scheduleNewTask(
+					resolved.text,
+					resolved.images,
+					Number(message.values?.dueAt),
+					message.values?.reviewerChoiceEnabled === true,
+				)
+				await provider.postMessageToWebview({ type: "scheduledTaskCreated" })
+				await vscode.window.showInformationMessage("定时任务已安排；请保持 VS Code 和项目窗口打开。")
+			} catch (error) {
+				await vscode.window.showErrorMessage(
+					`无法安排定时任务：${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+			break
+		}
+		case "cancelScheduledTask":
+			await provider.cancelScheduledTask()
 			break
 		case "customInstructions":
 			await provider.updateCustomInstructions(message.text)

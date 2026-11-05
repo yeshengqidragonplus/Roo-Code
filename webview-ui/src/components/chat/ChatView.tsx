@@ -68,6 +68,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const {
 		clineMessages: messages,
 		currentTaskItem,
+		currentTaskId,
 		currentTaskTodos,
 		taskHistory,
 		apiConfiguration,
@@ -81,7 +82,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		messageQueue = [],
 		showWorktreesInHomeScreen,
 		clineMessagesTotal,
+		reviewerChoiceEnabled,
+		scheduledTask,
 	} = useExtensionState()
+	const [newTaskReviewerChoice, setNewTaskReviewerChoice] = useState(false)
+	const [scheduledLocalTime, setScheduledLocalTime] = useState("")
+	const currentWorkgroup = customModes.find((item) => item.slug === (currentTaskItem?.mode ?? mode))?.workgroup
+	const reviewerAvailable =
+		!!currentWorkgroup?.reviewerModeSlug &&
+		currentWorkgroup.colleagueSlugs.includes(currentWorkgroup.reviewerModeSlug)
+	useEffect(() => {
+		if (currentTaskId) setNewTaskReviewerChoice(false)
+	}, [currentTaskId])
 
 	// Show a WarningRow when the user sends a message with a retired provider.
 	const [showRetiredProviderWarning, setShowRetiredProviderWarning] = useState(false)
@@ -562,6 +574,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		setInputValue("")
 		setSendingDisabled(true)
 		setSelectedImages([])
+		setNewTaskReviewerChoice(false)
 		setClineAsk(undefined)
 		setEnableButtons(false)
 		// Do not reset mode here as it should persist.
@@ -615,7 +628,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				userRespondedRef.current = true
 
 				if (messagesRef.current.length === 0) {
-					vscode.postMessage({ type: "newTask", text, images })
+					vscode.postMessage({
+						type: "newTask",
+						text,
+						images,
+						values: { reviewerChoiceEnabled: newTaskReviewerChoice },
+					})
 				} else if (clineAskRef.current) {
 					if (clineAskRef.current === "followup") {
 						markFollowUpAsAnswered()
@@ -657,6 +675,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			isStreaming,
 			messageQueue.length,
 			apiConfiguration?.apiProvider,
+			newTaskReviewerChoice,
 		], // messagesRef and clineAskRef are stable
 	)
 
@@ -847,6 +866,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			const message: ExtensionMessage = e.data
 
 			switch (message.type) {
+				case "scheduledTaskCreated":
+					setInputValue("")
+					setSelectedImages([])
+					setNewTaskReviewerChoice(false)
+					setScheduledLocalTime("")
+					break
 				case "action":
 					switch (message.action!) {
 						case "didBecomeVisible":
@@ -1822,6 +1847,70 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						onAction={() => vscode.postMessage({ type: "switchTab", tab: "settings" })}
 					/>
 				</div>
+			)}
+			{scheduledTask && (
+				<div className="flex items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
+					<span>
+						定时任务：{new Date(scheduledTask.dueAt).toLocaleString()} ·{" "}
+						{
+							({ pending: "等待启动", started: "已启动", missed: "已错过", failed: "启动失败" } as const)[
+								scheduledTask.status
+							]
+						}
+						{scheduledTask.error ? ` · ${scheduledTask.error}` : ""}
+					</span>
+					<button
+						type="button"
+						className="underline"
+						onClick={() => vscode.postMessage({ type: "cancelScheduledTask" })}>
+						{scheduledTask.status === "pending" ? "取消" : "清除"}
+					</button>
+				</div>
+			)}
+			{!currentTaskId && !scheduledTask && (
+				<div className="flex flex-wrap items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
+					<label>
+						定时启动{" "}
+						<input
+							type="datetime-local"
+							className="rounded border border-vscode-input-border bg-vscode-input-background px-2 py-1 text-vscode-input-foreground"
+							value={scheduledLocalTime}
+							onChange={(event) => setScheduledLocalTime(event.target.value)}
+						/>
+					</label>
+					<button
+						type="button"
+						className="underline"
+						disabled={!scheduledLocalTime || (!inputValue.trim() && selectedImages.length === 0)}
+						onClick={() =>
+							vscode.postMessage({
+								type: "scheduleNewTask",
+								text: inputValue.trim(),
+								images: selectedImages,
+								values: {
+									dueAt: new Date(scheduledLocalTime).getTime(),
+									reviewerChoiceEnabled: newTaskReviewerChoice,
+								},
+							})
+						}>
+						安排任务
+					</button>
+					<span>需保持 VS Code 和项目打开；到点时须无活动会话且模式、模型未变，错过两分钟不补跑。</span>
+				</div>
+			)}
+			{reviewerAvailable && (
+				<label className="flex items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
+					<input
+						type="checkbox"
+						checked={currentTaskId ? !!reviewerChoiceEnabled : newTaskReviewerChoice}
+						onChange={(event) => {
+							const enabled = event.target.checked
+							if (currentTaskId) vscode.postMessage({ type: "setReviewerChoiceEnabled", bool: enabled })
+							else setNewTaskReviewerChoice(enabled)
+						}}
+					/>
+					本次会话由审核同事代答选择题
+				</label>
 			)}
 			<ChatTextArea
 				ref={textAreaRef}

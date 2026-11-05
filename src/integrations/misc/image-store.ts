@@ -183,6 +183,9 @@ export function resolveDisplayImage(taskDir: string, image: string, toDisplayUri
 	if (isDataUrl(image)) {
 		return image
 	}
+	if (!isBareFilePath(image)) {
+		return image
+	}
 	// Bare file path — not renderable under the webview CSP; re-resolve it.
 	return toDisplayUri(image)
 }

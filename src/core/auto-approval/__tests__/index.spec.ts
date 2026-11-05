@@ -62,7 +62,7 @@ describe("checkAutoApproval — zero-impact guarantee (manual / undefined mode)"
 		expect(on).toEqual({ decision: "approve" })
 	})
 
-	it("legacy followup countdown path is untouched in manual mode", async () => {
+	it("waits for followup answers even with the legacy countdown setting enabled", async () => {
 		const result = await decide({
 			state: {
 				autoApprovalEnabled: true,
@@ -72,7 +72,7 @@ describe("checkAutoApproval — zero-impact guarantee (manual / undefined mode)"
 			ask: "followup",
 			text: JSON.stringify({ suggest: [{ answer: "yes" }] }),
 		})
-		expect(result.decision).toBe("timeout")
+		expect(result.decision).toBe("ask")
 	})
 })
 

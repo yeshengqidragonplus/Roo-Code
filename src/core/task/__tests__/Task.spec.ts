@@ -22,6 +22,8 @@ vi.mock("delay", () => ({
 }))
 
 import delay from "delay"
+import pWaitFor from "p-wait-for"
+import * as reviewer from "../../auto-approval/reviewer"
 
 vi.mock("uuid", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("uuid")>()
@@ -197,6 +199,133 @@ describe("Cline", () => {
 	let mockApiConfig: ProviderSettings
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
+
+	it("does not apply a reviewer answer after a human already replied", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerChoiceEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "Reviewer" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.spyOn(task, "checkpointSave").mockResolvedValue(undefined as never)
+		;(vscode.window as any).showInformationMessage = vi.fn()
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 100; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		let finishReview!: (answer: string) => void
+		const review = vi.spyOn(reviewer, "reviewFollowupChoice").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finishReview = resolve
+				}),
+		)
+		const responses = vi.spyOn(task, "handleWebviewAskResponse")
+		const pending = task.ask("followup", JSON.stringify({ question: "Choose", suggest: [{ answer: "model" }] }))
+		await vi.waitFor(() => expect(review).toHaveBeenCalled())
+		task.handleWebviewAskResponse("messageResponse", "human")
+		expect((await pending).text).toBe("human")
+		finishReview("model")
+		await new Promise((resolve) => setTimeout(resolve, 10))
+		expect(responses).toHaveBeenCalledTimes(1)
+		review.mockRestore()
+	})
+
+	it("uses the configured reviewer for an enabled follow-up", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerChoiceEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "Reviewer" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.spyOn(task, "checkpointSave").mockResolvedValue(undefined as never)
+		;(vscode.window as any).showInformationMessage = vi.fn()
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 100; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const review = vi.spyOn(reviewer, "reviewFollowupChoice").mockResolvedValue("model")
+		const result = await task.ask(
+			"followup",
+			JSON.stringify({ question: "Choose", suggest: [{ answer: "model" }] }),
+		)
+		expect(result).toMatchObject({ response: "messageResponse", text: "model" })
+		review.mockRestore()
+	})
+
+	it("only approves a workgroup command after the reviewer and snapshot checks pass", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "Reviewer" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		;(vscode.window as any).showInformationMessage = vi.fn()
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 100; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const prepare = vi
+			.spyOn(reviewer, "prepareCommandReview")
+			.mockResolvedValue({ command: "python -c 'print(42)'", cwd: task.cwd, cwdRealPath: task.cwd })
+		const review = vi.spyOn(reviewer, "reviewInlineCommand").mockResolvedValue(true)
+		const unchanged = vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		const result = await task.ask("command", "python -c 'print(42)'", false, undefined, false, task.cwd)
+		expect(result.response).toBe("yesButtonClicked")
+		expect(review).toHaveBeenCalledOnce()
+		expect(unchanged).toHaveBeenCalledOnce()
+		prepare.mockRestore()
+		review.mockRestore()
+		unchanged.mockRestore()
+	})
 
 	beforeEach(() => {
 		// Setup mock extension context

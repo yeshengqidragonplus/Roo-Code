@@ -91,9 +91,11 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 
 	const handleSelectAll = React.useCallback(() => {
 		// Enable all options
-		Object.keys(autoApproveSettingsConfig).forEach((key) => {
-			onAutoApproveToggle(key as AutoApproveSetting, true)
-		})
+		Object.keys(autoApproveSettingsConfig)
+			.filter((key) => key !== "alwaysAllowFollowupQuestions")
+			.forEach((key) => {
+				onAutoApproveToggle(key as AutoApproveSetting, true)
+			})
 		// Enable master auto-approval
 		if (!autoApprovalEnabled) {
 			setAutoApprovalEnabled(true)
@@ -122,15 +124,13 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 	}, [autoApprovalEnabled, setAutoApprovalEnabled])
 
 	// Calculate enabled and total counts as separate properties
-	const settingsArray = Object.values(autoApproveSettingsConfig)
+	const settingsArray = Object.values(autoApproveSettingsConfig).filter(
+		({ key }) => key !== "alwaysAllowFollowupQuestions",
+	)
 
-	const enabledCount = React.useMemo(() => {
-		return Object.values(toggles).filter((value) => !!value).length
-	}, [toggles])
+	const enabledCount = settingsArray.filter(({ key }) => !!toggles[key]).length
 
-	const totalCount = React.useMemo(() => {
-		return Object.keys(toggles).length
-	}, [toggles])
+	const totalCount = settingsArray.length
 
 	const { effectiveAutoApprovalEnabled } = useAutoApprovalState(toggles, autoApprovalEnabled)
 

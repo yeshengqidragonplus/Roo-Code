@@ -182,19 +182,9 @@ export const ChatRowContent = ({
 }: ChatRowContentProps) => {
 	const { t, i18n } = useTranslation()
 
-	const {
-		mcpServers,
-		alwaysAllowMcp,
-		currentCheckpoint,
-		mode,
-		apiConfiguration,
-		clineMessages,
-		currentTaskItem,
-		autoApprovalMode,
-		customModes,
-	} = useExtensionState()
-	const isWorkgroupMode = customModes.find((customMode) => customMode.slug === mode)?.workgroup !== undefined
-	const disableFollowUpAutoApprovalCountdown = autoApprovalMode === "sandbox" || isWorkgroupMode
+	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode, apiConfiguration, clineMessages, currentTaskItem } =
+		useExtensionState()
+	const disableFollowUpAutoApprovalCountdown = true
 	const { info: model } = useSelectedModel(apiConfiguration)
 	const [isEditing, setIsEditing] = useState(false)
 	const [editedContent, setEditedContent] = useState("")

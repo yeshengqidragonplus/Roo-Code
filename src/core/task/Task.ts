@@ -51,6 +51,7 @@ import {
 	MIN_CHECKPOINT_TIMEOUT_SECONDS,
 	MAX_MCP_TOOLS_THRESHOLD,
 	countEnabledMcpTools,
+	followUpDataSchema,
 } from "@roo-code/types"
 
 // api
@@ -88,6 +89,13 @@ import { recordMemorySample, isMemoryProbeEnabled } from "../../utils/memoryProb
 import { storeImages } from "../../integrations/misc/image-store"
 import { sanitizeToolUseId } from "../../utils/tool-id"
 import { getTaskDirectoryPath } from "../../utils/storage"
+import {
+	isCommandSnapshotUnchanged,
+	prepareCommandReview,
+	reviewFollowupChoice,
+	reviewInlineCommand,
+	withReviewerTimeout,
+} from "../auto-approval/reviewer"
 
 // prompts
 import { formatResponse } from "../prompts/responses"
@@ -184,6 +192,7 @@ export interface TaskOptions extends CreateTaskOptions {
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
+	public reviewerChoiceEnabled: boolean
 	readonly taskId: string
 	readonly rootTaskId?: string
 	readonly parentTaskId?: string
@@ -352,6 +361,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private askResponseImages?: string[]
 	public lastMessageTs?: number
 	private autoApprovalTimeoutRef?: NodeJS.Timeout
+	private activeReviewerAsk?: symbol
 
 	// Tool Use
 	consecutiveMistakeCount: number = 0
@@ -472,8 +482,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		initialTodos,
 		workspacePath,
 		initialStatus,
+		reviewerChoiceEnabled = false,
 	}: TaskOptions) {
 		super()
+		this.reviewerChoiceEnabled = historyItem?.reviewerChoiceEnabled ?? reviewerChoiceEnabled
 
 		if (startTask && !task && !images && !historyItem) {
 			throw new Error("Either historyItem or task/images must be provided")
@@ -774,6 +786,48 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const state = provider ? await provider.getState() : undefined
 		const mode = getModeBySlug(await this.getTaskMode(), state?.customModes)
 		return mode?.workgroup !== undefined
+	}
+
+	/** Resolve the reviewer's own profile without changing the main session's model. */
+	private async getWorkgroupReviewer(): Promise<
+		{ mode: NonNullable<ReturnType<typeof getModeBySlug>>; api: ApiHandler } | undefined
+	> {
+		const provider = this.providerRef.deref()
+		if (!provider) return undefined
+		const state = await provider.getState()
+		const group = getModeBySlug(await this.getTaskMode(), state.customModes)?.workgroup
+		const slug = group?.reviewerModeSlug
+		if (!slug || !group.colleagueSlugs.includes(slug) || slug === group.leadModeSlug) return undefined
+		const mode = getModeBySlug(slug, state.customModes)
+		if (!mode || mode.workgroup || mode.kind === "workflow") return undefined
+		const id = mode.apiProfile ? undefined : await provider.providerSettingsManager.getModeConfigId(slug)
+		if (!mode.apiProfile && !id) return undefined
+		const profile = await provider.providerSettingsManager.getProfile(
+			mode.apiProfile ? { name: mode.apiProfile } : { id: id! },
+		)
+		if (!profile.apiProvider) return undefined
+		return { mode, api: buildApiHandler(profile) }
+	}
+
+	private async isCurrentWorkgroupReviewer(slug: string): Promise<boolean> {
+		const provider = this.providerRef.deref()
+		if (!provider) return false
+		const state = await provider.getState()
+		const group = getModeBySlug(await this.getTaskMode(), state.customModes)?.workgroup
+		return group?.reviewerModeSlug === slug && group.colleagueSlugs.includes(slug) && group.leadModeSlug !== slug
+	}
+
+	private getReviewerTaskContext(): string {
+		const messages = this.clineMessages.filter(
+			(message) =>
+				message.type === "say" && ["text", "user_feedback"].includes(message.say ?? "") && !!message.text,
+		)
+		const initial = messages[0]?.text ?? ""
+		const recent = messages
+			.slice(-8)
+			.map((message) => message.text ?? "")
+			.join("\n---\n")
+		return `Task: ${initial.slice(0, 4000)}\nRecent conversation:\n${recent.slice(-12000)}`
 	}
 
 	/**
@@ -1236,6 +1290,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				globalStoragePath: this.globalStoragePath,
 				workspace: this.cwd,
 				mode: this._taskMode || defaultModeSlug, // Use the task's own mode, not the current provider mode.
+				reviewerChoiceEnabled: this.reviewerChoiceEnabled,
 				apiConfigName: this._taskApiConfigName, // Use the task's own provider profile, not the current provider profile.
 				initialStatus: this.initialStatus,
 			})
@@ -1274,6 +1329,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		partial?: boolean,
 		progressStatus?: ToolProgressStatus,
 		isProtected?: boolean,
+		commandCwd?: string,
 	): Promise<{ response: ClineAskResponse; text?: string; images?: string[] }> {
 		// If this Cline instance was aborted by the provider, then the only
 		// thing keeping us alive is a promise still running in the background,
@@ -1366,11 +1422,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		let timeouts: NodeJS.Timeout[] = []
+		const reviewerAskToken = Symbol("reviewer-ask")
+		this.activeReviewerAsk = reviewerAskToken
 
 		// Automatically approve if the ask according to the user's settings.
 		const provider = this.providerRef.deref()
 		const state = provider ? await provider.getState() : undefined
 		const isWorkgroup = await this.isWorkgroupMode()
+		const reviewOriginMode = isWorkgroup ? await this.getTaskMode() : undefined
 		const approvalState = isWorkgroup ? { ...state, autoApprovalMode: "sandbox" as const } : state
 		const useProjectCommandTrust =
 			type === "command" && text && (isWorkgroup || state?.autoApprovalMode === "sandbox")
@@ -1382,6 +1441,101 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			isProtected,
 			workgroupCommandTrusted,
 		})
+
+		if (isWorkgroup && type === "command" && approval.decision === "ask" && text && commandCwd) {
+			const command = text
+			void (async () => {
+				try {
+					const snapshot = await prepareCommandReview(command, commandCwd, this.cwd)
+					if (!snapshot) return
+					const reviewer = await this.getWorkgroupReviewer()
+					if (!reviewer) return
+					const allowed = await withReviewerTimeout(
+						reviewInlineCommand(
+							reviewer.api,
+							reviewer.mode,
+							this.taskId,
+							command,
+							commandCwd,
+							this.getReviewerTaskContext(),
+							snapshot,
+						),
+					)
+					if (
+						allowed &&
+						(await isCommandSnapshotUnchanged(snapshot)) &&
+						(await this.isCurrentWorkgroupReviewer(reviewer.mode.slug)) &&
+						(await this.getTaskMode()) === reviewOriginMode &&
+						!this.abort &&
+						this.activeReviewerAsk === reviewerAskToken &&
+						this.askResponse === undefined &&
+						this.lastMessageTs === askTs
+					) {
+						provider?.log(
+							`[reviewer] ${reviewer.mode.slug} approved command for task ${this.taskId}; script sha256=${snapshot.sha256 ?? "inline"}`,
+						)
+						void vscode.window.showInformationMessage(`审核同事 ${reviewer.mode.name} 已允许本次命令`)
+						this.approveAsk()
+					}
+				} catch (error) {
+					provider?.log(
+						`[reviewer] Command review failed; waiting for user: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			})()
+		}
+
+		// This runs independently from the main task. A late or invalid answer can never
+		// override a human response, a cancelled task, or a disabled session toggle.
+		if (isWorkgroup && type === "followup" && approval.decision === "ask" && this.reviewerChoiceEnabled) {
+			const parsed = followUpDataSchema.safeParse(
+				(() => {
+					try {
+						return JSON.parse(text ?? "{}")
+					} catch {
+						return undefined
+					}
+				})(),
+			)
+			if (parsed.success && parsed.data.question && parsed.data.suggest?.length) {
+				const { question, suggest } = parsed.data
+				void (async () => {
+					try {
+						const reviewer = await this.getWorkgroupReviewer()
+						if (!reviewer) return
+						const answer = await withReviewerTimeout(
+							reviewFollowupChoice(
+								reviewer.api,
+								reviewer.mode,
+								this.taskId,
+								question,
+								suggest,
+								this.getReviewerTaskContext(),
+							),
+						)
+						if (!answer || suggest.some((item) => item.answer === answer && item.mode)) return
+						if (
+							(await this.isCurrentWorkgroupReviewer(reviewer.mode.slug)) &&
+							(await this.getTaskMode()) === reviewOriginMode &&
+							!this.abort &&
+							this.activeReviewerAsk === reviewerAskToken &&
+							this.reviewerChoiceEnabled &&
+							this.askResponse === undefined &&
+							this.lastMessageTs === askTs
+						) {
+							void vscode.window.showInformationMessage(
+								`审核同事 ${reviewer.mode.name} 已代选：${answer}`,
+							)
+							this.handleWebviewAskResponse("messageResponse", answer)
+						}
+					} catch (error) {
+						provider?.log(
+							`[reviewer] Follow-up review failed; waiting for user: ${error instanceof Error ? error.message : String(error)}`,
+						)
+					}
+				})()
+			}
+		}
 
 		if (approval.decision === "approve") {
 			this.approveAsk()
@@ -1403,7 +1557,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const isMessageQueued = !this.messageQueueService.isEmpty()
 		// Keep queued user messages intact during command_output asks. Those asks
 		// are terminal flow-control, not conversational turns.
-		const shouldDrainQueuedMessageForAsk = type !== "command_output"
+		const shouldDrainQueuedMessageForAsk = type !== "command_output" && !(isWorkgroup && type === "command")
 		const isStatusMutable = !partial && isBlocking && !isMessageQueued && approval.decision === "ask"
 
 		if (isStatusMutable) {
@@ -1489,6 +1643,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			{ interval: 100 },
 		)
 
+		if (this.activeReviewerAsk === reviewerAskToken) this.activeReviewerAsk = undefined
 		if (this.lastMessageTs !== askTs) {
 			// Could happen if we send multiple asks in a row i.e. with
 			// command_output. It's important that when we know an ask could
@@ -1532,6 +1687,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		// Any response closes this review slot before asynchronous reviewer work can finish.
+		this.activeReviewerAsk = undefined
 		// Clear any pending auto-approval timeout when user responds
 		this.cancelAutoApprovalTimeout()
 

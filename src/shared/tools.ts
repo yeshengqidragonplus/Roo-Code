@@ -9,6 +9,7 @@ export type AskApproval = (
 	partialMessage?: string,
 	progressStatus?: ToolProgressStatus,
 	forceApproval?: boolean,
+	commandCwd?: string,
 ) => Promise<boolean>
 
 export type HandleError = (action: string, error: Error) => Promise<void>

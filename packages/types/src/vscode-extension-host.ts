@@ -32,6 +32,7 @@ export interface ExtensionMessage {
 		| "theme"
 		| "workspaceUpdated"
 		| "invoke"
+		| "scheduledTaskCreated"
 		| "messageUpdated"
 		| "messageWindow"
 		| "mcpServers"
@@ -314,6 +315,14 @@ export type ExtensionState = Pick<
 	version: string
 	clineMessages: ClineMessage[]
 	currentTaskId?: string
+	reviewerChoiceEnabled?: boolean
+	scheduledTask?: {
+		id: string
+		dueAt: number
+		mode: string
+		status: "pending" | "started" | "missed" | "failed"
+		error?: string
+	}
 	currentTaskItem?: HistoryItem
 	currentTaskTodos?: TodoItem[] // Initial todos for the current task
 	apiConfiguration: ProviderSettings
@@ -425,6 +434,9 @@ export interface WebviewMessage {
 		| "customInstructions"
 		| "webviewDidLaunch"
 		| "newTask"
+		| "setReviewerChoiceEnabled"
+		| "scheduleNewTask"
+		| "cancelScheduledTask"
 		| "askResponse"
 		| "requestMessageWindow"
 		| "terminalOperation"

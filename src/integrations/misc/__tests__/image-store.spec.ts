@@ -137,6 +137,13 @@ describe("image-store", () => {
 	})
 
 	describe("resolveImagesForDisplay", () => {
+		it("keeps remote URLs unchanged when resolving a mixed list", () => {
+			const toUri = vi.fn((absPath: string) => `webview:${absPath}`)
+			expect(resolveImagesForDisplay(taskDir, ["https://example.com/image.png"], toUri)).toEqual([
+				"https://example.com/image.png",
+			])
+			expect(toUri).not.toHaveBeenCalled()
+		})
 		it("maps refs through the resolver and passes base64 through unchanged", () => {
 			const toUri = (absPath: string) => `vscode-webview://host/${path.basename(absPath)}`
 			const result = resolveImagesForDisplay(
