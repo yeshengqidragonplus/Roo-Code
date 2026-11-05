@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.7（2026-11-06，SHA 8c9334d12）
+
+包含：历史图片缩略图修复、群组审核同事与会话选择代答、定时启动任务。验证：VSIX 非空（39,667,698 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `8c9334d12ab2d8bbcaffd17d50762a3fc7d1ee3e`。待安装及实际界面验证。
+
 ## 0.0.6 重打（2026-09-30，第十四次，SHA a4cb037c4）
 
 包含：历史图片缩略图 CSP 修复（`a4cb037c4`）——允许 Webview 加载 VS Code `asWebviewUri` 在桌面端生成的 HTTPS 资源地址，避免文件存在且链接可打开、但 `<img>` 被 CSP 拦截而显示破图。验证：VSIX 非空（39,655,472 bytes），其 `extension/webview-ui/build/assets/index.js` 含完整 SHA `a4cb037c437c7e010e2a84b398f368ab9d439408`。待安装。
