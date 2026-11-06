@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.7 重打（2026-11-06，SHA 90ed7a1f9）
+
+包含：会话多轮定时发送消息（`90ed7a1f9`）。验证：VSIX 39,668,278 bytes，`extension/webview-ui/build/assets/index.js` 含完整 SHA `90ed7a1f94cba06d5e476500c056e67d25e78c20`。已 `code --install-extension bin\qcode-0.0.7.vsix --force` 安装成功。
+
 ## 0.0.7（2026-11-06，SHA 8c9334d12）
 
 包含：历史图片缩略图修复、群组审核同事与会话选择代答、定时启动任务。验证：VSIX 非空（39,667,698 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `8c9334d12ab2d8bbcaffd17d50762a3fc7d1ee3e`。待安装及实际界面验证。
