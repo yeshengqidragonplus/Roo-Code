@@ -1594,12 +1594,42 @@ export const ChatRowContent = ({
 					return <ErrorRow type="mistake_limit" message={message.text || ""} errorDetails={message.text} />
 				case "command":
 					return (
-						<CommandExecution
-							executionId={message.ts.toString()}
-							text={message.text}
-							icon={icon}
-							title={title}
-						/>
+						<>
+							<CommandExecution
+								executionId={message.ts.toString()}
+								text={message.text}
+								icon={icon}
+								title={title}
+							/>
+							{message.commandReview && (
+								<div
+									className="mt-2 rounded border border-vscode-input-border p-2 text-sm"
+									role="status">
+									<div className="font-medium">
+										安全审核
+										{message.commandReview.reviewer ? ` · ${message.commandReview.reviewer}` : ""}：
+										{
+											({ reviewing: "审核中", allow: "建议允许", wait: "等待人工处理" } as const)[
+												message.commandReview.status
+											]
+										}
+									</div>
+									<div className="whitespace-pre-wrap break-words">
+										{message.commandReview.reason}
+									</div>
+									{message.commandReview.scriptPath && (
+										<div className="break-all text-vscode-descriptionForeground">
+											脚本：{message.commandReview.scriptPath}
+										</div>
+									)}
+									{message.commandReview.scriptSha256 && (
+										<div className="break-all text-vscode-descriptionForeground">
+											SHA-256：{message.commandReview.scriptSha256}
+										</div>
+									)}
+								</div>
+							)}
+						</>
 					)
 				case "use_mcp_server":
 					// Parse the message text to get the MCP server request

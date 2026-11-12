@@ -1435,7 +1435,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const approvalState = isWorkgroup ? { ...state, autoApprovalMode: "sandbox" as const } : state
 		const useProjectCommandTrust =
 			type === "command" && text && (isWorkgroup || state?.autoApprovalMode === "sandbox")
-		const workgroupCommandTrusted = useProjectCommandTrust ? await isCommandTrusted(this.cwd, text) : undefined
+		const commandSnapshot =
+			useProjectCommandTrust && commandCwd ? await prepareCommandReview(text, commandCwd, this.cwd) : undefined
+		const workgroupCommandTrusted = useProjectCommandTrust
+			? await isCommandTrusted(this.cwd, text, commandSnapshot)
+			: undefined
 		const approval = await checkAutoApproval({
 			state: approvalState,
 			ask: type,
@@ -1444,15 +1448,56 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			workgroupCommandTrusted,
 		})
 
-		if (isWorkgroup && type === "command" && approval.decision === "ask" && text && commandCwd) {
+		const publishCommandReview = async (review: NonNullable<ClineMessage["commandReview"]>) => {
+			if (
+				this.abort ||
+				this.activeReviewerAsk !== reviewerAskToken ||
+				this.askResponse !== undefined ||
+				this.lastMessageTs !== askTs
+			)
+				return
+			const message = this.findMessageByTimestamp(askTs)
+			if (!message || message.ask !== "command") return
+			message.commandReview = review
+			await this.updateClineMessage(message)
+			await this.saveClineMessages()
+		}
+
+		if (isWorkgroup && type === "command" && approval.decision === "ask" && text) {
 			const command = text
 			void (async () => {
 				try {
-					const snapshot = await prepareCommandReview(command, commandCwd, this.cwd)
-					if (!snapshot) return
+					const snapshot = commandSnapshot
+					if (!snapshot || !commandCwd) {
+						await publishCommandReview({
+							status: "wait",
+							reason: "未能完整确认命令、脚本及其依赖或工作目录，未自动审核；请人工检查。",
+						})
+						return
+					}
 					const reviewer = await this.getWorkgroupReviewer()
-					if (!reviewer) return
-					const allowed = await withReviewerTimeout(
+					if (!reviewer) {
+						await publishCommandReview({
+							status: "wait",
+							reason: "未配置可用的群组审核同事或其默认模型，请人工检查。",
+						})
+						return
+					}
+					await publishCommandReview({
+						status: "reviewing",
+						reason: "正在检查命令和可见脚本内容。",
+						reviewer: reviewer.mode.name,
+						scriptPath: snapshot.scriptPath,
+						scriptSha256: snapshot.sha256,
+					})
+					if (
+						this.abort ||
+						this.activeReviewerAsk !== reviewerAskToken ||
+						this.askResponse !== undefined ||
+						this.lastMessageTs !== askTs
+					)
+						return
+					const result = await withReviewerTimeout(
 						reviewInlineCommand(
 							reviewer.api,
 							reviewer.mode,
@@ -1463,9 +1508,47 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							snapshot,
 						),
 					)
+					if (!result) {
+						await publishCommandReview({
+							status: "wait",
+							reason: "审核超时（60 秒），请人工检查。",
+							reviewer: reviewer.mode.name,
+							scriptPath: snapshot.scriptPath,
+							scriptSha256: snapshot.sha256,
+						})
+						return
+					}
+					if (snapshot.requiresHuman) {
+						await publishCommandReview({
+							status: "wait",
+							reason: `脚本可能依赖未捕获的代码或动态执行，必须人工检查。审核员意见：${result.reason}`,
+							reviewer: reviewer.mode.name,
+							scriptPath: snapshot.scriptPath,
+							scriptSha256: snapshot.sha256,
+						})
+						return
+					}
+					if (result.decision !== "allow") {
+						await publishCommandReview({
+							status: "wait",
+							reason: result.reason,
+							reviewer: reviewer.mode.name,
+							scriptPath: snapshot.scriptPath,
+							scriptSha256: snapshot.sha256,
+						})
+						return
+					}
+					if (!(await isCommandSnapshotUnchanged(snapshot))) {
+						await publishCommandReview({
+							status: "wait",
+							reason: "审核后脚本或工作目录发生变化，未自动执行，请重新检查。",
+							reviewer: reviewer.mode.name,
+							scriptPath: snapshot.scriptPath,
+							scriptSha256: snapshot.sha256,
+						})
+						return
+					}
 					if (
-						allowed &&
-						(await isCommandSnapshotUnchanged(snapshot)) &&
 						(await this.isCurrentWorkgroupReviewer(reviewer.mode.slug)) &&
 						(await this.getTaskMode()) === reviewOriginMode &&
 						!this.abort &&
@@ -1473,6 +1556,35 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						this.askResponse === undefined &&
 						this.lastMessageTs === askTs
 					) {
+						await publishCommandReview({
+							status: "allow",
+							reason: result.reason,
+							reviewer: reviewer.mode.name,
+							scriptPath: snapshot.scriptPath,
+							scriptSha256: snapshot.sha256,
+						})
+						const stillUnchanged = await isCommandSnapshotUnchanged(snapshot)
+						const stillReviewer = await this.isCurrentWorkgroupReviewer(reviewer.mode.slug)
+						const stillMode = (await this.getTaskMode()) === reviewOriginMode
+						if (!stillUnchanged) {
+							await publishCommandReview({
+								status: "wait",
+								reason: "审核后脚本或工作目录发生变化，未自动执行，请重新检查。",
+								reviewer: reviewer.mode.name,
+								scriptPath: snapshot.scriptPath,
+								scriptSha256: snapshot.sha256,
+							})
+							return
+						}
+						if (
+							!stillReviewer ||
+							!stillMode ||
+							this.abort ||
+							this.activeReviewerAsk !== reviewerAskToken ||
+							this.askResponse !== undefined ||
+							this.lastMessageTs !== askTs
+						)
+							return
 						provider?.log(
 							`[reviewer] ${reviewer.mode.slug} approved command for task ${this.taskId}; script sha256=${snapshot.sha256 ?? "inline"}`,
 						)
@@ -1483,6 +1595,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					provider?.log(
 						`[reviewer] Command review failed; waiting for user: ${error instanceof Error ? error.message : String(error)}`,
 					)
+					await publishCommandReview({
+						status: "wait",
+						reason: "审核过程出错，未自动执行；请检查审核同事配置和日志。",
+					})
 				}
 			})()
 		}
@@ -1663,8 +1779,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				text &&
 				((await this.isWorkgroupMode()) || state?.autoApprovalMode === "sandbox")
 			) {
-				await trustCommand(this.cwd, text)
-				response = "yesButtonClicked"
+				const trusted = await trustCommand(this.cwd, text, commandSnapshot)
+				if (trusted) response = "yesButtonClicked"
+				else {
+					void vscode.window.showWarningMessage(
+						"无法完整确认命令及脚本内容，未加入永久信任且本次未执行；请检查后选择允许一次。",
+					)
+					response = "noButtonClicked"
+				}
 			} else {
 				response = "noButtonClicked"
 			}

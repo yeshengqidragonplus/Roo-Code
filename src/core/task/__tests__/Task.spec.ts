@@ -395,15 +395,113 @@ describe("Cline", () => {
 		const prepare = vi
 			.spyOn(reviewer, "prepareCommandReview")
 			.mockResolvedValue({ command: "python -c 'print(42)'", cwd: task.cwd, cwdRealPath: task.cwd })
-		const review = vi.spyOn(reviewer, "reviewInlineCommand").mockResolvedValue(true)
+		const review = vi
+			.spyOn(reviewer, "reviewInlineCommand")
+			.mockResolvedValue({ decision: "allow", reason: "仅输出数字" })
 		const unchanged = vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
 		const result = await task.ask("command", "python -c 'print(42)'", false, undefined, false, task.cwd)
 		expect(result.response).toBe("yesButtonClicked")
 		expect(review).toHaveBeenCalledOnce()
-		expect(unchanged).toHaveBeenCalledOnce()
+		expect(unchanged).toHaveBeenCalled()
 		prepare.mockRestore()
 		review.mockRestore()
 		unchanged.mockRestore()
+	})
+
+	it("shows reviewer risk and waits for a human when dependencies are not captured", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const prepare = vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue({
+			command: "python x.py",
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			source: "import os",
+			requiresHuman: true,
+		})
+		const review = vi
+			.spyOn(reviewer, "reviewInlineCommand")
+			.mockResolvedValue({ decision: "allow", reason: "主脚本看似安全" })
+		const pending = task.ask("command", "python x.py", false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait"))
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("必须人工检查")
+		task.handleWebviewAskResponse("noButtonClicked")
+		expect((await pending).response).toBe("noButtonClicked")
+		prepare.mockRestore()
+		review.mockRestore()
+	})
+
+	it("cannot override a human response with a late command review", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const prepare = vi
+			.spyOn(reviewer, "prepareCommandReview")
+			.mockResolvedValue({ command: "python -c 'print(42)'", cwd: task.cwd, cwdRealPath: task.cwd })
+		const unchanged = vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		let finish!: (result: reviewer.CommandReviewResult) => void
+		const review = vi.spyOn(reviewer, "reviewInlineCommand").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finish = resolve
+				}),
+		)
+		const respond = vi.spyOn(task, "handleWebviewAskResponse")
+		const pending = task.ask("command", "python -c 'print(42)'", false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(review).toHaveBeenCalled())
+		task.handleWebviewAskResponse("noButtonClicked")
+		expect((await pending).response).toBe("noButtonClicked")
+		finish({ decision: "allow", reason: "仅输出数字" })
+		await new Promise((resolve) => setTimeout(resolve, 20))
+		expect(respond).toHaveBeenCalledTimes(1)
+		prepare.mockRestore()
+		unchanged.mockRestore()
+		review.mockRestore()
 	})
 
 	beforeEach(() => {

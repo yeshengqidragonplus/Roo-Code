@@ -252,6 +252,15 @@ export const clineMessageSchema = z.object({
 	ask: clineAskSchema.optional(),
 	say: clineSaySchema.optional(),
 	text: z.string().optional(),
+	commandReview: z
+		.object({
+			status: z.enum(["reviewing", "allow", "wait"]),
+			reason: z.string(),
+			reviewer: z.string().optional(),
+			scriptPath: z.string().optional(),
+			scriptSha256: z.string().optional(),
+		})
+		.optional(),
 	images: z.array(z.string()).optional(),
 	partial: z.boolean().optional(),
 	reasoning: z.string().optional(),

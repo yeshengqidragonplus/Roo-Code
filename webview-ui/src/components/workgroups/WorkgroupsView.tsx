@@ -334,7 +334,7 @@ const WorkgroupsView = () => {
 			<div className="border-t border-vscode-descriptionForeground/20 pt-5 mt-6">
 				<div className="font-medium mb-2">命令与脚本信任白名单</div>
 				<p className="text-vscode-descriptionForeground mb-3">
-					工作群组或开启沙箱的普通 Mode 中选择“完全信任”的命令，会以 SHA-256 指纹保存到当前项目。
+					仅支持可捕获的简单命令和脚本永久信任；指纹绑定实际工作目录和脚本内容。旧版记录仍可查看和删除，但不再自动生效。其他命令请使用单次审批。
 				</p>
 				<Button variant="secondary" onClick={() => vscode.postMessage({ type: "openCommandTrustFile" })}>
 					打开项目白名单

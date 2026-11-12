@@ -49,6 +49,24 @@ function renderChatRow(message: any) {
 }
 
 describe("ChatRow - rate limit wait", () => {
+	it("shows security review result and risk next to the command", () => {
+		renderChatRow({
+			type: "ask",
+			ask: "command",
+			ts: Date.now(),
+			text: "python task.py",
+			commandReview: {
+				status: "wait",
+				reviewer: "CheckExpert",
+				reason: "脚本会删除文件",
+				scriptPath: "task.py",
+				scriptSha256: "abc123",
+			},
+		})
+		expect(screen.getByText(/等待人工处理/)).toBeInTheDocument()
+		expect(screen.getByText("脚本会删除文件")).toBeInTheDocument()
+		expect(screen.getByText(/abc123/)).toBeInTheDocument()
+	})
 	it("renders a non-error progress row for api_req_rate_limit_wait", () => {
 		const message: any = {
 			type: "say",

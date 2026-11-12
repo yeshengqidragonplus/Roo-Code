@@ -47,7 +47,7 @@ describe("reviewer follow-up choices", () => {
 })
 
 describe("command review", () => {
-	it("never sends file scripts, shell expansions, or imported code for automatic approval", () => {
+	it("limits the self-contained inline fast path", () => {
 		for (const command of [
 			"python script.py",
 			"npm run build",
@@ -63,7 +63,7 @@ describe("command review", () => {
 	})
 	it("accepts only a precise allow response", async () => {
 		const createMessage = vi.fn(async function* () {
-			yield { type: "text" as const, text: '{"decision":"allow"}' }
+			yield { type: "text" as const, text: '{"decision":"allow","reason":"仅输出数字"}' }
 		})
 		expect(
 			await reviewInlineCommand(
@@ -74,7 +74,7 @@ describe("command review", () => {
 				"/project",
 				"test",
 			),
-		).toBe(true)
+		).toEqual({ decision: "allow", reason: "仅输出数字" })
 		expect(
 			await reviewInlineCommand(
 				{ createMessage } as never,
@@ -84,20 +84,55 @@ describe("command review", () => {
 				"/project",
 				"test",
 			),
-		).toBe(false)
+		).toMatchObject({ decision: "wait" })
 		expect(createMessage).toHaveBeenCalledTimes(1)
+	})
+	it("requires a reason and fails closed on malformed or missing decisions", async () => {
+		for (const text of [
+			'{"decision":"allow"}',
+			'{"decision":"allow","reason":""}',
+			"yes",
+			'{"decision":"allow","reason":"ok","extra":true}',
+		]) {
+			const api = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text" as const, text }
+				}),
+			}
+			expect(
+				(
+					await reviewInlineCommand(
+						api as never,
+						{ roleDefinition: "Review" } as never,
+						"task",
+						"python -c 'print(42)'",
+						"/project",
+						"test",
+					)
+				).decision,
+			).toBe("wait")
+		}
 	})
 	it("captures a project script and detects changes before approval", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "qcode-review-"))
 		try {
 			await fs.writeFile(path.join(dir, "task.py"), "print(42)")
 			await fs.writeFile(path.join(dir, "task.ps1"), "Write-Output hello")
+			await fs.writeFile(path.join(dir, "task.sh"), "echo hello")
+			await fs.writeFile(path.join(dir, "task.bat"), "echo hello")
+			expect((await prepareCommandReview("bash task.sh", dir, dir))?.requiresHuman).toBe(true)
+			expect((await prepareCommandReview("cmd /c task.bat", dir, dir))?.requiresHuman).toBe(true)
 			expect((await prepareCommandReview("pwsh -File task.ps1", dir, dir))?.source).toBe("Write-Output hello")
 			const snapshot = await prepareCommandReview("python task.py", dir, dir)
+			expect((await prepareCommandReview("python task.py --output result", dir, dir))?.requiresHuman).toBe(true)
 			expect(snapshot?.source).toBe("print(42)")
 			expect(await isCommandSnapshotUnchanged(snapshot!)).toBe(true)
 			await fs.writeFile(path.join(dir, "task.py"), "print(43)")
 			expect(await isCommandSnapshotUnchanged(snapshot!)).toBe(false)
+			await fs.writeFile(path.join(dir, "task.py"), "import os\nprint(1)")
+			const dependent = await prepareCommandReview("python task.py", dir, dir)
+			expect(dependent?.source).toContain("import os")
+			expect(dependent?.requiresHuman).toBe(true)
 		} finally {
 			await fs.rm(dir, { recursive: true, force: true })
 		}
