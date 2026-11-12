@@ -1,5 +1,9 @@
 # 打包输出路径
 
+## 0.0.7 重打（2026-11-13，SHA 601fffbe5）
+
+包含：脚本安全审核结论及风险展示、脚本与实际工作目录绑定的新版信任指纹、旧版信任记录默认失效。验证：VSIX 非空（39,674,490 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `601fffbe53ad1cb8494c69b03a1cbf23d8563acc`。待安装及实际界面、真实审核模型验证。
+
 ## 0.0.7 重打（2026-11-06，SHA 27212ef7e）
 
 包含：会话定时恢复和 API 请求定时重试，绑定原会话与提示并保留草稿。验证：VSIX 非空（39,670,671 bytes），包内版本为 `0.0.7`，`extension/webview-ui/build/assets/index.js` 含完整 SHA `27212ef7e36ef05911ab1422e17bc207bd25224c`。待安装及实际界面验证。
