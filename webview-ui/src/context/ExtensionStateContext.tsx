@@ -438,8 +438,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 						return {
 							...prevState,
 							taskHistory: nextHistory,
-							currentTaskItem:
-								prevState.currentTaskItem?.id === item.id ? item : prevState.currentTaskItem,
+							currentTaskItem: prevState.currentTaskId === item.id ? item : prevState.currentTaskItem,
 						}
 					})
 					break

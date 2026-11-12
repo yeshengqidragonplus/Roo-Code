@@ -56,7 +56,7 @@ const TaskHeader = ({
 	todos,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
-	const { apiConfiguration, currentTaskItem } = useExtensionState()
+	const { apiConfiguration, currentTaskItem, currentTaskId } = useExtensionState()
 	const { id: modelId, info: model } = useSelectedModel(apiConfiguration)
 	const [isTaskExpanded, setIsTaskExpanded] = useState(false)
 
@@ -82,8 +82,8 @@ const TaskHeader = ({
 		<LucideIconButton
 			title={t("chat:task.condenseContext")}
 			icon={FoldVertical}
-			disabled={buttonsDisabled}
-			onClick={() => currentTaskItem && handleCondenseContext(currentTaskItem.id)}
+			disabled={buttonsDisabled || !currentTaskId}
+			onClick={() => currentTaskId && handleCondenseContext(currentTaskId)}
 		/>
 	)
 

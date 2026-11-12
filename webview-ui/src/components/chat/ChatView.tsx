@@ -161,6 +161,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		{ type: "WAIT_TIMEOUT" | "INIT_TIMEOUT"; timeout: number } | undefined
 	>(undefined)
 	const [isCondensing, setIsCondensing] = useState<boolean>(false)
+	const manualCondenseTaskIdRef = useRef<string | undefined>(undefined)
+	const currentTaskIdRef = useRef(currentTaskId)
+	currentTaskIdRef.current = currentTaskId
 	const everVisibleMessagesTsRef = useRef<LRUCache<number, boolean>>(
 		new LRUCache({
 			max: 100,
@@ -477,6 +480,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		everVisibleMessagesTsRef.current.clear()
 		setCurrentFollowUpTs(null)
 		setIsCondensing(false)
+		if (manualCondenseTaskIdRef.current) {
+			manualCondenseTaskIdRef.current = undefined
+			setSendingDisabled(false)
+		}
 
 		if (autoApproveTimeoutRef.current) {
 			clearTimeout(autoApproveTimeoutRef.current)
@@ -916,21 +923,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					}
 					break
 				case "condenseTaskContextStarted":
-					// Handle both manual and automatic condensation start
-					// We don't check the task ID because:
-					// 1. There can only be one active task at a time
-					// 2. Task switching resets isCondensing to false (see useEffect with task?.ts dependency)
-					// 3. For new tasks, currentTaskItem may not be populated yet due to async state updates
-					if (message.text) {
+					// Ignore a delayed notification from a different task.
+					if (message.text && message.text === currentTaskIdRef.current) {
 						setIsCondensing(true)
 						// Note: sendingDisabled is only set for manual condensation via handleCondenseContext
 						// Automatic condensation doesn't disable sending since the task is already running
 					}
 					break
 				case "condenseTaskContextResponse":
-					// Same reasoning as above - we trust this is for the current task
-					if (message.text) {
-						if (isCondensing && sendingDisabled) {
+					// A manual request may finish before React commits its loading state.
+					if (message.text && message.text === currentTaskIdRef.current) {
+						if (manualCondenseTaskIdRef.current === message.text) {
+							manualCondenseTaskIdRef.current = undefined
 							setSendingDisabled(false)
 						}
 						setIsCondensing(false)
@@ -965,7 +969,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			// not using its value but its reference.
 		},
 		[
-			isCondensing,
 			isHidden,
 			sendingDisabled,
 			enableButtons,
@@ -1642,9 +1645,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	}))
 
 	const handleCondenseContext = (taskId: string) => {
-		if (isCondensing || sendingDisabled) {
+		if (isCondensing || sendingDisabled || manualCondenseTaskIdRef.current || taskId !== currentTaskIdRef.current) {
 			return
 		}
+		manualCondenseTaskIdRef.current = taskId
 		setIsCondensing(true)
 		setSendingDisabled(true)
 		vscode.postMessage({ type: "condenseTaskContextRequest", text: taskId })

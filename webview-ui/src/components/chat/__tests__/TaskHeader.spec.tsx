@@ -39,6 +39,7 @@ vi.mock("@vscode/webview-ui-toolkit/react", () => ({
 const mockExtensionState: {
 	apiConfiguration: ProviderSettings
 	currentTaskItem: { id: string } | null
+	currentTaskId?: string
 	clineMessages: any[]
 } = {
 	apiConfiguration: {
@@ -47,6 +48,7 @@ const mockExtensionState: {
 		apiModelId: "claude-3-opus-20240229",
 	} as ProviderSettings,
 	currentTaskItem: { id: "test-task-id" },
+	currentTaskId: "test-task-id",
 	clineMessages: [],
 }
 
@@ -160,6 +162,47 @@ describe("TaskHeader", () => {
 		expect(condenseButton).toBeDefined()
 		fireEvent.click(condenseButton!)
 		expect(handleCondenseContext).toHaveBeenCalledWith("test-task-id")
+	})
+
+	it("uses the active task id even when its history item has not arrived", () => {
+		const handleCondenseContext = vi.fn()
+		mockExtensionState.currentTaskItem = null
+		mockExtensionState.currentTaskId = "active-task-id"
+		try {
+			renderTaskHeader({ handleCondenseContext })
+			fireEvent.click(screen.getByText("Test task"))
+			fireEvent.click(screen.getByRole("button", { name: "chat:task.condenseContext" }))
+			expect(handleCondenseContext).toHaveBeenCalledWith("active-task-id")
+		} finally {
+			mockExtensionState.currentTaskItem = { id: "test-task-id" }
+			mockExtensionState.currentTaskId = "test-task-id"
+		}
+	})
+
+	it("disables condensing without an active id instead of silently ignoring clicks", () => {
+		mockExtensionState.currentTaskId = undefined
+		try {
+			renderTaskHeader()
+			fireEvent.click(screen.getByText("Test task"))
+			expect(screen.getByRole("button", { name: "chat:task.condenseContext" })).toBeDisabled()
+		} finally {
+			mockExtensionState.currentTaskId = "test-task-id"
+		}
+	})
+
+	it("does not use a stale history item's id", () => {
+		const handleCondenseContext = vi.fn()
+		mockExtensionState.currentTaskItem = { id: "old-task" }
+		mockExtensionState.currentTaskId = "active-task"
+		try {
+			renderTaskHeader({ handleCondenseContext })
+			fireEvent.click(screen.getByText("Test task"))
+			fireEvent.click(screen.getByRole("button", { name: "chat:task.condenseContext" }))
+			expect(handleCondenseContext).toHaveBeenCalledWith("active-task")
+		} finally {
+			mockExtensionState.currentTaskItem = { id: "test-task-id" }
+			mockExtensionState.currentTaskId = "test-task-id"
+		}
 	})
 
 	it("should disable the condense context button when buttonsDisabled is true", () => {

@@ -48,6 +48,39 @@ const ApiConfigTestComponent = () => {
 }
 
 describe("ExtensionStateContext", () => {
+	it("populates the active history item when its first incremental update arrives", () => {
+		const CurrentTask = () => {
+			const { currentTaskItem } = useExtensionState()
+			return <div data-testid="current-task-item">{currentTaskItem?.id ?? "missing"}</div>
+		}
+		render(
+			<ExtensionStateContextProvider>
+				<CurrentTask />
+			</ExtensionStateContextProvider>,
+		)
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", { data: { type: "state", state: { currentTaskId: "task-1" } } }),
+			),
+		)
+		expect(screen.getByTestId("current-task-item")).toHaveTextContent("missing")
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "taskHistoryItemUpdated", taskHistoryItem: { id: "other", ts: 1 } },
+				}),
+			),
+		)
+		expect(screen.getByTestId("current-task-item")).toHaveTextContent("missing")
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "taskHistoryItemUpdated", taskHistoryItem: { id: "task-1", ts: 2 } },
+				}),
+			),
+		)
+		expect(screen.getByTestId("current-task-item")).toHaveTextContent("task-1")
+	})
 	it("initializes with empty allowedCommands array", () => {
 		render(
 			<ExtensionStateContextProvider>

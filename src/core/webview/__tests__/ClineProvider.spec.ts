@@ -455,6 +455,35 @@ describe("ClineProvider", () => {
 		expect(ClineProvider.getVisibleInstance()).toBe(provider)
 	})
 
+	it("always releases manual condensation after an unexpected failure", async () => {
+		const task = { taskId: "task-1", condenseContext: vi.fn().mockRejectedValue(new Error("provider unavailable")) }
+		;(provider as any).clineStack = [task]
+		const post = vi.spyOn(provider, "postMessageToWebview").mockResolvedValue(undefined as never)
+		const log = vi.spyOn(provider, "log")
+		await expect(provider.condenseTaskContext("task-1")).resolves.toBeUndefined()
+		expect(vscode.window.showErrorMessage).toHaveBeenCalled()
+		expect(log).toHaveBeenCalledWith(expect.stringContaining("provider unavailable"))
+		expect(post).toHaveBeenCalledWith({ type: "condenseTaskContextResponse", text: "task-1" })
+	})
+
+	it("releases manual condensation if the task is no longer in the stack", async () => {
+		;(provider as any).clineStack = []
+		const post = vi.spyOn(provider, "postMessageToWebview").mockResolvedValue(undefined as never)
+		await expect(provider.condenseTaskContext("missing-task")).resolves.toBeUndefined()
+		expect(vscode.window.showErrorMessage).toHaveBeenCalled()
+		expect(post).toHaveBeenCalledWith({ type: "condenseTaskContextResponse", text: "missing-task" })
+	})
+
+	it("reports successful manual condensation completion", async () => {
+		const task = { taskId: "task-1", condenseContext: vi.fn().mockResolvedValue(undefined) }
+		;(provider as any).clineStack = [task]
+		const post = vi.spyOn(provider, "postMessageToWebview").mockResolvedValue(undefined as never)
+		await provider.condenseTaskContext("task-1")
+		expect(task.condenseContext).toHaveBeenCalledOnce()
+		expect(post).toHaveBeenCalledWith({ type: "condenseTaskContextResponse", text: "task-1" })
+		expect(vscode.window.showErrorMessage).not.toHaveBeenCalled()
+	})
+
 	test("resolveWebviewView sets up webview correctly", async () => {
 		await provider.resolveWebviewView(mockWebviewView)
 

@@ -1037,6 +1037,54 @@ describe("ChatView - Context Condensing Indicator Tests", () => {
 		vi.clearAllMocks()
 	})
 
+	it("starts without a history item and releases input even on an immediate response", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "task-1",
+			currentTaskItem: undefined,
+			clineMessages: [{ type: "say", say: "text", ts: Date.now() - 1000, text: "Initial task" }],
+		})
+		fireEvent.click(await view.findByText("Initial task"))
+		const button = view.getByRole("button", { name: "chat:task.condenseContext" })
+		act(() => {
+			fireEvent.click(button)
+			window.dispatchEvent(
+				new MessageEvent("message", { data: { type: "condenseTaskContextResponse", text: "task-1" } }),
+			)
+		})
+		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "condenseTaskContextRequest", text: "task-1" })
+		await waitFor(() =>
+			expect(view.getByTestId("chat-textarea").querySelector("input")).toHaveAttribute(
+				"data-sending-disabled",
+				"false",
+			),
+		)
+	})
+
+	it("does not clear an active condense when another task completes", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "task-1",
+			clineMessages: [{ type: "say", say: "text", ts: Date.now() - 1000, text: "Initial task" }],
+		})
+		fireEvent.click(await view.findByText("Initial task"))
+		fireEvent.click(view.getByRole("button", { name: "chat:task.condenseContext" }))
+		const input = view.getByTestId("chat-textarea").querySelector("input")!
+		await waitFor(() => expect(input).toHaveAttribute("data-sending-disabled", "true"))
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", { data: { type: "condenseTaskContextResponse", text: "other-task" } }),
+			),
+		)
+		expect(input).toHaveAttribute("data-sending-disabled", "true")
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", { data: { type: "condenseTaskContextResponse", text: "task-1" } }),
+			),
+		)
+		await waitFor(() => expect(input).toHaveAttribute("data-sending-disabled", "false"))
+	})
+
 	it("should add a condensing message to groupedMessages when isCondensing is true", async () => {
 		// This test verifies that when the condenseTaskContextStarted message is received,
 		// the isCondensing state is set to true and a synthetic condensing message is added
@@ -1045,6 +1093,7 @@ describe("ChatView - Context Condensing Indicator Tests", () => {
 
 		// First hydrate state with an active task
 		mockPostMessage({
+			currentTaskId: "test-task-id",
 			clineMessages: [
 				{
 					type: "say",
