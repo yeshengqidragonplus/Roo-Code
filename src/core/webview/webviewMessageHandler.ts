@@ -615,7 +615,11 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					resolved.text,
 					resolved.images,
 					undefined,
-					{ taskId: message.taskId, reviewerChoiceEnabled: message.values?.reviewerChoiceEnabled === true },
+					{
+						taskId: message.taskId,
+						reviewerChoiceEnabled: message.values?.reviewerChoiceEnabled === true,
+						reviewerSecurityEnabled: message.values?.reviewerSecurityEnabled === true,
+					},
 					message.taskConfiguration,
 				)
 				// Task created successfully - notify the UI to reset
@@ -631,11 +635,22 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			break
 		case "setReviewerChoiceEnabled": {
 			const task = provider.getCurrentTask()
-			if (task) {
+			if (task && message.taskId === task.taskId) {
 				task.reviewerChoiceEnabled = message.bool === true
 				const item = provider.taskHistoryStore.get(task.taskId)
 				if (item)
 					await provider.updateTaskHistory({ ...item, reviewerChoiceEnabled: task.reviewerChoiceEnabled })
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "setReviewerSecurityEnabled": {
+			const task = provider.getCurrentTask()
+			if (task && message.taskId === task.taskId) {
+				task.setReviewerSecurityEnabled(message.bool === true)
+				const item = provider.taskHistoryStore.get(task.taskId)
+				if (item)
+					await provider.updateTaskHistory({ ...item, reviewerSecurityEnabled: task.reviewerSecurityEnabled })
 				await provider.postStateToWebview()
 			}
 			break
@@ -649,6 +664,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 					Number(message.values?.dueAt),
 					message.values?.reviewerChoiceEnabled === true,
 					typeof message.values?.taskId === "string" ? message.values.taskId : undefined,
+					message.values?.reviewerSecurityEnabled === true,
 				)
 				await provider.postMessageToWebview({ type: "scheduledTaskCreated" })
 				await vscode.window.showInformationMessage("定时任务已安排；请保持 VS Code 和项目窗口打开。")

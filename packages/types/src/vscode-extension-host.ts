@@ -317,6 +317,7 @@ export type ExtensionState = Pick<
 	clineMessages: ClineMessage[]
 	currentTaskId?: string
 	reviewerChoiceEnabled?: boolean
+	reviewerSecurityEnabled?: boolean
 	scheduledTask?: {
 		id: string
 		dueAt: number
@@ -440,6 +441,7 @@ export interface WebviewMessage {
 		| "webviewDidLaunch"
 		| "newTask"
 		| "setReviewerChoiceEnabled"
+		| "setReviewerSecurityEnabled"
 		| "scheduleNewTask"
 		| "scheduleResumeTask"
 		| "cancelScheduledTask"

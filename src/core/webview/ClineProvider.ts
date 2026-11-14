@@ -255,6 +255,7 @@ export class ClineProvider
 				if (this.hasWorkspaceActiveTask()) throw new Error("当前项目已有会话，未自动启动；请关闭会话后重新安排")
 				await this.createTask(task.text, task.images, undefined, {
 					reviewerChoiceEnabled: task.reviewerChoiceEnabled,
+					reviewerSecurityEnabled: task.reviewerSecurityEnabled === true,
 					failIfTaskActive: true,
 				})
 			},
@@ -2383,6 +2384,7 @@ export class ClineProvider
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
 			clineMessages: clineMessagesForWebview,
 			reviewerChoiceEnabled: currentTask?.reviewerChoiceEnabled ?? false,
+			reviewerSecurityEnabled: currentTask?.reviewerSecurityEnabled ?? false,
 			clineMessagesTotal,
 			currentTaskTodos: currentTask?.todoList || [],
 			messageQueue: currentTask?.messageQueueService?.messages,
@@ -3010,6 +3012,7 @@ export class ClineProvider
 		dueAt: number,
 		reviewerChoiceEnabled: boolean,
 		taskId?: string,
+		reviewerSecurityEnabled = false,
 	): Promise<void> {
 		const current = this.getCurrentTask()
 		if (taskId && current?.taskId !== taskId) throw new Error("当前会话已切换，请重新安排")
@@ -3027,6 +3030,7 @@ export class ClineProvider
 			askTs: taskId ? current?.getScheduledReplyAsk() : undefined,
 			apiConfigName: state.currentApiConfigName,
 			reviewerChoiceEnabled,
+			reviewerSecurityEnabled,
 			status: "pending",
 		})
 		await this.postStateToWebviewWithoutClineMessages()

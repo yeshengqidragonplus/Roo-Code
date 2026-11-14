@@ -63,7 +63,7 @@ describe("ChatRow - rate limit wait", () => {
 				scriptSha256: "abc123",
 			},
 		})
-		expect(screen.getByText(/等待人工处理/)).toBeInTheDocument()
+		expect(screen.getByText(/未自动放行/)).toBeInTheDocument()
 		expect(screen.getByText("脚本会删除文件")).toBeInTheDocument()
 		expect(screen.getByText(/abc123/)).toBeInTheDocument()
 	})

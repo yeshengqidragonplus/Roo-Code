@@ -12,6 +12,7 @@ export interface ScheduledTask {
 	resumeAskType?: "resume_task" | "api_req_failed"
 	apiConfigName?: string
 	reviewerChoiceEnabled: boolean
+	reviewerSecurityEnabled?: boolean
 	status: "pending" | "started" | "missed" | "failed"
 	error?: string
 }

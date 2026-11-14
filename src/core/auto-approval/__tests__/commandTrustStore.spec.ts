@@ -68,4 +68,12 @@ describe("project command trust store", () => {
 		expect(dependent?.requiresHuman).toBe(true)
 		expect(await trustCommand(cwd, "python dependent.py", dependent)).toBe(false)
 	})
+
+	it("never trusts a PowerShell command with ambiguous outer expansion", async () => {
+		const command = `powershell -Command "Write-Output $_.Line"`
+		const snapshot = await prepareCommandReview(command, cwd, cwd)
+		expect(snapshot?.requiresHuman).toBe(true)
+		expect(await trustCommand(cwd, command, snapshot)).toBe(false)
+		expect(await isCommandTrusted(cwd, command, snapshot)).toBe(false)
+	})
 })

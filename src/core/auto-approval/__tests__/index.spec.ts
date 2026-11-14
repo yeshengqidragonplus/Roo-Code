@@ -62,6 +62,21 @@ describe("checkAutoApproval — zero-impact guarantee (manual / undefined mode)"
 		expect(on).toEqual({ decision: "approve" })
 	})
 
+	it("legacy command denylist still rejects explicitly blocked commands", async () => {
+		expect(
+			await decide({
+				state: {
+					autoApprovalEnabled: true,
+					alwaysAllowExecute: true,
+					allowedCommands: [],
+					deniedCommands: ["python"],
+				},
+				ask: "command",
+				text: "python example.py",
+			}),
+		).toEqual({ decision: "deny" })
+	})
+
 	it("waits for followup answers even with the legacy countdown setting enabled", async () => {
 		const result = await decide({
 			state: {

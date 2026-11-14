@@ -163,6 +163,30 @@ vi.mock("../../mentions/resolveImageMentions", () => ({
 
 import { resolveImageMentions } from "../../mentions/resolveImageMentions"
 
+describe("webviewMessageHandler - session security reviewer", () => {
+	it("applies and persists the switch only to the session identified by the message", async () => {
+		const task = { taskId: "active", reviewerSecurityEnabled: false, setReviewerSecurityEnabled: vi.fn() }
+		task.setReviewerSecurityEnabled.mockImplementation((value: boolean) => {
+			task.reviewerSecurityEnabled = value
+		})
+		const item = { id: "active", task: "test" }
+		const provider = {
+			getCurrentTask: vi.fn().mockReturnValue(task),
+			taskHistoryStore: { get: vi.fn().mockReturnValue(item) },
+			updateTaskHistory: vi.fn(),
+			postStateToWebview: vi.fn(),
+		} as unknown as ClineProvider
+		await webviewMessageHandler(provider, { type: "setReviewerSecurityEnabled", taskId: "old", bool: true })
+		expect(task.setReviewerSecurityEnabled).not.toHaveBeenCalled()
+		await webviewMessageHandler(provider, { type: "setReviewerSecurityEnabled", taskId: "active", bool: true })
+		expect(task.setReviewerSecurityEnabled).toHaveBeenCalledWith(true)
+		expect(provider.updateTaskHistory).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "active", reviewerSecurityEnabled: true }),
+		)
+		expect(provider.postStateToWebview).toHaveBeenCalledOnce()
+	})
+})
+
 describe("webviewMessageHandler - requestLmStudioModels", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()

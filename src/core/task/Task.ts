@@ -92,6 +92,8 @@ import { getTaskDirectoryPath } from "../../utils/storage"
 import {
 	isCommandSnapshotUnchanged,
 	prepareCommandReview,
+	explainCommandReviewUnavailable,
+	explainReviewerFailure,
 	reviewFollowupChoice,
 	reviewInlineCommand,
 	withReviewerTimeout,
@@ -193,6 +195,8 @@ export interface TaskOptions extends CreateTaskOptions {
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	public reviewerChoiceEnabled: boolean
+	public reviewerSecurityEnabled: boolean
+	private activeSecurityReview?: symbol
 	readonly taskId: string
 	readonly rootTaskId?: string
 	readonly parentTaskId?: string
@@ -484,9 +488,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		workspacePath,
 		initialStatus,
 		reviewerChoiceEnabled = false,
+		reviewerSecurityEnabled = false,
 	}: TaskOptions) {
 		super()
 		this.reviewerChoiceEnabled = historyItem?.reviewerChoiceEnabled ?? reviewerChoiceEnabled
+		this.reviewerSecurityEnabled = historyItem?.reviewerSecurityEnabled ?? reviewerSecurityEnabled
 
 		if (startTask && !task && !images && !historyItem) {
 			throw new Error("Either historyItem or task/images must be provided")
@@ -1292,6 +1298,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				workspace: this.cwd,
 				mode: this._taskMode || defaultModeSlug, // Use the task's own mode, not the current provider mode.
 				reviewerChoiceEnabled: this.reviewerChoiceEnabled,
+				reviewerSecurityEnabled: this.reviewerSecurityEnabled,
 				apiConfigName: this._taskApiConfigName, // Use the task's own provider profile, not the current provider profile.
 				initialStatus: this.initialStatus,
 			})
@@ -1433,24 +1440,37 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const isWorkgroup = await this.isWorkgroupMode()
 		const reviewOriginMode = isWorkgroup ? await this.getTaskMode() : undefined
 		const approvalState = isWorkgroup ? { ...state, autoApprovalMode: "sandbox" as const } : state
-		const useProjectCommandTrust =
-			type === "command" && text && (isWorkgroup || state?.autoApprovalMode === "sandbox")
+		const isProjectTrustMode = isWorkgroup || state?.autoApprovalMode === "sandbox"
+		const useProjectCommandTrust = type === "command" && text && isProjectTrustMode
 		const commandSnapshot =
 			useProjectCommandTrust && commandCwd ? await prepareCommandReview(text, commandCwd, this.cwd) : undefined
 		const workgroupCommandTrusted = useProjectCommandTrust
 			? await isCommandTrusted(this.cwd, text, commandSnapshot)
 			: undefined
-		const approval = await checkAutoApproval({
+		const calculatedApproval = await checkAutoApproval({
 			state: approvalState,
 			ask: type,
 			text,
 			isProtected,
 			workgroupCommandTrusted,
 		})
+		// Without an active reviewer, an untrusted command using project trust
+		// must wait for the user in both workgroup and normal sandbox sessions.
+		// Keep legacy normal-mode policies and explicit project trust unchanged.
+		const approval =
+			isProjectTrustMode &&
+			type === "command" &&
+			(!isWorkgroup || !this.reviewerSecurityEnabled) &&
+			workgroupCommandTrusted !== true
+				? ({ decision: "ask" } as const)
+				: calculatedApproval
 
+		const securityReviewToken = Symbol("security-review")
 		const publishCommandReview = async (review: NonNullable<ClineMessage["commandReview"]>) => {
 			if (
 				this.abort ||
+				!this.reviewerSecurityEnabled ||
+				this.activeSecurityReview !== securityReviewToken ||
 				this.activeReviewerAsk !== reviewerAskToken ||
 				this.askResponse !== undefined ||
 				this.lastMessageTs !== askTs
@@ -1463,7 +1483,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			await this.saveClineMessages()
 		}
 
-		if (isWorkgroup && type === "command" && approval.decision === "ask" && text) {
+		if (isWorkgroup && this.reviewerSecurityEnabled && type === "command" && approval.decision === "ask" && text) {
+			this.activeSecurityReview = securityReviewToken
 			const command = text
 			void (async () => {
 				try {
@@ -1471,7 +1492,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					if (!snapshot || !commandCwd) {
 						await publishCommandReview({
 							status: "wait",
-							reason: "未能完整确认命令、脚本及其依赖或工作目录，未自动审核；请人工检查。",
+							reason: await explainCommandReviewUnavailable(command, commandCwd, this.cwd),
 						})
 						return
 					}
@@ -1492,6 +1513,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					})
 					if (
 						this.abort ||
+						!this.reviewerSecurityEnabled ||
+						this.activeSecurityReview !== securityReviewToken ||
 						this.activeReviewerAsk !== reviewerAskToken ||
 						this.askResponse !== undefined ||
 						this.lastMessageTs !== askTs
@@ -1521,7 +1544,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					if (snapshot.requiresHuman) {
 						await publishCommandReview({
 							status: "wait",
-							reason: `脚本可能依赖未捕获的代码或动态执行，必须人工检查。审核员意见：${result.reason}`,
+							reason: `${snapshot.manualReviewReason ?? "脚本可能依赖未捕获的代码或动态执行，必须人工检查。"}审核员意见：${result.reason}`,
 							reviewer: reviewer.mode.name,
 							scriptPath: snapshot.scriptPath,
 							scriptSha256: snapshot.sha256,
@@ -1551,6 +1574,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					if (
 						(await this.isCurrentWorkgroupReviewer(reviewer.mode.slug)) &&
 						(await this.getTaskMode()) === reviewOriginMode &&
+						this.reviewerSecurityEnabled &&
+						this.activeSecurityReview === securityReviewToken &&
 						!this.abort &&
 						this.activeReviewerAsk === reviewerAskToken &&
 						this.askResponse === undefined &&
@@ -1579,6 +1604,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						if (
 							!stillReviewer ||
 							!stillMode ||
+							!this.reviewerSecurityEnabled ||
+							this.activeSecurityReview !== securityReviewToken ||
 							this.abort ||
 							this.activeReviewerAsk !== reviewerAskToken ||
 							this.askResponse !== undefined ||
@@ -1597,7 +1624,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					)
 					await publishCommandReview({
 						status: "wait",
-						reason: "审核过程出错，未自动执行；请检查审核同事配置和日志。",
+						reason: explainReviewerFailure(error),
 					})
 				}
 			})()
@@ -1812,6 +1839,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		this.activeSecurityReview = undefined
 		this.scheduledReplyAsk = undefined
 		// Any response closes this review slot before asynchronous reviewer work can finish.
 		this.activeReviewerAsk = undefined
@@ -1859,6 +1887,28 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				this.saveClineMessages().catch((error) => {
 					console.error("Failed to save answered tool-ask state:", error)
 				})
+			}
+		}
+	}
+
+	public setReviewerSecurityEnabled(enabled: boolean): void {
+		this.reviewerSecurityEnabled = enabled
+		if (!enabled) {
+			this.activeSecurityReview = undefined
+			const message = this.lastMessageTs ? this.findMessageByTimestamp(this.lastMessageTs) : undefined
+			if (
+				message?.ask === "command" &&
+				(message.commandReview?.status === "reviewing" || message.commandReview?.status === "allow")
+			) {
+				message.commandReview = {
+					...message.commandReview,
+					status: "wait",
+					reason: "本次会话已关闭安全审核；审核结果不会自动执行，请人工决定。",
+				}
+				void this.updateClineMessage(message).catch((error) =>
+					console.error("Failed to update security review:", error),
+				)
+				void this.saveClineMessages()
 			}
 		}
 	}

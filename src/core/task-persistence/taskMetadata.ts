@@ -22,6 +22,7 @@ export type TaskMetadataOptions = {
 	workspace: string
 	mode?: string
 	reviewerChoiceEnabled?: boolean
+	reviewerSecurityEnabled?: boolean
 	/** Provider profile name for the task (sticky profile feature) */
 	apiConfigName?: string
 	/** Initial status for the task (e.g., "active" for child tasks) */
@@ -38,6 +39,7 @@ export async function taskMetadata({
 	workspace,
 	mode,
 	reviewerChoiceEnabled,
+	reviewerSecurityEnabled,
 	apiConfigName,
 	initialStatus,
 }: TaskMetadataOptions) {
@@ -113,6 +115,7 @@ export async function taskMetadata({
 		workspace,
 		mode,
 		reviewerChoiceEnabled,
+		reviewerSecurityEnabled,
 		...(typeof apiConfigName === "string" && apiConfigName.length > 0 ? { apiConfigName } : {}),
 		...(initialStatus && { status: initialStatus }),
 	}

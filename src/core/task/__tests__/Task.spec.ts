@@ -24,6 +24,8 @@ vi.mock("delay", () => ({
 import delay from "delay"
 import pWaitFor from "p-wait-for"
 import * as reviewer from "../../auto-approval/reviewer"
+import * as autoApproval from "../../auto-approval"
+import * as commandTrustStore from "../../auto-approval/commandTrustStore"
 
 vi.mock("uuid", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("uuid")>()
@@ -200,6 +202,24 @@ describe("Cline", () => {
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
 
+	it("restores the security-review switch per session and defaults old sessions to off", () => {
+		const history = { id: "old-task", number: 1, ts: 1, task: "old", tokensIn: 0, tokensOut: 0, totalCost: 0 }
+		const old = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			historyItem: history,
+			startTask: false,
+		})
+		const enabled = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			historyItem: { ...history, reviewerSecurityEnabled: true },
+			startTask: false,
+		})
+		expect(old.reviewerSecurityEnabled).toBe(false)
+		expect(enabled.reviewerSecurityEnabled).toBe(true)
+	})
+
 	it.each(["resume_task", "api_req_failed"] as const)(
 		"resumes a real pending %s ask at the scheduled time",
 		async (type) => {
@@ -372,6 +392,7 @@ describe("Cline", () => {
 			apiConfiguration: mockApiConfig,
 			task: "test",
 			startTask: false,
+			reviewerSecurityEnabled: true,
 		})
 		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
 		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
@@ -408,12 +429,234 @@ describe("Cline", () => {
 		unchanged.mockRestore()
 	})
 
+	it("does not call the security reviewer when the session switch is off, even if choice delegation is on", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerChoiceEnabled: true,
+			reviewerSecurityEnabled: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		const resolveReviewer = vi.spyOn(task as any, "getWorkgroupReviewer")
+		const review = vi.spyOn(reviewer, "reviewInlineCommand")
+		const prepare = vi
+			.spyOn(reviewer, "prepareCommandReview")
+			.mockResolvedValue({ command: "python -c 'print(42)'", cwd: task.cwd, cwdRealPath: task.cwd })
+		let started!: () => void
+		const waiting = new Promise<void>((resolve) => {
+			started = resolve
+		})
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			started()
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", "python -c 'print(42)'", false, undefined, false, task.cwd)
+		await waiting
+		expect(resolveReviewer).not.toHaveBeenCalled()
+		expect(review).not.toHaveBeenCalled()
+		expect(task.clineMessages.at(-1)?.commandReview).toBeUndefined()
+		expect(task.clineMessages.at(-1)).toMatchObject({ type: "ask", ask: "command" })
+		expect((task as any).askResponse).toBeUndefined()
+		task.handleWebviewAskResponse("yesButtonClicked")
+		expect((await pending).response).toBe("yesButtonClicked")
+		prepare.mockRestore()
+		review.mockRestore()
+	})
+
+	it.each([
+		{ label: "workgroup", isWorkgroup: true, decision: "deny" as const },
+		{ label: "workgroup", isWorkgroup: true, decision: "approve" as const },
+		{ label: "normal sandbox", isWorkgroup: false, decision: "deny" as const },
+		{ label: "normal sandbox", isWorkgroup: false, decision: "approve" as const },
+	])(
+		"keeps an untrusted $label command for manual approval when another policy returns $decision",
+		async ({ isWorkgroup, decision }) => {
+			const task = new Task({
+				provider: mockProvider,
+				apiConfiguration: mockApiConfig,
+				task: "test",
+				startTask: false,
+				reviewerSecurityEnabled: false,
+			})
+			vi.spyOn(mockProvider, "getState").mockResolvedValue({ autoApprovalMode: "sandbox" } as never)
+			vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(isWorkgroup)
+			vi.spyOn(task, "getTaskMode").mockResolvedValue(isWorkgroup ? "team" : "code")
+			vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+				task.clineMessages.push(message)
+			})
+			vi.spyOn(autoApproval, "checkAutoApproval").mockResolvedValueOnce({ decision })
+			vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValueOnce(undefined)
+			let started!: () => void
+			const waiting = new Promise<void>((resolve) => {
+				started = resolve
+			})
+			vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+				started()
+				for (let i = 0; i < 200; i++) {
+					if (predicate()) return
+					await new Promise((resolve) => setTimeout(resolve, 2))
+				}
+				throw new Error("response was not received")
+			})
+			const pending = task.ask("command", "python example.py", false, undefined, false, task.cwd)
+			await waiting
+			expect(task.clineMessages.at(-1)).toMatchObject({ type: "ask", ask: "command" })
+			expect((task as any).askResponse).toBeUndefined()
+			task.handleWebviewAskResponse("yesButtonClicked")
+			expect((await pending).response).toBe("yesButtonClicked")
+		},
+	)
+
+	it.each([
+		{ label: "workgroup", isWorkgroup: true, state: { autoApprovalMode: "sandbox" } },
+		{ label: "normal sandbox", isWorkgroup: false, state: { autoApprovalMode: "sandbox" } },
+		{
+			label: "normal legacy auto-approval",
+			isWorkgroup: false,
+			state: {
+				autoApprovalEnabled: true,
+				alwaysAllowExecute: true,
+				allowedCommands: ["git"],
+				deniedCommands: [],
+			},
+		},
+		{ label: "normal manual", isWorkgroup: false, state: { autoApprovalEnabled: false } },
+	])("waits for a human before running an untrusted script in $label", async ({ isWorkgroup, state }) => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerSecurityEnabled: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue(state as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(isWorkgroup)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue(isWorkgroup ? "team" : "code")
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		const resolveReviewer = vi.spyOn(task as any, "getWorkgroupReviewer")
+		const review = vi.spyOn(reviewer, "reviewInlineCommand")
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		let started!: () => void
+		const waiting = new Promise<void>((resolve) => {
+			started = resolve
+		})
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			started()
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", "python example.py", false, undefined, false, task.cwd)
+		await waiting
+		expect(task.clineMessages.at(-1)).toMatchObject({ type: "ask", ask: "command" })
+		expect((task as any).askResponse).toBeUndefined()
+		expect(resolveReviewer).not.toHaveBeenCalled()
+		expect(review).not.toHaveBeenCalled()
+		task.handleWebviewAskResponse("yesButtonClicked")
+		expect((await pending).response).toBe("yesButtonClicked")
+	})
+
+	it.each([true, false])(
+		"keeps explicit project trust effective in project-trust mode (workgroup: %s)",
+		async (isWorkgroup) => {
+			const task = new Task({
+				provider: mockProvider,
+				apiConfiguration: mockApiConfig,
+				task: "test",
+				startTask: false,
+				reviewerSecurityEnabled: false,
+			})
+			vi.spyOn(mockProvider, "getState").mockResolvedValue({ autoApprovalMode: "sandbox" } as never)
+			vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(isWorkgroup)
+			vi.spyOn(task, "getTaskMode").mockResolvedValue(isWorkgroup ? "team" : "code")
+			vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+				task.clineMessages.push(message)
+			})
+			vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+			vi.spyOn(commandTrustStore, "isCommandTrusted").mockResolvedValueOnce(true)
+			const result = await task.ask("command", "python example.py", false, undefined, false, task.cwd)
+			expect(result.response).toBe("yesButtonClicked")
+		},
+	)
+
+	it("ignores an in-flight security review after disabling and re-enabling the session switch", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerSecurityEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const command = "python -c 'print(42)'"
+		const prepare = vi
+			.spyOn(reviewer, "prepareCommandReview")
+			.mockResolvedValue({ command, cwd: task.cwd, cwdRealPath: task.cwd })
+		const unchanged = vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		let finish!: (result: reviewer.CommandReviewResult) => void
+		const review = vi.spyOn(reviewer, "reviewInlineCommand").mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finish = resolve
+				}),
+		)
+		const respond = vi.spyOn(task, "handleWebviewAskResponse")
+		const pending = task.ask("command", command, false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(review).toHaveBeenCalled())
+		task.setReviewerSecurityEnabled(false)
+		task.setReviewerSecurityEnabled(true)
+		finish({ decision: "allow", reason: "仅输出数字" })
+		await new Promise((resolve) => setTimeout(resolve, 20))
+		expect(respond).not.toHaveBeenCalled()
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("已关闭")
+		task.handleWebviewAskResponse("noButtonClicked")
+		expect((await pending).response).toBe("noButtonClicked")
+		prepare.mockRestore()
+		unchanged.mockRestore()
+		review.mockRestore()
+	})
+
 	it("shows reviewer risk and waits for a human when dependencies are not captured", async () => {
 		const task = new Task({
 			provider: mockProvider,
 			apiConfiguration: mockApiConfig,
 			task: "test",
 			startTask: false,
+			reviewerSecurityEnabled: true,
 		})
 		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
 		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
@@ -453,12 +696,64 @@ describe("Cline", () => {
 		review.mockRestore()
 	})
 
+	it("reviews a PowerShell command with choice delegation disabled and never auto-approves an ambiguous wrapper", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerChoiceEnabled: false,
+			reviewerSecurityEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const command = `powershell -Command "Write-Output $_.Line"`
+		const prepare = vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue({
+			command,
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			source: "Write-Output $_.Line",
+			requiresHuman: true,
+			manualReviewReason: "外层 shell 可能改变执行内容，需人工确认。",
+		})
+		const review = vi
+			.spyOn(reviewer, "reviewInlineCommand")
+			.mockResolvedValue({ decision: "allow", reason: "看起来只读" })
+		const pending = task.ask("command", command, false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait"))
+		expect(review).toHaveBeenCalledOnce()
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("外层 shell")
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("看起来只读")
+		task.handleWebviewAskResponse("noButtonClicked")
+		expect((await pending).response).toBe("noButtonClicked")
+		prepare.mockRestore()
+		review.mockRestore()
+	})
+
 	it("cannot override a human response with a late command review", async () => {
 		const task = new Task({
 			provider: mockProvider,
 			apiConfiguration: mockApiConfig,
 			task: "test",
 			startTask: false,
+			reviewerSecurityEnabled: true,
 		})
 		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
 		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)

@@ -535,6 +535,27 @@ describe("ClineProvider", () => {
 		expect(reply).toHaveBeenCalledTimes(1)
 	})
 
+	test("preserves the security-review switch when scheduling and starting a new session", async () => {
+		vi.spyOn(provider, "getCurrentTask").mockReturnValue(undefined)
+		vi.spyOn(provider, "getState").mockResolvedValue({ mode: "code", currentApiConfigName: "model" } as never)
+		vi.spyOn(provider, "postStateToWebviewWithoutClineMessages").mockResolvedValue(undefined)
+		vi.spyOn(provider as any, "hasWorkspaceActiveTask").mockReturnValue(false)
+		const service = (provider as any).scheduledTaskService
+		const schedule = vi.spyOn(service, "schedule").mockResolvedValue(undefined as never)
+		await provider.scheduleNewTask("test", undefined, Date.now() + 10000, false, undefined, true)
+		expect(schedule).toHaveBeenCalledWith(expect.objectContaining({ reviewerSecurityEnabled: true }))
+		const scheduled = { ...(schedule.mock.calls[0][0] as object), status: "started" }
+		vi.mocked(mockContext.workspaceState.get).mockReturnValue(scheduled)
+		const create = vi.spyOn(provider, "createTask").mockResolvedValue({} as Task)
+		await service.deps.execute(scheduled)
+		expect(create).toHaveBeenCalledWith(
+			"test",
+			undefined,
+			undefined,
+			expect.objectContaining({ reviewerSecurityEnabled: true }),
+		)
+	})
+
 	test("schedules and executes a resume only for the bound session and prompt", async () => {
 		const resume = vi.fn()
 		const task = {

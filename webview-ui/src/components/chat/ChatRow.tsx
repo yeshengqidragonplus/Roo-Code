@@ -1609,7 +1609,7 @@ export const ChatRowContent = ({
 										安全审核
 										{message.commandReview.reviewer ? ` · ${message.commandReview.reviewer}` : ""}：
 										{
-											({ reviewing: "审核中", allow: "建议允许", wait: "等待人工处理" } as const)[
+											({ reviewing: "审核中", allow: "建议允许", wait: "未自动放行" } as const)[
 												message.commandReview.status
 											]
 										}

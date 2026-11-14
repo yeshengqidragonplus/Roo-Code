@@ -273,6 +273,63 @@ const renderChatView = (props: Partial<ChatViewProps> = {}) => {
 
 describe("ChatView - scheduled workgroup task", () => {
 	beforeEach(() => vi.clearAllMocks())
+	it("sends the independent safety switch when starting a session", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			mode: "team",
+			customModes: [
+				{
+					slug: "team",
+					name: "Team",
+					workgroup: { colleagueSlugs: ["reviewer"], reviewerModeSlug: "reviewer" },
+				},
+			],
+		})
+		const safety = await view.findByLabelText("本次会话由审核同事审核命令安全")
+		const choice = view.getByLabelText("本次会话由审核同事代答选择题")
+		fireEvent.click(safety)
+		expect(choice).not.toBeChecked()
+		const input = view.getByTestId("chat-textarea").querySelector("input")!
+		fireEvent.change(input, { target: { value: "开始工作" } })
+		fireEvent.keyDown(input, { key: "Enter", code: "Enter" })
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "newTask",
+			text: "开始工作",
+			images: [],
+			values: { reviewerChoiceEnabled: false, reviewerSecurityEnabled: true },
+		})
+	})
+
+	it("toggles security and question delegation independently in an existing session", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "task-1",
+			mode: "team",
+			reviewerSecurityEnabled: false,
+			reviewerChoiceEnabled: true,
+			customModes: [
+				{
+					slug: "team",
+					name: "Team",
+					workgroup: { colleagueSlugs: ["reviewer"], reviewerModeSlug: "reviewer" },
+				},
+			],
+			clineMessages: [{ type: "say", say: "text", ts: Date.now(), text: "test" }],
+		})
+		const safety = await view.findByLabelText("本次会话由审核同事审核命令安全")
+		const choice = view.getByLabelText("本次会话由审核同事代答选择题")
+		expect(safety).not.toBeChecked()
+		expect(choice).toBeChecked()
+		fireEvent.click(safety)
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "setReviewerSecurityEnabled",
+			bool: true,
+			taskId: "task-1",
+		})
+		expect(vscode.postMessage).not.toHaveBeenCalledWith(
+			expect.objectContaining({ type: "setReviewerChoiceEnabled" }),
+		)
+	})
 	it("sends the prompt, selected time and session reviewer choice to the extension", async () => {
 		const view = renderChatView()
 		mockPostMessage({
@@ -286,6 +343,11 @@ describe("ChatView - scheduled workgroup task", () => {
 			],
 		})
 		const reviewer = await view.findByLabelText("本次会话由审核同事代答选择题")
+		const security = view.getByLabelText("本次会话由审核同事审核命令安全")
+		expect(reviewer).not.toBeChecked()
+		expect(security).not.toBeChecked()
+		fireEvent.click(security)
+		expect(reviewer).not.toBeChecked()
 		fireEvent.click(reviewer)
 		fireEvent.change(view.getByTestId("chat-textarea").querySelector("input")!, { target: { value: "开发货币栏" } })
 		fireEvent.change(view.getByLabelText(/定时启动/), { target: { value: "2030-01-01T12:00" } })
@@ -294,7 +356,11 @@ describe("ChatView - scheduled workgroup task", () => {
 			type: "scheduleNewTask",
 			text: "开发货币栏",
 			images: [],
-			values: { dueAt: new Date("2030-01-01T12:00").getTime(), reviewerChoiceEnabled: true },
+			values: {
+				dueAt: new Date("2030-01-01T12:00").getTime(),
+				reviewerChoiceEnabled: true,
+				reviewerSecurityEnabled: true,
+			},
 		})
 	})
 
@@ -316,6 +382,7 @@ describe("ChatView - scheduled workgroup task", () => {
 			values: {
 				dueAt: new Date("2030-01-01T12:00").getTime(),
 				reviewerChoiceEnabled: false,
+				reviewerSecurityEnabled: false,
 				taskId: "conversation-1",
 			},
 		})

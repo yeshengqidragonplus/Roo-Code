@@ -93,6 +93,8 @@ export interface CreateTaskOptions {
 	initialStatus?: "active" | "delegated" | "completed" | "idle"
 	/** Let the configured reviewer answer follow-up questions in this task. */
 	reviewerChoiceEnabled?: boolean
+	/** Let the configured reviewer analyze commands in this task. */
+	reviewerSecurityEnabled?: boolean
 	/** Reject a scheduled start instead of replacing an existing session. */
 	failIfTaskActive?: boolean
 	/** Whether to start the task loop immediately (default: true).

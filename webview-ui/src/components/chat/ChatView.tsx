@@ -83,16 +83,21 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		showWorktreesInHomeScreen,
 		clineMessagesTotal,
 		reviewerChoiceEnabled,
+		reviewerSecurityEnabled,
 		scheduledTask,
 	} = useExtensionState()
 	const [newTaskReviewerChoice, setNewTaskReviewerChoice] = useState(false)
+	const [newTaskReviewerSecurity, setNewTaskReviewerSecurity] = useState(false)
 	const [scheduledLocalTime, setScheduledLocalTime] = useState("")
 	const currentWorkgroup = customModes.find((item) => item.slug === (currentTaskItem?.mode ?? mode))?.workgroup
 	const reviewerAvailable =
 		!!currentWorkgroup?.reviewerModeSlug &&
 		currentWorkgroup.colleagueSlugs.includes(currentWorkgroup.reviewerModeSlug)
 	useEffect(() => {
-		if (currentTaskId) setNewTaskReviewerChoice(false)
+		if (currentTaskId) {
+			setNewTaskReviewerChoice(false)
+			setNewTaskReviewerSecurity(false)
+		}
 	}, [currentTaskId])
 
 	// Show a WarningRow when the user sends a message with a retired provider.
@@ -639,7 +644,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						type: "newTask",
 						text,
 						images,
-						values: { reviewerChoiceEnabled: newTaskReviewerChoice },
+						values: {
+							reviewerChoiceEnabled: newTaskReviewerChoice,
+							reviewerSecurityEnabled: newTaskReviewerSecurity,
+						},
 					})
 				} else if (clineAskRef.current) {
 					if (clineAskRef.current === "followup") {
@@ -683,6 +691,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			messageQueue.length,
 			apiConfiguration?.apiProvider,
 			newTaskReviewerChoice,
+			newTaskReviewerSecurity,
 		], // messagesRef and clineAskRef are stable
 	)
 
@@ -877,6 +886,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					setInputValue("")
 					setSelectedImages([])
 					setNewTaskReviewerChoice(false)
+					setNewTaskReviewerSecurity(false)
 					setScheduledLocalTime("")
 					break
 				case "scheduledResumeCreated":
@@ -1947,6 +1957,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 								values: {
 									dueAt: new Date(scheduledLocalTime).getTime(),
 									reviewerChoiceEnabled: newTaskReviewerChoice,
+									reviewerSecurityEnabled: newTaskReviewerSecurity,
 									...(currentTaskId ? { taskId: currentTaskId } : {}),
 								},
 							})
@@ -1976,18 +1987,45 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				</div>
 			)}
 			{reviewerAvailable && (
-				<label className="flex items-center gap-2 px-4 py-1 text-sm text-vscode-descriptionForeground">
-					<input
-						type="checkbox"
-						checked={currentTaskId ? !!reviewerChoiceEnabled : newTaskReviewerChoice}
-						onChange={(event) => {
-							const enabled = event.target.checked
-							if (currentTaskId) vscode.postMessage({ type: "setReviewerChoiceEnabled", bool: enabled })
-							else setNewTaskReviewerChoice(enabled)
-						}}
-					/>
-					本次会话由审核同事代答选择题
-				</label>
+				<div className="px-4 py-1 text-sm text-vscode-descriptionForeground">
+					<label className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							checked={currentTaskId ? !!reviewerSecurityEnabled : newTaskReviewerSecurity}
+							onChange={(event) => {
+								const enabled = event.target.checked
+								if (currentTaskId)
+									vscode.postMessage({
+										type: "setReviewerSecurityEnabled",
+										bool: enabled,
+										taskId: currentTaskId,
+									})
+								else setNewTaskReviewerSecurity(enabled)
+							}}
+						/>
+						本次会话由审核同事审核命令安全
+					</label>
+					<label className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							checked={currentTaskId ? !!reviewerChoiceEnabled : newTaskReviewerChoice}
+							onChange={(event) => {
+								const enabled = event.target.checked
+								if (currentTaskId)
+									vscode.postMessage({
+										type: "setReviewerChoiceEnabled",
+										bool: enabled,
+										taskId: currentTaskId,
+									})
+								else setNewTaskReviewerChoice(enabled)
+							}}
+						/>
+						本次会话由审核同事代答选择题
+					</label>
+					<div className="pl-6">
+						两个选项独立控制；关闭安全审核不等于允许命令，未信任的命令仍需人工审批。开启后对后续命令生效。
+					</div>
+				</div>
 			)}
 			<ChatTextArea
 				ref={textAreaRef}
