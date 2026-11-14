@@ -490,6 +490,127 @@ describe("Cline", () => {
 	})
 
 	it.each([
+		{ workgroup: true, decision: "yesButtonClicked" as const, trustThrows: false },
+		{ workgroup: false, decision: "noButtonClicked" as const, trustThrows: false },
+		{ workgroup: false, decision: "yesButtonClicked" as const, trustThrows: true },
+	])("keeps the command pending when permanent trust fails: %o", async ({ workgroup, decision, trustThrows }) => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({ autoApprovalMode: "sandbox" } as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(workgroup)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue(workgroup ? "team" : "code")
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		const trust = vi.spyOn(commandTrustStore, "trustCommand")
+		if (trustThrows) trust.mockRejectedValueOnce(new Error("cannot write trust store"))
+		else trust.mockResolvedValueOnce(false)
+		;(vscode.window as any).showWarningMessage = vi.fn()
+		vi.mocked(pWaitFor).mockImplementation(async (predicate) => {
+			for (let i = 0; i < 500; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		let settled = false
+		const pending = task.ask("command", "python --version", false, undefined, false, task.cwd).then((result) => {
+			settled = true
+			return result
+		})
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.ask).toBe("command"))
+		task.handleWebviewAskResponse("trustCommand")
+		await vi.waitFor(() =>
+			expect(mockProvider.postMessageToWebview).toHaveBeenCalledWith({
+				type: "commandTrustUnavailable",
+				text: task.taskId,
+				messageTs: task.clineMessages.at(-1)?.ts,
+			}),
+		)
+		expect(settled).toBe(false)
+		expect(vscode.window.showWarningMessage).toHaveBeenCalled()
+		task.handleWebviewAskResponse(decision)
+		expect((await pending).response).toBe(decision)
+		vi.mocked(pWaitFor)
+			.mockReset()
+			.mockImplementation(async () => undefined)
+	})
+
+	it("executes a command after permanent trust is successfully recorded", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({ autoApprovalMode: "sandbox" } as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(false)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		vi.spyOn(commandTrustStore, "trustCommand").mockResolvedValueOnce(true)
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 500; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", "python --version", false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.ask).toBe("command"))
+		task.handleWebviewAskResponse("trustCommand")
+		expect((await pending).response).toBe("yesButtonClicked")
+		expect(mockProvider.postMessageToWebview).not.toHaveBeenCalledWith(
+			expect.objectContaining({ type: "commandTrustUnavailable" }),
+		)
+	})
+
+	it("does not let a late permanent-trust result override a later rejection", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({ autoApprovalMode: "sandbox" } as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(false)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		let finishTrust!: (trusted: boolean) => void
+		const trust = vi.spyOn(commandTrustStore, "trustCommand").mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					finishTrust = resolve
+				}),
+		)
+		vi.mocked(pWaitFor).mockImplementation(async (predicate) => {
+			for (let i = 0; i < 500; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", "python --version", false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.ask).toBe("command"))
+		task.handleWebviewAskResponse("trustCommand")
+		await vi.waitFor(() => expect(trust).toHaveBeenCalled())
+		task.handleWebviewAskResponse("noButtonClicked")
+		finishTrust(true)
+		expect((await pending).response).toBe("noButtonClicked")
+		vi.mocked(pWaitFor)
+			.mockReset()
+			.mockImplementation(async () => undefined)
+	})
+
+	it.each([
 		{ label: "workgroup", isWorkgroup: true, decision: "deny" as const },
 		{ label: "workgroup", isWorkgroup: true, decision: "approve" as const },
 		{ label: "normal sandbox", isWorkgroup: false, decision: "deny" as const },

@@ -271,6 +271,59 @@ const renderChatView = (props: Partial<ChatViewProps> = {}) => {
 	)
 }
 
+describe("ChatView - command trust fallback", () => {
+	beforeEach(() => vi.clearAllMocks())
+
+	it("restores the same command approval after trust is unavailable, ignoring stale events", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "trust-task",
+			mode: "code",
+			autoApprovalMode: "sandbox",
+			clineMessages: [{ type: "ask", ask: "command", ts: 123, text: "python --version" }],
+		})
+		fireEvent.click(await view.findByText("完全信任"))
+		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "askResponse", askResponse: "trustCommand" })
+		await act(async () =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "commandTrustUnavailable", text: "other-task", messageTs: 123 },
+				}),
+			),
+		)
+		expect(view.queryByText("完全信任")).not.toBeInTheDocument()
+		await act(async () =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "commandTrustUnavailable", text: "trust-task", messageTs: 999 },
+				}),
+			),
+		)
+		expect(view.queryByText("完全信任")).not.toBeInTheDocument()
+		await act(async () =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "commandTrustUnavailable", text: "trust-task", messageTs: 123 },
+				}),
+			),
+		)
+		fireEvent.click(await view.findByText("chat:runCommand.title"))
+		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "askResponse", askResponse: "yesButtonClicked" })
+	})
+
+	it("does not offer permanent trust in legacy normal mode", async () => {
+		const view = renderChatView()
+		mockPostMessage({
+			currentTaskId: "legacy-task",
+			mode: "code",
+			autoApprovalMode: "manual",
+			clineMessages: [{ type: "ask", ask: "command", ts: 123, text: "python --version" }],
+		})
+		await view.findByText("chat:runCommand.title")
+		expect(view.queryByText("完全信任")).not.toBeInTheDocument()
+	})
+})
+
 describe("ChatView - scheduled workgroup task", () => {
 	beforeEach(() => vi.clearAllMocks())
 	it("sends the independent safety switch when starting a session", async () => {

@@ -1780,83 +1780,109 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		// Wait for askResponse to be set
-		await pWaitFor(
-			() => {
-				if (this.askResponse !== undefined || this.lastMessageTs !== askTs) {
-					return true
-				}
+		let response: ClineAskResponse
+		let responseText: string | undefined
+		let responseImages: string[] | undefined
+		let allowQueuedForAsk = shouldDrainQueuedMessageForAsk
+		for (;;) {
+			// Wait for askResponse to be set
+			await pWaitFor(
+				() => {
+					if (this.askResponse !== undefined || this.lastMessageTs !== askTs) {
+						return true
+					}
 
-				// If a queued message arrives while we're blocked on an ask (e.g. a follow-up
-				// suggestion click that was incorrectly queued due to UI state), consume it
-				// immediately so the task doesn't hang.
-				if (shouldDrainQueuedMessageForAsk && !this.messageQueueService.isEmpty()) {
-					const message = this.messageQueueService.dequeueMessage()
-					if (message) {
-						// If this is a tool approval ask, we need to approve first (yesButtonClicked)
-						// and include any queued text/images.
-						if (type === "tool" || type === "command" || type === "use_mcp_server") {
-							if (type === "command")
-								provider?.log?.(
-									`[command-approval] ${JSON.stringify({ event: "queued_message_approve", taskId: this.taskId, askTs })}`,
-								)
-							this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
-						} else {
-							this.handleWebviewAskResponse("messageResponse", message.text, message.images)
+					// If a queued message arrives while we're blocked on an ask (e.g. a follow-up
+					// suggestion click that was incorrectly queued due to UI state), consume it
+					// immediately so the task doesn't hang.
+					if (allowQueuedForAsk && !this.messageQueueService.isEmpty()) {
+						const message = this.messageQueueService.dequeueMessage()
+						if (message) {
+							// If this is a tool approval ask, we need to approve first (yesButtonClicked)
+							// and include any queued text/images.
+							if (type === "tool" || type === "command" || type === "use_mcp_server") {
+								if (type === "command")
+									provider?.log?.(
+										`[command-approval] ${JSON.stringify({ event: "queued_message_approve", taskId: this.taskId, askTs })}`,
+									)
+								this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
+							} else {
+								this.handleWebviewAskResponse("messageResponse", message.text, message.images)
+							}
 						}
 					}
-				}
 
-				return false
-			},
-			{ interval: 100 },
-		)
+					return false
+				},
+				{ interval: 100 },
+			)
 
-		if (this.activeReviewerAsk === reviewerAskToken) this.activeReviewerAsk = undefined
-		if (this.scheduledReplyAsk?.ts === askTs) this.scheduledReplyAsk = undefined
-		if (this.lastMessageTs !== askTs) {
-			// Could happen if we send multiple asks in a row i.e. with
-			// command_output. It's important that when we know an ask could
-			// fail, it is handled gracefully.
+			if (this.lastMessageTs !== askTs) {
+				// Could happen if we send multiple asks in a row i.e. with
+				// command_output. It's important that when we know an ask could
+				// fail, it is handled gracefully.
+				if (type === "command")
+					provider?.log?.(
+						`[command-approval] ${JSON.stringify({ event: "ask_superseded", taskId: this.taskId, askTs })}`,
+					)
+				throw new AskIgnoredError("superseded")
+			}
+
+			response = this.askResponse!
+			responseText = this.askResponseText
+			responseImages = this.askResponseImages
+			this.askResponse = undefined
+			this.askResponseText = undefined
+			this.askResponseImages = undefined
 			if (type === "command")
 				provider?.log?.(
-					`[command-approval] ${JSON.stringify({ event: "ask_superseded", taskId: this.taskId, askTs })}`,
+					`[command-approval] ${JSON.stringify({ event: "response", taskId: this.taskId, askTs, response })}`,
 				)
-			throw new AskIgnoredError("superseded")
-		}
-
-		let response = this.askResponse!
-		if (type === "command")
-			provider?.log?.(
-				`[command-approval] ${JSON.stringify({ event: "response", taskId: this.taskId, askTs, response })}`,
-			)
-		if (response === "trustCommand") {
-			// The UI only offers this action for command approvals. Keep the guard here
-			// so an arbitrary webview message can never create a normal-Mode trust rule.
-			if (
-				type === "command" &&
-				text &&
-				((await this.isWorkgroupMode()) || state?.autoApprovalMode === "sandbox")
-			) {
-				const trusted = await trustCommand(this.cwd, text, commandSnapshot)
-				if (trusted) response = "yesButtonClicked"
-				else {
-					provider?.log?.(
-						`[command-approval] ${JSON.stringify({ event: "trust_unavailable", taskId: this.taskId, askTs })}`,
-					)
-					void vscode.window.showWarningMessage(
-						"无法完整确认命令及脚本内容，未加入永久信任且本次未执行；请检查后选择允许一次。",
-					)
+			if (response === "trustCommand") {
+				// The UI only offers this action for command approvals. Keep the guard here
+				// so an arbitrary webview message can never create a normal-Mode trust rule.
+				if (
+					type === "command" &&
+					text &&
+					((await this.isWorkgroupMode()) || state?.autoApprovalMode === "sandbox")
+				) {
+					let trusted = false
+					try {
+						trusted = await trustCommand(this.cwd, text, commandSnapshot)
+					} catch {
+						provider?.log?.(
+							`[command-approval] ${JSON.stringify({ event: "trust_write_failed", taskId: this.taskId, askTs })}`,
+						)
+					}
+					if (this.abort || this.lastMessageTs !== askTs) throw new AskIgnoredError("superseded")
+					// Do not let a late trust result override another response.
+					if (this.askResponse !== undefined) continue
+					if (trusted) response = "yesButtonClicked"
+					else {
+						provider?.log?.(
+							`[command-approval] ${JSON.stringify({ event: "trust_unavailable", taskId: this.taskId, askTs })}`,
+						)
+						void vscode.window.showWarningMessage(
+							"无法将此命令加入永久信任，命令尚未执行；请检查后选择允许一次或拒绝。",
+						)
+						allowQueuedForAsk = false
+						this.scheduledReplyAsk = { ts: askTs, type }
+						await provider?.postMessageToWebview({
+							type: "commandTrustUnavailable",
+							text: this.taskId,
+							messageTs: askTs,
+						})
+						continue
+					}
+				} else {
 					response = "noButtonClicked"
 				}
-			} else {
-				response = "noButtonClicked"
 			}
+			break
 		}
-		const result = { response, text: this.askResponseText, images: this.askResponseImages }
-		this.askResponse = undefined
-		this.askResponseText = undefined
-		this.askResponseImages = undefined
+		if (this.activeReviewerAsk === reviewerAskToken) this.activeReviewerAsk = undefined
+		if (this.scheduledReplyAsk?.ts === askTs) this.scheduledReplyAsk = undefined
+		const result = { response, text: responseText, images: responseImages }
 
 		// Cancel the timeouts if they are still running.
 		timeouts.forEach((timeout) => clearTimeout(timeout))

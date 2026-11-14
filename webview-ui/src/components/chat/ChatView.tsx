@@ -84,6 +84,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		clineMessagesTotal,
 		reviewerChoiceEnabled,
 		reviewerSecurityEnabled,
+		autoApprovalMode,
 		scheduledTask,
 	} = useExtensionState()
 	const [newTaskReviewerChoice, setNewTaskReviewerChoice] = useState(false)
@@ -169,6 +170,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const manualCondenseTaskIdRef = useRef<string | undefined>(undefined)
 	const currentTaskIdRef = useRef(currentTaskId)
 	currentTaskIdRef.current = currentTaskId
+	const pendingTrustRef = useRef<{ taskId: string; messageTs: number } | undefined>(undefined)
 	const everVisibleMessagesTsRef = useRef<LRUCache<number, boolean>>(
 		new LRUCache({
 			max: 100,
@@ -862,6 +864,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	)
 
 	const handleTrustCommandClick = useCallback(() => {
+		const taskId = currentTaskIdRef.current
+		const commandAsk = messagesRef.current.findLast(
+			(message) => message.type === "ask" && message.ask === "command",
+		)
+		if (!taskId || !commandAsk) return
+		pendingTrustRef.current = { taskId, messageTs: commandAsk.ts }
 		userRespondedRef.current = true
 		vscode.postMessage({ type: "askResponse", askResponse: "trustCommand" })
 		setSendingDisabled(true)
@@ -882,6 +890,28 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			const message: ExtensionMessage = e.data
 
 			switch (message.type) {
+				case "commandTrustUnavailable": {
+					const pending = pendingTrustRef.current
+					const lastCommand = messagesRef.current.findLast(
+						(item) => item.type === "ask" && item.ask === "command",
+					)
+					if (
+						!pending ||
+						pending.taskId !== currentTaskIdRef.current ||
+						pending.taskId !== message.text ||
+						pending.messageTs !== message.messageTs ||
+						lastCommand?.ts !== pending.messageTs
+					)
+						break
+					pendingTrustRef.current = undefined
+					userRespondedRef.current = false
+					setSendingDisabled(false)
+					setClineAsk("command")
+					setEnableButtons(true)
+					setPrimaryButtonText(t("chat:runCommand.title"))
+					setSecondaryButtonText(t("chat:reject.title"))
+					break
+				}
 				case "scheduledTaskCreated":
 					setInputValue("")
 					setSelectedImages([])
@@ -989,6 +1019,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			handleSecondaryButtonClick,
 			setCheckpointWarning,
 			playSound,
+			t,
 		],
 	)
 
@@ -1829,15 +1860,17 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 											</Button>
 										</StandardTooltip>
 									)}
-									{clineAsk === "command" && secondaryButtonText && (
-										<Button
-											variant="secondary"
-											disabled={!enableButtons}
-											className="flex-1 ml-[6px]"
-											onClick={handleTrustCommandClick}>
-											完全信任
-										</Button>
-									)}
+									{clineAsk === "command" &&
+										secondaryButtonText &&
+										(currentWorkgroup || autoApprovalMode === "sandbox") && (
+											<Button
+												variant="secondary"
+												disabled={!enableButtons}
+												className="flex-1 ml-[6px]"
+												onClick={handleTrustCommandClick}>
+												完全信任
+											</Button>
+										)}
 								</>
 							)}
 						</div>

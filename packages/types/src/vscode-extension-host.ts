@@ -64,6 +64,7 @@ export interface ExtensionMessage {
 		| "acceptInput"
 		| "setHistoryPreviewCollapsed"
 		| "commandExecutionStatus"
+		| "commandTrustUnavailable"
 		| "mcpExecutionStatus"
 		| "vsCodeSetting"
 		| "authenticatedUser"
