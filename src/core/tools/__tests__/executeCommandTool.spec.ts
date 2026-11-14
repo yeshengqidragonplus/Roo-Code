@@ -221,6 +221,9 @@ describe("executeCommandTool", () => {
 
 		it("should handle command rejection", async () => {
 			// Setup
+			const log = vitest.fn()
+			mockCline.taskId = "diagnostic-task"
+			mockCline.providerRef.deref.mockReturnValue({ log })
 			mockToolUse.params.command = "echo test"
 			mockAskApproval.mockResolvedValue(false)
 			mockToolUse.nativeArgs = { command: "echo test" }
@@ -242,10 +245,17 @@ describe("executeCommandTool", () => {
 			)
 			// executeCommandInTerminal should not be called since approval was denied
 			expect(mockPushToolResult).not.toHaveBeenCalled()
+			expect(log).toHaveBeenCalledWith(
+				'[command-approval] {"event":"tool_not_approved","taskId":"diagnostic-task"}',
+			)
+			expect(log.mock.calls.flat().join(" ")).not.toContain("echo test")
 		})
 
 		it("should handle rooignore validation failures", async () => {
 			// Setup
+			const log = vitest.fn()
+			mockCline.taskId = "diagnostic-task"
+			mockCline.providerRef.deref.mockReturnValue({ log })
 			mockToolUse.params.command = "cat .env"
 			mockToolUse.nativeArgs = { command: "cat .env" }
 			// Override the validateCommand mock to return a filename
@@ -270,6 +280,10 @@ describe("executeCommandTool", () => {
 			expect(formatResponse.rooIgnoreError).toHaveBeenCalledWith(".env")
 			expect(mockPushToolResult).toHaveBeenCalledWith(mockRooIgnoreError)
 			expect(mockAskApproval).not.toHaveBeenCalled()
+			expect(log).toHaveBeenCalledWith(
+				'[command-approval] {"event":"rooignore_blocked","taskId":"diagnostic-task"}',
+			)
+			expect(log.mock.calls.flat().join(" ")).not.toContain(".env")
 			// executeCommandInTerminal should not be called since rooignore blocked it
 		})
 	})

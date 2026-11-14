@@ -698,9 +698,13 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 		case "askResponse":
 			{
 				const resolved = await resolveIncomingImages({ text: message.text, images: message.images })
-				provider
-					.getCurrentTask()
-					?.handleWebviewAskResponse(message.askResponse!, resolved.text, resolved.images)
+				const task = provider.getCurrentTask()
+				if (task) {
+					provider.log?.(
+						`[command-approval] ${JSON.stringify({ event: "webview_response", taskId: task.taskId, askTs: task.lastMessageTs, response: message.askResponse })}`,
+					)
+					task.handleWebviewAskResponse(message.askResponse!, resolved.text, resolved.images)
+				}
 			}
 			break
 

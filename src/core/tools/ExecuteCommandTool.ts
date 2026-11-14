@@ -57,6 +57,9 @@ export class ExecuteCommandTool extends BaseTool<"execute_command"> {
 			const ignoredFileAttemptedToAccess = task.rooIgnoreController?.validateCommand(canonicalCommand)
 
 			if (ignoredFileAttemptedToAccess) {
+				task.providerRef
+					.deref()
+					?.log?.(`[command-approval] ${JSON.stringify({ event: "rooignore_blocked", taskId: task.taskId })}`)
 				await task.say("rooignore_error", ignoredFileAttemptedToAccess)
 				pushToolResult(formatResponse.rooIgnoreError(ignoredFileAttemptedToAccess))
 				return
@@ -68,8 +71,14 @@ export class ExecuteCommandTool extends BaseTool<"execute_command"> {
 			const didApprove = await askApproval("command", canonicalCommand, undefined, undefined, reviewCwd)
 
 			if (!didApprove) {
+				task.providerRef
+					.deref()
+					?.log?.(`[command-approval] ${JSON.stringify({ event: "tool_not_approved", taskId: task.taskId })}`)
 				return
 			}
+			task.providerRef
+				.deref()
+				?.log?.(`[command-approval] ${JSON.stringify({ event: "terminal_starting", taskId: task.taskId })}`)
 
 			const executionId = task.lastMessageTs?.toString() ?? Date.now().toString()
 			const provider = await task.providerRef.deref()
@@ -141,6 +150,11 @@ export class ExecuteCommandTool extends BaseTool<"execute_command"> {
 
 			return
 		} catch (error) {
+			task.providerRef
+				.deref()
+				?.log?.(
+					`[command-approval] ${JSON.stringify({ event: "command_execution_error", taskId: task.taskId })}`,
+				)
 			await handleError("executing command", error as Error)
 			return
 		}

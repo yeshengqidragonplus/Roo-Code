@@ -1464,6 +1464,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			workgroupCommandTrusted !== true
 				? ({ decision: "ask" } as const)
 				: calculatedApproval
+		if (type === "command") {
+			provider?.log?.(
+				`[command-approval] ${JSON.stringify({ event: "decision", taskId: this.taskId, askTs, workgroup: isWorkgroup, approvalMode: state?.autoApprovalMode ?? "legacy", autoApprovalEnabled: state?.autoApprovalEnabled === true, alwaysAllowExecute: state?.alwaysAllowExecute === true, reviewerEnabled: isWorkgroup && this.reviewerSecurityEnabled, snapshotAvailable: !!commandSnapshot, projectTrusted: workgroupCommandTrusted ?? null, calculated: calculatedApproval.decision, effective: approval.decision })}`,
+			)
+		}
 
 		const securityReviewToken = Symbol("security-review")
 		const publishCommandReview = async (review: NonNullable<ClineMessage["commandReview"]>) => {
@@ -1615,6 +1620,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						provider?.log(
 							`[reviewer] ${reviewer.mode.slug} approved command for task ${this.taskId}; script sha256=${snapshot.sha256 ?? "inline"}`,
 						)
+						provider?.log?.(
+							`[command-approval] ${JSON.stringify({ event: "reviewer_approve", taskId: this.taskId, askTs })}`,
+						)
 						void vscode.window.showInformationMessage(`审核同事 ${reviewer.mode.name} 已允许本次命令`)
 						this.approveAsk()
 					}
@@ -1683,8 +1691,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		if (approval.decision === "approve") {
+			if (type === "command")
+				provider?.log?.(
+					`[command-approval] ${JSON.stringify({ event: "policy_approve", taskId: this.taskId, askTs })}`,
+				)
 			this.approveAsk()
 		} else if (approval.decision === "deny") {
+			if (type === "command")
+				provider?.log?.(
+					`[command-approval] ${JSON.stringify({ event: "policy_deny", taskId: this.taskId, askTs })}`,
+				)
 			this.denyAsk()
 		} else if (approval.decision === "timeout") {
 			// Store the auto-approval timeout so it can be cancelled if user interacts
@@ -1749,6 +1765,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			if (message) {
 				// Check if this is a tool approval ask that needs to be handled.
 				if (type === "tool" || type === "command" || type === "use_mcp_server") {
+					if (type === "command")
+						provider?.log?.(
+							`[command-approval] ${JSON.stringify({ event: "queued_message_approve", taskId: this.taskId, askTs })}`,
+						)
 					// For tool approvals, we need to approve first, then send
 					// the message if there's text/images.
 					this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
@@ -1776,6 +1796,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						// If this is a tool approval ask, we need to approve first (yesButtonClicked)
 						// and include any queued text/images.
 						if (type === "tool" || type === "command" || type === "use_mcp_server") {
+							if (type === "command")
+								provider?.log?.(
+									`[command-approval] ${JSON.stringify({ event: "queued_message_approve", taskId: this.taskId, askTs })}`,
+								)
 							this.handleWebviewAskResponse("yesButtonClicked", message.text, message.images)
 						} else {
 							this.handleWebviewAskResponse("messageResponse", message.text, message.images)
@@ -1794,10 +1818,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Could happen if we send multiple asks in a row i.e. with
 			// command_output. It's important that when we know an ask could
 			// fail, it is handled gracefully.
+			if (type === "command")
+				provider?.log?.(
+					`[command-approval] ${JSON.stringify({ event: "ask_superseded", taskId: this.taskId, askTs })}`,
+				)
 			throw new AskIgnoredError("superseded")
 		}
 
 		let response = this.askResponse!
+		if (type === "command")
+			provider?.log?.(
+				`[command-approval] ${JSON.stringify({ event: "response", taskId: this.taskId, askTs, response })}`,
+			)
 		if (response === "trustCommand") {
 			// The UI only offers this action for command approvals. Keep the guard here
 			// so an arbitrary webview message can never create a normal-Mode trust rule.
@@ -1809,6 +1841,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const trusted = await trustCommand(this.cwd, text, commandSnapshot)
 				if (trusted) response = "yesButtonClicked"
 				else {
+					provider?.log?.(
+						`[command-approval] ${JSON.stringify({ event: "trust_unavailable", taskId: this.taskId, askTs })}`,
+					)
 					void vscode.window.showWarningMessage(
 						"无法完整确认命令及脚本内容，未加入永久信任且本次未执行；请检查后选择允许一次。",
 					)

@@ -28,6 +28,12 @@
 
 审核调用可能产生额外模型费用，当前调用不包含审核同事的工具和技能，也不计入主会话的模型用量统计。
 
+### 命令审批诊断日志
+
+在运行 QCode 扩展的 VS Code 窗口打开“输出”，选择 `QCode`，搜索 `[command-approval]`。复现后可按 `taskId` 和 `askTs` 对照日志：`tool_validation_failed` 是模式或工具权限校验失败，`rooignore_blocked` 是忽略规则阻止，`decision` 包含项目白名单状态与原始/实际审批决定，`policy_deny` 是自动审批规则拒绝，`webview_response` 是界面传回的响应，`approval_callback_denied` 表示响应未被视为允许，`skipped_after_prior_tool_denial` 表示同一轮中此前的工具被拒导致跳过，`terminal_starting` 表示已经通过审批并准备启动终端。审核员、队列和信任不可用也有单独事件。
+
+新增的 `[command-approval]` 日志不包含命令正文、工作目录、脚本内容或用户回复；但 QCode 输出中的其他日志仍可能含有敏感信息，分享前请先检查并脱敏。普通会话的 `webview_response` 也会记录响应类型，以便关联后续命令，**不会记录回复内容**。远程开发时应查看实际运行 QCode 扩展的远程窗口输出。
+
 ## 定时启动
 
 在新会话输入区填写任务，选择本地时间并点击“安排任务”。定时信息保存在当前 VS Code 工作区，可以取消；同一时间只保留一个待启动任务。启动前检查当前模式和 API 配置是否仍与安排时一致，不一致则停止并提示；本次会话代选和安全审核选择会随新任务保存。

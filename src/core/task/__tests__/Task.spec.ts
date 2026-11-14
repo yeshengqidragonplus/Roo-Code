@@ -444,6 +444,7 @@ describe("Cline", () => {
 		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
 			task.clineMessages.push(message)
 		})
+		const log = vi.spyOn(mockProvider, "log")
 		const resolveReviewer = vi.spyOn(task as any, "getWorkgroupReviewer")
 		const review = vi.spyOn(reviewer, "reviewInlineCommand")
 		const prepare = vi
@@ -470,6 +471,20 @@ describe("Cline", () => {
 		expect((task as any).askResponse).toBeUndefined()
 		task.handleWebviewAskResponse("yesButtonClicked")
 		expect((await pending).response).toBe("yesButtonClicked")
+		const diagnostics = log.mock.calls
+			.map(([line]) => String(line))
+			.filter((line: string) => line.startsWith("[command-approval]"))
+		expect(
+			diagnostics.some(
+				(line: string) => line.includes('"event":"decision"') && line.includes('"effective":"ask"'),
+			),
+		).toBe(true)
+		expect(
+			diagnostics.some(
+				(line: string) => line.includes('"event":"response"') && line.includes('"response":"yesButtonClicked"'),
+			),
+		).toBe(true)
+		expect(diagnostics.join("\n")).not.toContain("python -c")
 		prepare.mockRestore()
 		review.mockRestore()
 	})

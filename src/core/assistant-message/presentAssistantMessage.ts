@@ -339,6 +339,11 @@ export async function presentAssistantMessage(cline: Task) {
 			// Fetch state early so it's available for toolDescription and validation
 			const state = await cline.providerRef.deref()?.getState()
 			const { mode, customModes, experiments: stateExperiments, disabledTools } = state ?? {}
+			if (!block.partial && block.name === "execute_command") {
+				cline.providerRef
+					.deref()
+					?.log?.(`[command-approval] ${JSON.stringify({ event: "tool_received", taskId: cline.taskId })}`)
+			}
 
 			const toolDescription = (): string => {
 				switch (block.name) {
@@ -405,6 +410,13 @@ export async function presentAssistantMessage(cline: Task) {
 			}
 
 			if (cline.didRejectTool) {
+				if (block.name === "execute_command") {
+					cline.providerRef
+						.deref()
+						?.log?.(
+							`[command-approval] ${JSON.stringify({ event: "skipped_after_prior_tool_denial", taskId: cline.taskId })}`,
+						)
+				}
 				// Ignore any tool content after user has rejected tool once.
 				// For native tool calling, we must send a tool_result for every tool_use to avoid API errors
 				const errorMessage = !block.partial
@@ -435,6 +447,13 @@ export async function presentAssistantMessage(cline: Task) {
 				const customTool = stateExperiments?.customTools ? customToolRegistry.get(block.name) : undefined
 				const isKnownTool = isValidToolName(String(block.name), stateExperiments)
 				if (isKnownTool && !block.nativeArgs && !customTool) {
+					if (block.name === "execute_command") {
+						cline.providerRef
+							.deref()
+							?.log?.(
+								`[command-approval] ${JSON.stringify({ event: "native_arguments_missing", taskId: cline.taskId })}`,
+							)
+					}
 					const errorMessage =
 						`Invalid tool call for '${block.name}': missing nativeArgs. ` +
 						`This usually means the model streamed invalid or incomplete arguments and the call could not be finalized.`
@@ -524,6 +543,13 @@ export async function presentAssistantMessage(cline: Task) {
 				)
 
 				if (response !== "yesButtonClicked") {
+					if (type === "command") {
+						cline.providerRef
+							.deref()
+							?.log?.(
+								`[command-approval] ${JSON.stringify({ event: "approval_callback_denied", taskId: cline.taskId, askTs: cline.lastMessageTs, response })}`,
+							)
+					}
 					// Handle both messageResponse and noButtonClicked with text.
 					if (text) {
 						await cline.say("user_feedback", text, images)
@@ -612,6 +638,13 @@ export async function presentAssistantMessage(cline: Task) {
 						includedTools,
 					)
 				} catch (error) {
+					if (block.name === "execute_command") {
+						cline.providerRef
+							.deref()
+							?.log?.(
+								`[command-approval] ${JSON.stringify({ event: "tool_validation_failed", taskId: cline.taskId })}`,
+							)
+					}
 					cline.consecutiveMistakeCount++
 					// For validation errors (unknown tool, tool not allowed for mode), we need to:
 					// 1. Send a tool_result with the error (required for native tool calling)
@@ -639,6 +672,13 @@ export async function presentAssistantMessage(cline: Task) {
 
 				// If execution is not allowed, notify user and break.
 				if (!repetitionCheck.allowExecution && repetitionCheck.askUser) {
+					if (block.name === "execute_command") {
+						cline.providerRef
+							.deref()
+							?.log?.(
+								`[command-approval] ${JSON.stringify({ event: "tool_repetition_limit", taskId: cline.taskId })}`,
+							)
+					}
 					// Handle repetition similar to mistake_limit_reached pattern.
 					const { response, text, images } = await cline.ask(
 						repetitionCheck.askUser.messageKey as ClineAsk,
