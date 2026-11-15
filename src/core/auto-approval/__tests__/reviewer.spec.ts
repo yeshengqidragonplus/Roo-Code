@@ -50,6 +50,43 @@ describe("reviewer follow-up choices", () => {
 })
 
 describe("command review", () => {
+	it("reports why script capture failed without exposing command, paths, or error messages", async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "qcode-review-diag-"))
+		try {
+			const report = vi.fn()
+			await prepareReviewerEvidence("python missing.py", dir, dir, undefined, report)
+			expect(report).toHaveBeenCalledWith({ stage: "script", reason: "filesystem_error", errorCode: "ENOENT" })
+			report.mockClear()
+			await prepareReviewerEvidence("python task.py > output.log", dir, dir, undefined, report)
+			expect(report).toHaveBeenCalledWith({ stage: "script", reason: "filesystem_error", errorCode: "ENOENT" })
+			report.mockClear()
+			await prepareReviewerEvidence(
+				'powershell -Command "python task.py > output.log"',
+				dir,
+				dir,
+				undefined,
+				report,
+			)
+			expect(report).toHaveBeenCalledWith({ stage: "script", reason: "filesystem_error", errorCode: "ENOENT" })
+			await fs.writeFile(path.join(dir, "task.py"), "print(1)")
+			const read = vi
+				.spyOn(fs, "readFile")
+				.mockRejectedValue(Object.assign(new Error("private path and token"), { code: "EACCES" }))
+			report.mockClear()
+			await prepareReviewerEvidence("python task.py", dir, dir, undefined, report)
+			expect(report).toHaveBeenCalledWith({ stage: "script", reason: "filesystem_error", errorCode: "EACCES" })
+			expect(JSON.stringify(report.mock.calls)).not.toContain(dir)
+			expect(JSON.stringify(report.mock.calls)).not.toContain("private path and token")
+			read.mockRestore()
+			await fs.writeFile(path.join(dir, "large.py"), "x".repeat(256 * 1024 + 1))
+			report.mockClear()
+			await prepareReviewerEvidence("python large.py", dir, dir, undefined, report)
+			expect(report).toHaveBeenCalledWith({ stage: "script", reason: "file_too_large" })
+		} finally {
+			vi.restoreAllMocks()
+			await fs.rm(dir, { recursive: true, force: true })
+		}
+	})
 	it("describes known connection failures without exposing provider details", () => {
 		expect(explainReviewerFailure({ status: 429, message: "secret" })).toContain("429")
 		expect(explainReviewerFailure({ code: "ENOTFOUND" })).toContain("ENOTFOUND")
@@ -144,6 +181,140 @@ describe("command review", () => {
 		} finally {
 			await fs.rm(dir, { recursive: true, force: true })
 		}
+	})
+
+	it("captures every script in a command chain and checks every file again", async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "qcode-review-multi-"))
+		try {
+			await fs.mkdir(path.join(dir, "tools"))
+			await fs.writeFile(path.join(dir, "tools", "first.py"), "print('first')")
+			await fs.writeFile(path.join(dir, "tools", "second.py"), "print('second')")
+			const command = 'python tools/first.py > result.log && python "tools/second.py" --flag'
+			const snapshot = await prepareReviewerEvidence(command, dir, dir)
+			expect(snapshot?.autoApprovalBlockedReason).toBeUndefined()
+			expect(snapshot?.scripts?.map((script) => script.source)).toEqual(["print('first')", "print('second')"])
+			expect(snapshot?.reviewItems?.map((item) => item.id)).toEqual([
+				"command-1",
+				"script-1",
+				"command-2",
+				"script-2",
+			])
+			const createMessage = vi.fn(async function* (_system: string, messages: any[]) {
+				const payload = JSON.parse(messages[0].content[0].text)
+				expect(payload.scripts.map((script: { source: string }) => script.source)).toEqual([
+					"print('first')",
+					"print('second')",
+				])
+				yield {
+					type: "text" as const,
+					text: JSON.stringify({
+						items: payload.reviewItems.map((item: { id: string }) => ({
+							id: item.id,
+							decision: "allow",
+							reason: "已检查",
+						})),
+					}),
+				}
+			})
+			const result = await reviewInlineCommand(
+				{ createMessage } as never,
+				{ roleDefinition: "Review" } as never,
+				"task",
+				command,
+				dir,
+				"test",
+				snapshot,
+			)
+			expect(result.decision).toBe("allow")
+			expect(result.reason).toContain("命令 2")
+			expect(result.reason).toContain("脚本 2")
+			const wrapped = await prepareReviewerEvidence(
+				'powershell -Command "python tools/first.py > result.log; python tools/second.py"',
+				dir,
+				dir,
+			)
+			expect(wrapped?.autoApprovalBlockedReason).toBeUndefined()
+			expect(wrapped?.scripts?.map((script) => script.source)).toEqual(["print('first')", "print('second')"])
+			expect(await isCommandSnapshotUnchanged(snapshot!)).toBe(true)
+			await fs.writeFile(path.join(dir, "tools", "second.py"), "print('changed')")
+			expect(await isCommandSnapshotUnchanged(snapshot!)).toBe(false)
+			const changedDir = await prepareReviewerEvidence("cd tools && python first.py", dir, dir)
+			expect(changedDir?.autoApprovalBlockedReason).toContain("改变工作目录")
+			const partiallyMissing = await prepareReviewerEvidence(
+				"python absent.py && python tools/first.py",
+				dir,
+				dir,
+			)
+			expect(partiallyMissing?.autoApprovalBlockedReason).toContain("未能安全读取")
+			expect(partiallyMissing?.reviewItems?.map((item) => item.id)).toEqual([
+				"command-1",
+				"script-1",
+				"command-2",
+				"script-2",
+			])
+			expect(partiallyMissing?.reviewItems?.find((item) => item.id === "script-1")?.text).toContain("无法读取")
+			expect(partiallyMissing?.scripts?.[0]?.id).toBe("script-2")
+			const indirect = await prepareReviewerEvidence(`python -c "exec(open('tools/first.py').read())"`, dir, dir)
+			expect(indirect?.autoApprovalBlockedReason).toContain("间接引用")
+		} finally {
+			await fs.rm(dir, { recursive: true, force: true })
+		}
+	})
+
+	it("requires an explicit decision and reason for every command and script", async () => {
+		const items = [
+			{ id: "command-1", kind: "command" as const, label: "命令 1" },
+			{ id: "script-1", kind: "script" as const, label: "脚本 1" },
+			{ id: "command-2", kind: "command" as const, label: "命令 2" },
+		]
+		const snapshot = {
+			command: "test",
+			cwd: "/project",
+			cwdRealPath: "/project",
+			reviewItems: items,
+			scripts: [
+				{
+					scriptPath: "/project/test.py",
+					scriptInputPath: "/project/test.py",
+					source: "print(42)",
+					sha256: "abc",
+				},
+			],
+		}
+		const invoke = async (reply: unknown) => {
+			const createMessage = vi.fn(async function* () {
+				yield { type: "text" as const, text: JSON.stringify(reply) }
+			})
+			const result = await reviewInlineCommand(
+				{ createMessage } as never,
+				{ roleDefinition: "Review" } as never,
+				"task",
+				"test",
+				"/project",
+				"test",
+				snapshot,
+			)
+			expect(JSON.stringify(createMessage.mock.calls)).toContain("print(42)")
+			return result
+		}
+		const accepted = items.map((item) => ({ id: item.id, decision: "allow", reason: "已检查" }))
+		expect((await invoke({ items: accepted })).decision).toBe("allow")
+		const withWait = accepted.map((item, i) =>
+			i === 1 ? { ...item, decision: "wait", reason: "脚本可能联网" } : item,
+		)
+		const waiting = await invoke({ items: withWait })
+		expect(waiting.decision).toBe("wait")
+		expect(waiting.reason).toContain("脚本可能联网")
+		const multipleWait = withWait.map((item, i) =>
+			i === 2 ? { ...item, decision: "wait", reason: "输出会覆盖文件" } : item,
+		)
+		const multipleReasons = await invoke({ items: multipleWait })
+		expect(multipleReasons.decision).toBe("wait")
+		expect(multipleReasons.reason).toContain("脚本可能联网")
+		expect(multipleReasons.reason).toContain("输出会覆盖文件")
+		expect((await invoke({ items: accepted.slice(0, 2) })).decision).toBe("wait")
+		expect((await invoke({ items: [accepted[0], accepted[0], accepted[2]] })).decision).toBe("wait")
+		expect((await invoke({ decision: "allow", reason: "忽略单项" })).decision).toBe("wait")
 	})
 
 	it("shows a bounded model response when its decision format is invalid", async () => {

@@ -1495,8 +1495,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			void (async () => {
 				try {
 					const snapshot = commandCwd
-						? await prepareReviewerEvidence(command, commandCwd, this.cwd, commandSnapshot)
+						? await prepareReviewerEvidence(
+								command,
+								commandCwd,
+								this.cwd,
+								commandSnapshot,
+								(diagnostic) => {
+									provider?.log?.(
+										`[command-approval] ${JSON.stringify({ event: "script_capture", taskId: this.taskId, askTs, ...diagnostic })}`,
+									)
+								},
+							)
 						: undefined
+					provider?.log?.(
+						`[command-approval] ${JSON.stringify({ event: "review_evidence", taskId: this.taskId, askTs, available: !!snapshot, scriptCaptured: !!snapshot?.scripts?.length || !!snapshot?.scriptPath, scriptCount: snapshot?.scripts?.length ?? (snapshot?.scriptPath ? 1 : 0), autoApprovalBlocked: !!snapshot?.autoApprovalBlockedReason })}`,
+					)
 					if (!snapshot || !commandCwd) {
 						await publishCommandReview({
 							status: "wait",

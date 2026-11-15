@@ -863,12 +863,12 @@ describe("Cline", () => {
 			}
 			throw new Error("response was not received")
 		})
-		const command = `powershell -Command "Write-Output $_.Line"`
+		const command = `powershell -Command "Write-Output hello; Write-Output bye"`
 		const prepare = vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue({
 			command,
 			cwd: task.cwd,
 			cwdRealPath: task.cwd,
-			source: "Write-Output $_.Line",
+			source: "Write-Output hello; Write-Output bye",
 			requiresHuman: true,
 			manualReviewReason: "外层 shell 可能改变执行内容，需人工确认。",
 		})
@@ -904,12 +904,18 @@ describe("Cline", () => {
 		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
 		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
 		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
-		vi.spyOn(reviewer, "prepareReviewerEvidence").mockResolvedValue({
-			command: "python missing.py",
-			cwd: task.cwd,
-			cwdRealPath: task.cwd,
-			autoApprovalBlockedReason: "脚本未能读取，必须人工检查。",
-		})
+		const log = vi.spyOn(mockProvider, "log")
+		vi.spyOn(reviewer, "prepareReviewerEvidence").mockImplementation(
+			async (_command, _cwd, _root, _snapshot, report) => {
+				report?.({ stage: "script", reason: "filesystem_error", errorCode: "EACCES" })
+				return {
+					command: "python missing.py",
+					cwd: task.cwd,
+					cwdRealPath: task.cwd,
+					autoApprovalBlockedReason: "脚本未能读取，必须人工检查。",
+				}
+			},
+		)
 		const review = vi
 			.spyOn(reviewer, "reviewInlineCommand")
 			.mockResolvedValue({ decision: "allow", reason: "看起来安全" })
@@ -925,6 +931,22 @@ describe("Cline", () => {
 		expect(review).toHaveBeenCalledOnce()
 		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("脚本未能读取")
 		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("看起来安全")
+		expect(
+			log.mock.calls.some(
+				([line]: unknown[]) =>
+					typeof line === "string" &&
+					line.includes('"event":"script_capture"') &&
+					line.includes('"errorCode":"EACCES"'),
+			),
+		).toBe(true)
+		expect(
+			log.mock.calls.some(
+				([line]: unknown[]) =>
+					typeof line === "string" &&
+					line.includes('"event":"review_evidence"') &&
+					line.includes('"scriptCaptured":false'),
+			),
+		).toBe(true)
 		task.handleWebviewAskResponse("noButtonClicked")
 		expect((await pending).response).toBe("noButtonClicked")
 	})
