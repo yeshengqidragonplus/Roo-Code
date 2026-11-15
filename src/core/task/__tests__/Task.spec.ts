@@ -822,17 +822,17 @@ describe("Cline", () => {
 		})
 		const review = vi
 			.spyOn(reviewer, "reviewInlineCommand")
-			.mockResolvedValue({ decision: "allow", reason: "主脚本看似安全" })
+			.mockResolvedValue({ decision: "wait", reason: "依赖不可见，需要人工检查" })
 		const pending = task.ask("command", "python x.py", false, undefined, false, task.cwd)
 		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait"))
-		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("必须人工检查")
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("依赖不可见")
 		task.handleWebviewAskResponse("noButtonClicked")
 		expect((await pending).response).toBe("noButtonClicked")
 		prepare.mockRestore()
 		review.mockRestore()
 	})
 
-	it("reviews a PowerShell command with choice delegation disabled and never auto-approves an ambiguous wrapper", async () => {
+	it("lets the reviewer approve a PowerShell command even with choice delegation disabled", async () => {
 		const task = new Task({
 			provider: mockProvider,
 			apiConfiguration: mockApiConfig,
@@ -844,6 +844,9 @@ describe("Cline", () => {
 		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
 		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
 		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		;(vscode.window as any).showInformationMessage = vi.fn()
 		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
 			mode: { slug: "reviewer", name: "审核员" },
 			api: {},
@@ -873,14 +876,104 @@ describe("Cline", () => {
 			.spyOn(reviewer, "reviewInlineCommand")
 			.mockResolvedValue({ decision: "allow", reason: "看起来只读" })
 		const pending = task.ask("command", command, false, undefined, false, task.cwd)
-		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait"))
+		expect((await pending).response).toBe("yesButtonClicked")
 		expect(review).toHaveBeenCalledOnce()
-		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("外层 shell")
 		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("看起来只读")
-		task.handleWebviewAskResponse("noButtonClicked")
-		expect((await pending).response).toBe("noButtonClicked")
 		prepare.mockRestore()
 		review.mockRestore()
+	})
+
+	it("still waits when a model approves a referenced script that could not be captured", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerSecurityEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		vi.spyOn(reviewer, "prepareReviewerEvidence").mockResolvedValue({
+			command: "python missing.py",
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			autoApprovalBlockedReason: "脚本未能读取，必须人工检查。",
+		})
+		const review = vi
+			.spyOn(reviewer, "reviewInlineCommand")
+			.mockResolvedValue({ decision: "allow", reason: "看起来安全" })
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", "python missing.py", false, undefined, false, task.cwd)
+		await vi.waitFor(() => expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait"))
+		expect(review).toHaveBeenCalledOnce()
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("脚本未能读取")
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toContain("看起来安全")
+		task.handleWebviewAskResponse("noButtonClicked")
+		expect((await pending).response).toBe("noButtonClicked")
+	})
+
+	it("sends an ordinary command to the reviewer and executes on allow", async () => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerSecurityEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(true)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue("team")
+		vi.spyOn(task as any, "getWorkgroupReviewer").mockResolvedValue({
+			mode: { slug: "reviewer", name: "审核员" },
+			api: {},
+		})
+		vi.spyOn(task as any, "isCurrentWorkgroupReviewer").mockResolvedValue(true)
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(true)
+		vi.spyOn(reviewer, "prepareCommandReview").mockResolvedValue(undefined)
+		vi.spyOn(reviewer, "prepareReviewerEvidence").mockResolvedValue({
+			command: "python --version",
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			requiresHuman: true,
+		})
+		vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		const review = vi
+			.spyOn(reviewer, "reviewInlineCommand")
+			.mockResolvedValue({ decision: "allow", reason: "只查询版本" })
+		;(vscode.window as any).showInformationMessage = vi.fn()
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		expect((await task.ask("command", "python --version", false, undefined, false, task.cwd)).response).toBe(
+			"yesButtonClicked",
+		)
+		expect(review).toHaveBeenCalledOnce()
+		expect(task.clineMessages.at(-1)?.commandReview?.reason).toBe("只查询版本")
 	})
 
 	it("cannot override a human response with a late command review", async () => {

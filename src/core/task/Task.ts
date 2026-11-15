@@ -92,6 +92,7 @@ import { getTaskDirectoryPath } from "../../utils/storage"
 import {
 	isCommandSnapshotUnchanged,
 	prepareCommandReview,
+	prepareReviewerEvidence,
 	explainCommandReviewUnavailable,
 	explainReviewerFailure,
 	reviewFollowupChoice,
@@ -1493,7 +1494,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const command = text
 			void (async () => {
 				try {
-					const snapshot = commandSnapshot
+					const snapshot = commandCwd
+						? await prepareReviewerEvidence(command, commandCwd, this.cwd, commandSnapshot)
+						: undefined
 					if (!snapshot || !commandCwd) {
 						await publishCommandReview({
 							status: "wait",
@@ -1546,10 +1549,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						})
 						return
 					}
-					if (snapshot.requiresHuman) {
+					if (snapshot.autoApprovalBlockedReason) {
 						await publishCommandReview({
 							status: "wait",
-							reason: `${snapshot.manualReviewReason ?? "脚本可能依赖未捕获的代码或动态执行，必须人工检查。"}审核员意见：${result.reason}`,
+							reason: `${snapshot.autoApprovalBlockedReason}\n审核员意见：${result.reason}`,
 							reviewer: reviewer.mode.name,
 							scriptPath: snapshot.scriptPath,
 							scriptSha256: snapshot.sha256,

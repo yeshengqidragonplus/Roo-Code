@@ -6,6 +6,7 @@ import {
 	isSelfContainedReviewableCommand,
 	parseReviewerChoice,
 	prepareCommandReview,
+	prepareReviewerEvidence,
 	reviewFollowupChoice,
 	reviewInlineCommand,
 	withReviewerTimeout,
@@ -95,8 +96,72 @@ describe("command review", () => {
 				"/project",
 				"test",
 			),
-		).toMatchObject({ decision: "wait" })
-		expect(createMessage).toHaveBeenCalledTimes(1)
+		).toMatchObject({ decision: "allow" })
+		expect(createMessage).toHaveBeenCalledTimes(2)
+	})
+
+	it("reviews ordinary commands and marks uncaptured scripts as ineligible for automatic execution", async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "qcode-review-evidence-"))
+		try {
+			const ordinary = await prepareReviewerEvidence("python --version", dir, dir)
+			expect(ordinary?.command).toBe("python --version")
+			expect(ordinary?.autoApprovalBlockedReason).toBeUndefined()
+			const missing = await prepareReviewerEvidence("python missing.py --value 1", dir, dir)
+			expect(missing?.autoApprovalBlockedReason).toContain("未能安全读取")
+			const missingQuoted = await prepareReviewerEvidence('python "missing file.py"', dir, dir)
+			expect(missingQuoted?.autoApprovalBlockedReason).toContain("未能安全读取")
+			expect((await prepareReviewerEvidence("py missing.py", dir, dir))?.autoApprovalBlockedReason).toContain(
+				"未能安全读取",
+			)
+			expect(
+				(await prepareReviewerEvidence('"missing file.ps1"', dir, dir))?.autoApprovalBlockedReason,
+			).toContain("未能安全读取")
+			const outside = await prepareReviewerEvidence("python --version", os.tmpdir(), dir)
+			expect(outside?.autoApprovalBlockedReason).toContain("项目外")
+			const unavailableCwd = await prepareReviewerEvidence("python --version", path.join(dir, "not-found"), dir)
+			expect(unavailableCwd?.autoApprovalBlockedReason).toContain("无法解析")
+			const createMessage = vi.fn(async function* () {
+				yield { type: "text" as const, text: '{"decision":"wait","reason":"脚本内容不可见"}' }
+			})
+			const result = await reviewInlineCommand(
+				{ createMessage } as never,
+				{ roleDefinition: "Review" } as never,
+				"task",
+				"python missing.py --value 1",
+				dir,
+				"test",
+				missing,
+			)
+			expect(result.reason).toContain("脚本内容不可见")
+			expect(JSON.stringify(createMessage.mock.calls)).toContain("python missing.py --value 1")
+			await fs.writeFile(path.join(dir, "task.py"), "import os\nprint(1)")
+			const withArgs = await prepareReviewerEvidence("python task.py --output result", dir, dir)
+			expect(withArgs?.source).toContain("import os")
+			expect(withArgs?.autoApprovalBlockedReason).toBeUndefined()
+			expect(withArgs?.requiresHuman).toBe(true)
+			const multiple = await prepareReviewerEvidence("python task.py; python other.py", dir, dir)
+			expect(multiple?.autoApprovalBlockedReason).toContain("未能安全读取")
+		} finally {
+			await fs.rm(dir, { recursive: true, force: true })
+		}
+	})
+
+	it("shows a bounded model response when its decision format is invalid", async () => {
+		const api = {
+			createMessage: vi.fn(async function* () {
+				yield { type: "text" as const, text: "不确定这条命令" }
+			}),
+		}
+		const result = await reviewInlineCommand(
+			api as never,
+			{ roleDefinition: "Review" } as never,
+			"task",
+			"python --version",
+			"/project",
+			"test",
+		)
+		expect(result.decision).toBe("wait")
+		expect(result.reason).toContain("不确定这条命令")
 	})
 	it("requires a reason and fails closed on malformed or missing decisions", async () => {
 		for (const text of [
