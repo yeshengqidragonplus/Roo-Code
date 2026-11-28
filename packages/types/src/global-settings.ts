@@ -117,6 +117,11 @@ export const globalSettingsSchema = z.object({
 	 *   (no countdown). See docs/approval-mechanism-design.md.
 	 */
 	autoApprovalMode: z.enum(["manual", "sandbox"]).optional(),
+	/** Explicit approval tier. Undefined preserves the pre-tier workgroup behavior. */
+	autoApprovalTier: z.enum(["legacy", "sandbox", "full"]).optional(),
+	autoApprovalTierEnabled: z.boolean().optional(),
+	/** Minimum self-assessed score required in rule-based workgroup approval. */
+	autoApprovalMinSafetyScore: z.number().int().min(0).max(2).optional(),
 	alwaysAllowReadOnly: z.boolean().optional(),
 	alwaysAllowReadOnlyOutsideWorkspace: z.boolean().optional(),
 	alwaysAllowWrite: z.boolean().optional(),

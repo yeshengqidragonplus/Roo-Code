@@ -163,6 +163,8 @@ import { processUserContentMentions } from "../mentions/processUserContentMentio
 import { getMessagesSinceLastSummary, summarizeConversation, getEffectiveApiHistory } from "../condense"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
 import { AutoApprovalHandler, checkAutoApproval } from "../auto-approval"
+import { assessRuleCommand, parseCommandSafetyScore } from "../auto-approval/ruleApproval"
+import { isUnprotectedProjectPath } from "../auto-approval/projectPath"
 import { isCommandTrusted, trustCommand } from "../auto-approval/commandTrustStore"
 import { MessageManager } from "../message-manager"
 import { validateAndFixToolResultIds } from "./validateToolResultIds"
@@ -1440,8 +1442,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const state = provider ? await provider.getState() : undefined
 		const isWorkgroup = await this.isWorkgroupMode()
 		const reviewOriginMode = isWorkgroup ? await this.getTaskMode() : undefined
-		const approvalState = isWorkgroup ? { ...state, autoApprovalMode: "sandbox" as const } : state
-		const isProjectTrustMode = isWorkgroup || state?.autoApprovalMode === "sandbox"
+		const explicitTier = state?.autoApprovalTier
+		const tierEnabled = state?.autoApprovalTierEnabled !== false
+		const effectiveTier =
+			explicitTier ?? (isWorkgroup || state?.autoApprovalMode === "sandbox" ? "sandbox" : "legacy")
+		const approvalState = {
+			...state,
+			autoApprovalTier: tierEnabled ? effectiveTier : ("legacy" as const),
+			autoApprovalMode: tierEnabled && effectiveTier === "sandbox" ? ("sandbox" as const) : ("manual" as const),
+			autoApprovalEnabled: tierEnabled ? state?.autoApprovalEnabled : false,
+		}
+		const isProjectTrustMode = tierEnabled && effectiveTier === "sandbox"
 		const useProjectCommandTrust = type === "command" && text && isProjectTrustMode
 		const commandSnapshot =
 			useProjectCommandTrust && commandCwd ? await prepareCommandReview(text, commandCwd, this.cwd) : undefined
@@ -1458,13 +1469,124 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Without an active reviewer, an untrusted command using project trust
 		// must wait for the user in both workgroup and normal sandbox sessions.
 		// Keep legacy normal-mode policies and explicit project trust unchanged.
-		const approval =
+		let approval =
 			isProjectTrustMode &&
 			type === "command" &&
 			(!isWorkgroup || !this.reviewerSecurityEnabled) &&
 			workgroupCommandTrusted !== true
 				? ({ decision: "ask" } as const)
 				: calculatedApproval
+		if (tierEnabled && effectiveTier !== "legacy" && type === "tool" && approval.decision === "approve" && text) {
+			try {
+				const tool = JSON.parse(text) as {
+					tool?: string
+					path?: string
+					batchFiles?: Array<{ path?: string; content?: string }>
+					batchDiffs?: Array<{ path?: string }>
+				}
+				if (
+					[
+						"readFile",
+						"listFiles",
+						"listFilesTopLevel",
+						"listFilesRecursive",
+						"editedExistingFile",
+						"appliedDiff",
+						"newFileCreated",
+						"generateImage",
+					].includes(tool.tool ?? "")
+				) {
+					const paths = tool.batchFiles?.map((item) => item.content ?? item.path) ??
+						tool.batchDiffs?.map((item) => item.path) ?? [tool.path]
+					if (
+						!paths.length ||
+						!(
+							await Promise.all(
+								paths.map((item) =>
+									item
+										? isUnprotectedProjectPath(this.cwd, item, (relative) => {
+												const controller = this.rooProtectedController
+												if (!controller) return true
+												return (
+													controller.isWriteProtected(relative) ||
+													(!!tool.tool?.startsWith("listFiles") &&
+														controller.isWriteProtected(
+															path.join(relative, "__qcode_check__"),
+														))
+												)
+											})
+										: false,
+								),
+							)
+						).every(Boolean)
+					)
+						approval = { decision: "ask" }
+				}
+			} catch {
+				approval = { decision: "ask" }
+			}
+		}
+		let ruleSnapshot: Awaited<ReturnType<typeof prepareReviewerEvidence>>
+		if (tierEnabled && effectiveTier === "full" && type === "command") {
+			const snapshot = text && commandCwd ? await prepareReviewerEvidence(text, commandCwd, this.cwd) : undefined
+			ruleSnapshot = snapshot
+			const assessment = assessRuleCommand(
+				snapshot,
+				this.cwd,
+				(relative) => this.rooProtectedController?.isWriteProtected(relative) ?? true,
+			)
+			let reason = assessment.reason
+			let allowed = assessment.allowed
+			if (allowed && isWorkgroup) {
+				// Only a complete text block immediately preceding this tool call can
+				// authorize it. Never reuse a prior tool's response or partial stream.
+				const block = this.assistantMessageContent[this.currentStreamingContentIndex - 1]
+				const score = parseCommandSafetyScore(
+					block?.type === "text" && !block.partial ? block.content : "",
+					text ?? "",
+					assessment.itemIds,
+					state?.autoApprovalMinSafetyScore ?? 2,
+				)
+				allowed = score.allowed
+				reason = score.reason
+			}
+			if (allowed && (!snapshot || !(await isCommandSnapshotUnchanged(snapshot)))) {
+				allowed = false
+				reason = "审核后工作目录或脚本发生变化，请人工检查。"
+			}
+			if (allowed) {
+				try {
+					const latest = await provider?.getState()
+					if (
+						!latest ||
+						latest.autoApprovalTier !== "full" ||
+						latest.autoApprovalTierEnabled === false ||
+						(latest.autoApprovalMinSafetyScore ?? 2) !== (state?.autoApprovalMinSafetyScore ?? 2) ||
+						(await this.isWorkgroupMode()) !== isWorkgroup ||
+						(isWorkgroup && (await this.getTaskMode()) !== reviewOriginMode)
+					) {
+						allowed = false
+						reason = "审批档位、评分阈值或会话模式发生变化，请人工检查。"
+					}
+				} catch {
+					allowed = false
+					reason = "无法确认最新审批配置，请人工检查。"
+				}
+			}
+			approval = allowed ? { decision: "approve" } : { decision: "ask" }
+			const message = this.findMessageByTimestamp(askTs)
+			if (
+				message?.ask === "command" &&
+				this.askResponse === undefined &&
+				this.activeReviewerAsk === reviewerAskToken &&
+				this.lastMessageTs === askTs &&
+				!this.abort
+			) {
+				message.commandReview = { status: allowed ? "allow" : "wait", reason }
+				await this.updateClineMessage(message)
+				await this.saveClineMessages()
+			}
+		}
 		if (type === "command") {
 			provider?.log?.(
 				`[command-approval] ${JSON.stringify({ event: "decision", taskId: this.taskId, askTs, workgroup: isWorkgroup, approvalMode: state?.autoApprovalMode ?? "legacy", autoApprovalEnabled: state?.autoApprovalEnabled === true, alwaysAllowExecute: state?.alwaysAllowExecute === true, reviewerEnabled: isWorkgroup && this.reviewerSecurityEnabled, snapshotAvailable: !!commandSnapshot, projectTrusted: workgroupCommandTrusted ?? null, calculated: calculatedApproval.decision, effective: approval.decision })}`,
@@ -1489,7 +1611,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			await this.saveClineMessages()
 		}
 
-		if (isWorkgroup && this.reviewerSecurityEnabled && type === "command" && approval.decision === "ask" && text) {
+		if (
+			isProjectTrustMode &&
+			isWorkgroup &&
+			this.reviewerSecurityEnabled &&
+			type === "command" &&
+			approval.decision === "ask" &&
+			text
+		) {
 			this.activeSecurityReview = securityReviewToken
 			const command = text
 			void (async () => {
@@ -1706,6 +1835,47 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
+		if (tierEnabled && effectiveTier === "full" && type === "command" && approval.decision === "approve") {
+			try {
+				const latest = await provider?.getState()
+				if (
+					!latest ||
+					latest.autoApprovalTier !== "full" ||
+					latest.autoApprovalTierEnabled === false ||
+					(latest.autoApprovalMinSafetyScore ?? 2) !== (state?.autoApprovalMinSafetyScore ?? 2) ||
+					!ruleSnapshot ||
+					!(await isCommandSnapshotUnchanged(ruleSnapshot))
+				) {
+					approval = { decision: "ask" }
+					const message = this.findMessageByTimestamp(askTs)
+					if (
+						message?.ask === "command" &&
+						this.askResponse === undefined &&
+						this.activeReviewerAsk === reviewerAskToken &&
+						this.lastMessageTs === askTs &&
+						!this.abort
+					) {
+						message.commandReview = {
+							status: "wait",
+							reason: "审核后配置、工作目录或脚本发生变化，请人工检查。",
+						}
+						await this.updateClineMessage(message)
+						await this.saveClineMessages()
+					}
+				}
+			} catch {
+				approval = { decision: "ask" }
+			}
+		}
+		if (
+			approval.decision === "approve" &&
+			(this.abort ||
+				this.activeReviewerAsk !== reviewerAskToken ||
+				this.askResponse !== undefined ||
+				this.lastMessageTs !== askTs)
+		) {
+			approval = { decision: "ask" }
+		}
 		if (approval.decision === "approve") {
 			if (type === "command")
 				provider?.log?.(

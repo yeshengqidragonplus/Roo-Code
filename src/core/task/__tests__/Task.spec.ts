@@ -202,6 +202,102 @@ describe("Cline", () => {
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
 
+	it.each([false, true])("uses rule checks in a normal or workgroup session (workgroup=%s)", async (workgroup) => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+			reviewerSecurityEnabled: true,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({
+			autoApprovalTier: "full",
+			autoApprovalTierEnabled: true,
+		} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(workgroup)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue(workgroup ? "team" : "code")
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(undefined)
+		const command = "python --version"
+		if (workgroup) {
+			task.assistantMessageContent = [
+				{
+					type: "text",
+					content: JSON.stringify({
+						command,
+						items: [{ id: "command-1", safetyScore: 2, decision: "allow", reason: "只查询版本" }],
+					}),
+					partial: false,
+				},
+				{ type: "tool_use", name: "execute_command", params: {}, partial: false },
+			]
+			task.currentStreamingContentIndex = 1
+		}
+		const review = vi.spyOn(reviewer, "prepareReviewerEvidence").mockResolvedValue({
+			command,
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			reviewItems: [{ id: "command-1", kind: "command", label: "command", text: command }],
+		})
+		const unchanged = vi.spyOn(reviewer, "isCommandSnapshotUnchanged").mockResolvedValue(true)
+		const result = await task.ask("command", command, false, undefined, false, task.cwd)
+		expect(result.response).toBe("yesButtonClicked")
+		expect(review).toHaveBeenCalled()
+		review.mockRestore()
+		unchanged.mockRestore()
+	})
+
+	it.each([
+		{ workgroup: true, command: "python --version", label: "missing score" },
+		{ workgroup: false, command: "git push --force", label: "dangerous command" },
+	])("waits for a human on $label", async ({ workgroup, command }) => {
+		const task = new Task({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test",
+			startTask: false,
+		})
+		vi.spyOn(mockProvider, "getState").mockResolvedValue({
+			autoApprovalTier: "full",
+			autoApprovalTierEnabled: true,
+		} as never)
+		vi.spyOn(task as any, "isWorkgroupMode").mockResolvedValue(workgroup)
+		vi.spyOn(task, "getTaskMode").mockResolvedValue(workgroup ? "team" : "code")
+		vi.spyOn(task as any, "addToClineMessages").mockImplementation(async (message: any) => {
+			task.clineMessages.push(message)
+		})
+		vi.spyOn(task as any, "updateClineMessage").mockResolvedValue(undefined)
+		vi.spyOn(task as any, "saveClineMessages").mockResolvedValue(undefined)
+		const review = vi.spyOn(reviewer, "prepareReviewerEvidence").mockResolvedValue({
+			command,
+			cwd: task.cwd,
+			cwdRealPath: task.cwd,
+			reviewItems: [{ id: "command-1", kind: "command", label: "command", text: command }],
+		})
+		let started!: () => void
+		const waiting = new Promise<void>((resolve) => {
+			started = resolve
+		})
+		vi.mocked(pWaitFor).mockImplementationOnce(async (predicate) => {
+			started()
+			for (let i = 0; i < 200; i++) {
+				if (predicate()) return
+				await new Promise((resolve) => setTimeout(resolve, 2))
+			}
+			throw new Error("response was not received")
+		})
+		const pending = task.ask("command", command, false, undefined, false, task.cwd)
+		await waiting
+		expect((task as any).askResponse).toBeUndefined()
+		expect(task.clineMessages.at(-1)?.commandReview?.status).toBe("wait")
+		task.handleWebviewAskResponse("yesButtonClicked")
+		expect((await pending).response).toBe("yesButtonClicked")
+		review.mockRestore()
+	})
+
 	it("restores the security-review switch per session and defaults old sessions to off", () => {
 		const history = { id: "old-task", number: 1, ts: 1, task: "old", tokensIn: 0, tokensOut: 0, totalCost: 0 }
 		const old = new Task({

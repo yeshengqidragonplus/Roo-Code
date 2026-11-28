@@ -85,6 +85,8 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		reviewerChoiceEnabled,
 		reviewerSecurityEnabled,
 		autoApprovalMode,
+		autoApprovalTier,
+		autoApprovalTierEnabled,
 		scheduledTask,
 	} = useExtensionState()
 	const [newTaskReviewerChoice, setNewTaskReviewerChoice] = useState(false)
@@ -1862,7 +1864,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 									)}
 									{clineAsk === "command" &&
 										secondaryButtonText &&
-										(currentWorkgroup || autoApprovalMode === "sandbox") && (
+										(autoApprovalTier
+											? autoApprovalTier === "sandbox" && autoApprovalTierEnabled !== false
+											: currentWorkgroup || autoApprovalMode === "sandbox") && (
 											<Button
 												variant="secondary"
 												disabled={!enableButtons}

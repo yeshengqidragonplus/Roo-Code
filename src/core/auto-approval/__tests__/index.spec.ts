@@ -1,6 +1,6 @@
 import type { ClineAsk } from "@roo-code/types"
 
-import { checkAutoApproval, type AutoApprovalState, type AutoApprovalStateOptions } from "../index"
+import { checkAutoApproval, looksLikeForcePush, type AutoApprovalState, type AutoApprovalStateOptions } from "../index"
 
 // Minimal state builder — only the fields checkAutoApproval reads.
 type ApprovalState = Partial<Record<AutoApprovalState | AutoApprovalStateOptions, unknown>>
@@ -88,6 +88,59 @@ describe("checkAutoApproval — zero-impact guarantee (manual / undefined mode)"
 			text: JSON.stringify({ suggest: [{ answer: "yes" }] }),
 		})
 		expect(result.decision).toBe("ask")
+	})
+})
+
+describe("full trust tier", () => {
+	const full = { autoApprovalTier: "full", autoApprovalTierEnabled: true }
+	it.each([
+		"git push --force",
+		"git -C project push --force-with-lease origin main",
+		"git push -uf origin main",
+		"git push origin +main:main",
+		"echo ok && git push -f",
+	])("routes direct force push to rule evaluation: %s", async (command) => {
+		expect(looksLikeForcePush(command)).toBe(true)
+		expect(await decide({ state: full, ask: "command", text: command })).toEqual({ decision: "ask" })
+	})
+	it.each(["git status", "git push origin main", "python build.py", "npm test"])(
+		"routes other commands to rule evaluation: %s",
+		async (command) => {
+			expect(await decide({ state: full, ask: "command", text: command })).toEqual({ decision: "ask" })
+		},
+	)
+	it("uses sandbox rules for reads, protected writes and MCP", async () => {
+		expect(await decide({ state: full, ask: "tool", text: toolText("readFile") })).toEqual({ decision: "approve" })
+		expect(await decide({ state: full, ask: "tool", text: toolText("readFile"), isProtected: true })).toEqual({
+			decision: "ask",
+		})
+		expect(
+			await decide({ state: full, ask: "tool", text: toolText("readFile", { isOutsideWorkspace: true }) }),
+		).toEqual({ decision: "ask" })
+		expect(
+			await decide({
+				state: full,
+				ask: "tool",
+				text: toolText("readFile", { batchFiles: [{ isOutsideWorkspace: true }] }),
+			}),
+		).toEqual({ decision: "ask" })
+		expect(await decide({ state: full, ask: "tool", text: toolText("searchFiles") })).toEqual({ decision: "ask" })
+		expect(
+			await decide({ state: full, ask: "tool", text: toolText("editedExistingFile"), isProtected: true }),
+		).toEqual({ decision: "ask" })
+		expect(await decide({ state: full, ask: "use_mcp_server", text: "{}" })).toEqual({ decision: "ask" })
+	})
+	it("still waits for follow-up choices", async () => {
+		expect(await decide({ state: full, ask: "followup" })).toEqual({ decision: "ask" })
+	})
+	it("does not approve when the tier is turned off", async () => {
+		expect(
+			await decide({
+				state: { ...full, autoApprovalTierEnabled: false },
+				ask: "command",
+				text: "python build.py",
+			}),
+		).toEqual({ decision: "ask" })
 	})
 })
 

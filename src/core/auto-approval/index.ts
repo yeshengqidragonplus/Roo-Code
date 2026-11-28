@@ -26,6 +26,8 @@ export type AutoApprovalState =
 export type AutoApprovalStateOptions =
 	| "autoApprovalEnabled"
 	| "autoApprovalMode" // Session-level posture: "manual" (default) | "sandbox".
+	| "autoApprovalTier"
+	| "autoApprovalTierEnabled"
 	| "alwaysAllowReadOnlyOutsideWorkspace" // For `alwaysAllowReadOnly`.
 	| "alwaysAllowWriteOutsideWorkspace" // For `alwaysAllowWrite`.
 	| "alwaysAllowWriteProtected"
@@ -60,6 +62,17 @@ export async function checkAutoApproval({
 }): Promise<CheckAutoApprovalResult> {
 	if (isNonBlockingAsk(ask)) {
 		return { decision: "approve" }
+	}
+	if (state?.autoApprovalTier && state.autoApprovalTier !== "legacy" && state.autoApprovalTierEnabled === false) {
+		return { decision: "ask" }
+	}
+
+	if (state?.autoApprovalTier === "full" && state.autoApprovalTierEnabled !== false) {
+		// Commands must be evaluated by Task using captured evidence and, in a
+		// workgroup, a score from the current model response. Never trust a generic
+		// prefix allowlist or whitelist here.
+		if (ask === "command") return { decision: "ask" }
+		return checkSandboxApproval({ state, ask, text, isProtected })
 	}
 
 	// A workgroup deliberately has a separate command trust model. Do this before
@@ -179,6 +192,18 @@ export async function checkAutoApproval({
 	return { decision: "ask" }
 }
 
+/** Best-effort textual guard, not a security boundary: scripts can bypass it. */
+export function looksLikeForcePush(command: string): boolean {
+	const match = /\bgit(?:\.exe)?\b[\s\S]*?\bpush\b([\s\S]*)/i.exec(command)
+	if (!match) return false
+	const args = match[1]
+	return (
+		/(?:^|[\s"'])--force(?:-with-lease|-if-includes)?(?:[=\s"';|&]|$)/i.test(args) ||
+		/(?:^|[\s"'])-[a-z]*f[a-z]*(?:[\s"';|&]|$)/i.test(args) ||
+		/(?:^|[\s"'])\+[^\s"';|&]+/.test(args)
+	)
+}
+
 /**
  * Sandbox-autonomy decision rules (session mode "sandbox" / L1).
  *
@@ -266,11 +291,16 @@ function checkSandboxApproval({
 			return { decision: "approve" }
 		}
 
-		const isOutsideWorkspace = !!tool.isOutsideWorkspace
+		const isOutsideWorkspace =
+			!!tool.isOutsideWorkspace || !!tool.batchFiles?.some((file) => file.isOutsideWorkspace)
 
 		// Reading inside the workspace is free; outside always asks.
 		if (isReadOnlyToolAction(tool)) {
-			return isOutsideWorkspace ? { decision: "ask" } : { decision: "approve" }
+			// A project-wide search may return protected file contents; it cannot
+			// safely be treated as a single unprotected read.
+			return isOutsideWorkspace || isProtected || tool.tool === "searchFiles" || tool.tool === "codebaseSearch"
+				? { decision: "ask" }
+				: { decision: "approve" }
 		}
 
 		// Writing inside the workspace is git-recoverable; outside always asks,

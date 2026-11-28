@@ -1,6 +1,14 @@
 {
 	"greeting": "Welcome to QCode!",
 	"sandboxMode": {
+		"tier": { "legacy": "Legacy approval", "sandbox": "Safety review", "full": "Rules and score" },
+		"enabled": "on",
+		"disabled": "off",
+		"chooseTier": "Choose approval tier",
+		"tierTooltip": "{{tier}}: {{state}}. Left-click to toggle; right-click to choose a tier.",
+		"fullWarning": "Rules and scores are not OS isolation. Commands run as your current user. Uncertain operations wait for approval; rules and models can miss risks. Protect the remote repository against force pushes. This setting affects other projects and sessions.",
+		"confirmFull": "I understand; enable rules and score",
+		"minimumScore": "Minimum workgroup safety score",
 		"on": "Sandbox: On",
 		"off": "Sandbox: Off",
 		"tooltipOn": "Sandbox autonomy ON — auto-approves reads/writes inside the project; still asks for anything outside the project, protected files, and unknown commands. Click to turn off.",

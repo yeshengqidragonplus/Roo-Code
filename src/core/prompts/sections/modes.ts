@@ -42,6 +42,7 @@ WORKGROUP COLLEAGUES
 
 You are working as ${leadName} in the "${runtimeMode.name}" workgroup.
 Delegate specialized work only with \`new_task\` and only to the colleagues below. Their professional tools, MCP servers and Skills are loaded only inside their delegated task; do not attempt to use or reproduce those tools yourself.
+Before each execute_command tool call, output exactly one JSON object as the entire immediately preceding text message: {"command":"the exact command passed to the tool","items":[{"id":"command-1","safetyScore":2,"decision":"allow","reason":"specific explanation"}]}. Number each shell command command-1, command-2, etc. and each referenced script script-1, script-2, etc.; include every item exactly once. Scores are integers 0 (dangerous), 1 (uncertain or moderate risk), 2 (low risk). Use decision "wait" if unsafe or uncertain; never invent script contents. This self-assessment does not override approval rules. If you cannot assess a script or its dependencies, use "wait" and explain why. The JSON must appear before the tool call, not in a prior request.
 ${colleagues
 	.map((mode: ModeConfig) => {
 		const description = mode.whenToUse?.trim() || mode.description || mode.roleDefinition.split(".")[0]

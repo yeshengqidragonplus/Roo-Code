@@ -100,6 +100,8 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			enterBehavior,
 			lockApiConfigAcrossModes,
 			workflowViz,
+			autoApprovalTier,
+			autoApprovalMode,
 		} = useExtensionState()
 
 		// Derive the workflowId of the currently selected mode (if it's a
@@ -1338,7 +1340,9 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							lockApiConfigAcrossModes={!!lockApiConfigAcrossModes}
 							onToggleLockApiConfig={handleToggleLockApiConfig}
 						/>
-						{!isWorkgroupMode && (
+						{(autoApprovalTier ??
+							(isWorkgroupMode || autoApprovalMode === "sandbox" ? "sandbox" : "legacy")) ===
+							"legacy" && (
 							<AutoApproveDropdown triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink" />
 						)}
 						<SandboxModeToggle forced={isWorkgroupMode} />

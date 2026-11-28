@@ -590,7 +590,7 @@ describe("ReadFileTool", () => {
 
 			await readFileTool.execute({ path: "test.ts" }, mockTask as any, callbacks)
 
-			expect(mockTask.ask).toHaveBeenCalledWith("tool", expect.any(String), false)
+			expect(mockTask.ask).toHaveBeenCalledWith("tool", expect.any(String), false, undefined, true)
 			expect(mockTask.didRejectTool).toBe(false)
 		})
 

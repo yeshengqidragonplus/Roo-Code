@@ -421,15 +421,33 @@ export class ReadFileTool extends BaseTool<"read_file"> {
 		})
 	}
 
-	/**
-	 * Request user approval for file reads.
-	 */
+	private async requiresProtectedApproval(task: Task, relativePath: string): Promise<boolean> {
+		try {
+			const root = await fs.realpath(task.cwd)
+			const actual = await fs.realpath(path.resolve(task.cwd, relativePath))
+			const rel = path.relative(root, actual)
+			return (
+				rel === ".." ||
+				rel.startsWith(`..${path.sep}`) ||
+				path.isAbsolute(rel) ||
+				(task.rooProtectedController?.isWriteProtected(rel) ?? true)
+			)
+		} catch {
+			return true
+		}
+	}
+
+	/** Request user approval for file reads. */
 	private async requestApproval(
 		task: Task,
 		filesToApprove: FileResult[],
 		updateFileResult: (path: string, updates: Partial<FileResult>) => void,
 	): Promise<void> {
 		if (filesToApprove.length === 0) return
+		// Resolve symbolic links before allowing unattended reads; failure asks.
+		const protectedPaths = await Promise.all(
+			filesToApprove.map((file) => this.requiresProtectedApproval(task, file.path)),
+		)
 
 		if (filesToApprove.length > 1) {
 			// Batch approval
@@ -446,7 +464,13 @@ export class ReadFileTool extends BaseTool<"read_file"> {
 			})
 
 			const completeMessage = JSON.stringify({ tool: "readFile", batchFiles } satisfies ClineSayTool)
-			const { response, text, images } = await task.ask("tool", completeMessage, false)
+			const { response, text, images } = await task.ask(
+				"tool",
+				completeMessage,
+				false,
+				undefined,
+				protectedPaths.some(Boolean),
+			)
 
 			if (response === "yesButtonClicked") {
 				if (text) await task.say("user_feedback", text, images)
@@ -515,7 +539,13 @@ export class ReadFileTool extends BaseTool<"read_file"> {
 				startLine,
 			} satisfies ClineSayTool)
 
-			const { response, text, images } = await task.ask("tool", completeMessage, false)
+			const { response, text, images } = await task.ask(
+				"tool",
+				completeMessage,
+				false,
+				undefined,
+				protectedPaths[0],
+			)
 
 			if (response !== "yesButtonClicked") {
 				if (text) await task.say("user_feedback", text, images)
@@ -713,7 +743,13 @@ export class ReadFileTool extends BaseTool<"read_file"> {
 				reason: lineSnippet || undefined,
 			} satisfies ClineSayTool)
 
-			const { response, text, images } = await task.ask("tool", completeMessage, false)
+			const { response, text, images } = await task.ask(
+				"tool",
+				completeMessage,
+				false,
+				undefined,
+				await this.requiresProtectedApproval(task, relPath),
+			)
 
 			if (response !== "yesButtonClicked") {
 				if (text) await task.say("user_feedback", text, images)
